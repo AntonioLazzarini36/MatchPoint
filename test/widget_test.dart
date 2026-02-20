@@ -15,5 +15,6 @@ void main() {
     await tester.pump();
 
     // Verifica que la app se renderiza
-    expect(find.byType(MatchPointApp), findsOneWidget);  });
+    expect(find.byType(MatchPointApp), findsOneWidget);
+  });
 }
