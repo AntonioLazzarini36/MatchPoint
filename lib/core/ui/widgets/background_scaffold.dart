@@ -17,9 +17,7 @@ class BackgroundScaffold extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset(assetPath, fit: BoxFit.cover),
-          ),
+          Positioned.fill(child: Image.asset(assetPath, fit: BoxFit.cover)),
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -32,10 +30,7 @@ class BackgroundScaffold extends StatelessWidget {
             ),
           ),
           SafeArea(
-            child: Padding(
-              padding: padding,
-              child: child,
-            ),
+            child: Padding(padding: padding, child: child),
           ),
         ],
       ),

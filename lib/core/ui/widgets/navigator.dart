@@ -13,11 +13,7 @@ class NavigatorShell extends StatefulWidget {
 class NavigatorShellState extends State<NavigatorShell> {
   int _index = 0;
 
-  final _screens = const [
-    DiscoveryScreen(),
-    MatchesScreen(),
-    ProfileScreen(),
-  ];
+  final _screens = const [DiscoveryScreen(), MatchesScreen(), ProfileScreen()];
 
   @override
   Widget build(BuildContext context) {

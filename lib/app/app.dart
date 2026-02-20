@@ -12,7 +12,7 @@ class MatchPointApp extends StatelessWidget {
   const MatchPointApp({super.key});
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MatchPoint',

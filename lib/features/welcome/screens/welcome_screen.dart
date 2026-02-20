@@ -29,7 +29,8 @@ class WelcomeScreen extends StatelessWidget {
           const Spacer(),
 
           FilledButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.shell),
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, AppRoutes.shell),
             child: const Text('Get Started'),
           ),
           const SizedBox(height: 12),

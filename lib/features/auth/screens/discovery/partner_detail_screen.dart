@@ -8,7 +8,10 @@ class PartnerDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Partner Detail')),
       body: const Center(
-        child: Text('Partner Detail (próximamente)', style: TextStyle(fontSize: 18)),
+        child: Text(
+          'Partner Detail (próximamente)',
+          style: TextStyle(fontSize: 18),
+        ),
       ),
     );
   }

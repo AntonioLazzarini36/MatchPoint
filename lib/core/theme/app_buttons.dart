@@ -16,7 +16,7 @@ class AppButtons {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        side: BorderSide(color: cs.onSurface.withOpacity(0.35)),
+        side: BorderSide(color: cs.onSurface.withValues(alpha: 0.35)),
         foregroundColor: cs.onSurface,
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
