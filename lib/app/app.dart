@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../themes/app_theme.dart';
-import '../screens/welcome/welcome_screen.dart';
+import '../core/theme/app_theme.dart';
+import '../features/welcome/screens/welcome_screen.dart';
 import 'routes.dart';
-import '../widgets/navigator.dart';
-import '../screens/onboarding/onboarding_profile_screen.dart';
-import '../screens/discovery/partner_detail_screen.dart';
-import '../screens/matches/chat_screen.dart';
-import '../screens/profile/settings_screen.dart';
+import '../core/ui/widgets/navigator.dart';
+import '../features/auth/screens/onboarding/onboarding_profile_screen.dart';
+import '../features/auth/screens/discovery/partner_detail_screen.dart';
+import '../features/auth/screens/matches/chat_screen.dart';
+import '../features/auth/screens/profile/settings_screen.dart';
 
 class MatchPointApp extends StatelessWidget {
   const MatchPointApp({super.key});
@@ -16,7 +16,7 @@ class MatchPointApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MatchPoint',
-      theme: AppTheme.light(),
+      theme: AppTheme.dark(),
       initialRoute: AppRoutes.welcome,
       routes: {
         AppRoutes.welcome: (_) => const WelcomeScreen(),
