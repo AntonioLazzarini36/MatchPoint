@@ -1,20 +1,13 @@
-# match_point
+Still on development
 
-A new Flutter project.
+I am trying to create an app with different services and orchestrated by docker.
 
-## Getting Started
+API: authentication + profiles + discovery/matching + image storage
 
-This project is a starting point for a Flutter application.
+DB: Postgres
 
-A few resources to get you started if this is your first Flutter project:
+Auth: Probably use a provider like: Firebase Auth / Supabase Auth / Auth0.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Notifications (further on): worker + cqueue (BullMQ/Redis) o services
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-# Partner
-Partner is a mobile-app that will help you to find the partner you have been missing in your favourite sport
+Frontend: Inside apps/mobile/ -> Run using flutter run -d chrome
