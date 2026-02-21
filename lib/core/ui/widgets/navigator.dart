@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../screens/discovery/discovery_screen.dart';
-import '../screens/matches/matches_screen.dart';
-import '../screens/profile/profile_screen.dart';
+import '../../../features/auth/screens/discovery/discovery_screen.dart';
+import '../../../features/auth/screens/matches/matches_screen.dart';
+import '../../../features/auth/screens/profile/profile_screen.dart';
 
 class NavigatorShell extends StatefulWidget {
   const NavigatorShell({super.key});
@@ -13,11 +13,7 @@ class NavigatorShell extends StatefulWidget {
 class NavigatorShellState extends State<NavigatorShell> {
   int _index = 0;
 
-  final _screens = const [
-    DiscoveryScreen(),
-    MatchesScreen(),
-    ProfileScreen(),
-  ];
+  final _screens = const [DiscoveryScreen(), MatchesScreen(), ProfileScreen()];
 
   @override
   Widget build(BuildContext context) {

@@ -7,7 +7,10 @@ class DiscoveryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        child: Text('Explore (Swipe) — próximamente', style: TextStyle(fontSize: 20)),
+        child: Text(
+          'Explore (Swipe) — próximamente',
+          style: TextStyle(fontSize: 20),
+        ),
       ),
     );
   }
