@@ -1,20 +1,29 @@
-# match_point
+### MatchPoint is a date-based app for sports. Here you can find your perfect partner for your tennis match or running session.
 
-A new Flutter project.
+## How to init everything:
+- DB:
+    - docker compose up -d db
 
-## Getting Started
+- Backend:
+    - cd services/api
+    - npm run start:dev
 
-This project is a starting point for a Flutter application.
+- Flutter / Frontend:
+    - cd apps/mobile
+    - flutter run -d chrome
 
-A few resources to get you started if this is your first Flutter project:
+## Additional information:
+- apps/mobile/ → Flutter:
+This is the frontend. Just the interface. It does not own a database. Calls the backend via HTTP.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- services/api/ → Backend (NestJS + TypeScript):
+Backend server built with NestJS. Uses Prisma as ORM. Connects to PostgreSQL. Listens at localhost:3000.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Prisma:
+ORM (layer between code and database). Defines the models. Generates the client for the backend. Executes migrations.
 
-# Partner
-Partner is a mobile-app that will help you to find the partner you have been missing in your favourite sport
+- PostgreSQL:
+Database. Runs inside Docker. Lives at localhost:5432.
+
+- Docker:
+Currently only runs the database. Flutter and backend are not yet dockerized.
