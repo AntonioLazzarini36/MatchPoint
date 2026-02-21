@@ -13,17 +13,17 @@
     - flutter run -d chrome
 
 ## Additional information:
-apps/mobile/ → Flutter:
+- apps/mobile/ → Flutter:
 This is the frontend. Just the interface. It does not own a database. Calls the backend via HTTP.
 
-services/api/ → Backend (NestJS + TypeScript):
+- services/api/ → Backend (NestJS + TypeScript):
 Backend server built with NestJS. Uses Prisma as ORM. Connects to PostgreSQL. Listens at localhost:3000.
 
-Prisma:
+- Prisma:
 ORM (layer between code and database). Defines the models. Generates the client for the backend. Executes migrations.
 
-PostgreSQL:
+- PostgreSQL:
 Database. Runs inside Docker. Lives at localhost:5432.
 
-Docker:
+- Docker:
 Currently only runs the database. Flutter and backend are not yet dockerized.
