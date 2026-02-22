@@ -27,3 +27,22 @@ Database. Runs inside Docker. Lives at localhost:5432.
 
 - Docker:
 Currently only runs the database. Flutter and backend are not yet dockerized.
+
+## Regarding the API POST and GET endpoints:
+- Add JWT authentication with access/refresh tokens
+  - POST /auth/register
+  - POST /auth/login
+  - POST /auth/refresh
+  - POST /auth/logout
+- Add authenticated "me" endpoints (profile + preferences)
+  - GET /me
+  - PATCH /me/profile
+  - PATCH /me/preferences
+- Add discover feed endpoint
+  - GET /discover?sport=TENNIS|RUNNING
+- Implement swipe + match core flow
+  - POST /swipes { toUserId, sport, type: LIKE|PASS }
+    - creates/updates swipe, returns { match: true, matchId } on mutual LIKE
+  - GET /matches
+    - lists matches for current user with other user profile info
+- Prisma schema/migrations updated for SwipeType, Swipe, Match + seed tooling
