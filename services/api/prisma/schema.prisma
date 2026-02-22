@@ -12,6 +12,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Sport {
+  TENNIS
+  RUNNING
+}
+
+enum SwipeType { 
+  LIKE
+  PASS 
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -22,6 +32,11 @@ model User {
   profile       Profile?
   preferences   Preferences?
   refreshTokens RefreshToken[]
+
+  swipesFrom Swipe[] @relation("SwipesFrom")
+  swipesTo   Swipe[] @relation("SwipesTo")
+  matchesA   Match[] @relation("MatchesA")
+  matchesB   Match[] @relation("MatchesB")
 }
 
 model Profile {
@@ -32,10 +47,10 @@ model Profile {
   displayName String
   birthDate   DateTime
   city        String?
-
   bio         String?
-  sports      String[] @default([]) // simple y práctico para MVP
   photos      String[] @default([]) // URLs
+
+  sports Sport[] @default([]) // simple y práctico para MVP 
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -46,7 +61,7 @@ model Preferences {
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  sportsWanted    String[] @default([])
+  sportsWanted Sport[] @default([])
   distanceKm      Int      @default(25)
   ageMin          Int      @default(18)
   ageMax          Int      @default(60)
@@ -65,4 +80,34 @@ model RefreshToken {
   revokedAt DateTime?
 
   createdAt DateTime @default(now())
+}
+
+model Swipe {
+  id        String    @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  sport      Sport
+  type       SwipeType
+  createdAt  DateTime @default(now())
+
+  fromUser   User      @relation("SwipesFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User      @relation("SwipesTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId, sport]) // 1 swipe por deporte
+  @@index([toUserId, sport])
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  sport     Sport
+  createdAt DateTime @default(now())
+
+  userA     User     @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId, sport]) // guardamos ordenado (A < B)
+  @@index([userAId])
+  @@index([userBId])
 }
