@@ -12,6 +12,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Sport {
+  TENNIS
+  RUNNING
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -32,10 +37,10 @@ model Profile {
   displayName String
   birthDate   DateTime
   city        String?
-
   bio         String?
-  sports      String[] @default([]) // simple y práctico para MVP
   photos      String[] @default([]) // URLs
+
+  sports Sport[] @default([]) // simple y práctico para MVP 
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -46,7 +51,7 @@ model Preferences {
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  sportsWanted    String[] @default([])
+  sportsWanted Sport[] @default([])
   distanceKm      Int      @default(25)
   ageMin          Int      @default(18)
   ageMax          Int      @default(60)

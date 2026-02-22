@@ -1,3 +1,6 @@
+-- CreateEnum
+CREATE TYPE "Sport" AS ENUM ('TENNIS', 'RUNNING');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -17,8 +20,8 @@ CREATE TABLE "Profile" (
     "birthDate" TIMESTAMP(3) NOT NULL,
     "city" TEXT,
     "bio" TEXT,
-    "sports" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "photos" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "sports" "Sport"[] DEFAULT ARRAY[]::"Sport"[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -29,7 +32,7 @@ CREATE TABLE "Profile" (
 CREATE TABLE "Preferences" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "sportsWanted" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "sportsWanted" "Sport"[] DEFAULT ARRAY[]::"Sport"[],
     "distanceKm" INTEGER NOT NULL DEFAULT 25,
     "ageMin" INTEGER NOT NULL DEFAULT 18,
     "ageMax" INTEGER NOT NULL DEFAULT 60,
