@@ -7,10 +7,10 @@ import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
 
-import 'package:match_point/core/ui/widgets/onboarding_step_scaffold.dart';
-import 'package:match_point/core/ui/widgets/onboarding_profile_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding_goal_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding_location_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_step_scaffold.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 
 class OnboardingProfileScreen extends StatefulWidget {
   const OnboardingProfileScreen({super.key});
