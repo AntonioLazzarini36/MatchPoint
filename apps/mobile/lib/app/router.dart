@@ -56,7 +56,10 @@ class AppRouter {
       ),
       GoRoute(
         path: AppRoutes.chat,
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) {
+          final matchId = state.pathParameters['matchId']!;
+          return ChatScreen(matchId: matchId);
+        },
       ),
 
       // --- PROFILE ---

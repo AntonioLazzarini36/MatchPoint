@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
 class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
+  final String matchId;
+
+  const ChatScreen({super.key, required this.matchId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Chat')),
-      body: const Center(
-        child: Text('Chat (próximamente)', style: TextStyle(fontSize: 18)),
+      body: Center(
+        child: Text(
+          'Chat del match:\n$matchId',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18),
+        ),
       ),
     );
   }

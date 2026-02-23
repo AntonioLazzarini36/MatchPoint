@@ -4,6 +4,7 @@ import 'package:match_point/core/theme/app_theme.dart';
 
 import '../matches_controller.dart';
 import '../services/matches_service.dart';
+import 'chat_screen.dart';
 
 import '../../../core/ui/widgets/matches/matches_section_title.dart';
 import '../../../core/ui/widgets/matches/new_match_avatar_item.dart';
@@ -122,9 +123,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
                         ? m.otherUser.profile!.photos.first
                         : null,
                     onTap: () {
-                      // TODO: abrir chat / perfil
-                      // ejemplo:
-                      // context.push('/chat/${m.matchId}');
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(matchId: m.matchId),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -147,8 +150,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
             unread: false,
             isGroup: false,
             onTap: () {
-              // TODO: abrir chat real
-              // context.push('/chat/${m.matchId}');
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(matchId: m.matchId),
+                ),
+              );
             },
           ),
       ],
