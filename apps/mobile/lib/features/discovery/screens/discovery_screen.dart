@@ -268,7 +268,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     return Container(
       alignment: alignment,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(24),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 40),
