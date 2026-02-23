@@ -16,7 +16,8 @@ class OnboardingProfileScreen extends StatefulWidget {
   const OnboardingProfileScreen({super.key});
 
   @override
-  State<OnboardingProfileScreen> createState() => _OnboardingProfileScreenState();
+  State<OnboardingProfileScreen> createState() =>
+      _OnboardingProfileScreenState();
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
@@ -63,12 +64,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   }
 
   List<String> _sportsForBackend() {
-    return _selectedSports
-      .map(_sportToBackend)
-      .whereType<String>()
-      .toList();
+    return _selectedSports.map(_sportToBackend).whereType<String>().toList();
   }
-  
+
   String _formatDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -147,8 +145,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 displayNameCtrl: displayNameCtrl,
                 birthDate: birthDate,
                 onPickBirthDate: _pickBirthDate,
-                birthDateLabel:
-                    birthDate == null ? 'Select date' : _formatDate(birthDate!),
+                birthDateLabel: birthDate == null
+                    ? 'Select date'
+                    : _formatDate(birthDate!),
                 selectedSports: _selectedSports,
                 onSportToggle: (sport, selected) {
                   setState(() {

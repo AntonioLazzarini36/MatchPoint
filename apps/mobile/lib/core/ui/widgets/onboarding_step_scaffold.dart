@@ -33,12 +33,7 @@ class OnboardingStepScaffold extends StatelessWidget {
         leading: currentPage > 0
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack)
             : null,
-        actions: [
-          TextButton(
-            onPressed: onSkip,
-            child: const Text('Saltar'),
-          ),
-        ],
+        actions: [TextButton(onPressed: onSkip, child: const Text('Saltar'))],
       ),
       body: Column(
         children: [

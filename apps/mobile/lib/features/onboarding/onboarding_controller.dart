@@ -35,7 +35,7 @@ class OnboardingController extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   void setError(String message) {
     error = message;
     notifyListeners();

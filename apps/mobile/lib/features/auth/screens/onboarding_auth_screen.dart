@@ -133,7 +133,9 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                             } catch (e) {
                               // Si falla GET /me (token inválido, backend caído, etc.)
                               // Mejor mandarlo a onboarding (o mostrar error)
-                              controller.setError('Could not load profile. Please try again.');
+                              controller.setError(
+                                'Could not load profile. Please try again.',
+                              );
                             }
                           }
                         },

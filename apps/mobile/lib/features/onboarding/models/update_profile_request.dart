@@ -16,11 +16,11 @@ class UpdateProfileRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'displayName': displayName,
-        'birthDate': birthDate,
-        'city': city,
-        'bio': bio,
-        'photos': photos,
-        'sports': sports,
-      };
+    'displayName': displayName,
+    'birthDate': birthDate,
+    'city': city,
+    'bio': bio,
+    'photos': photos,
+    'sports': sports,
+  };
 }
