@@ -46,7 +46,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
       appBar: AppBar(title: Text(isLogin ? 'Login' : 'Register')),
       body: AnimatedBuilder(
         animation: controller,
-        builder: (_, __) {
+        builder: (_, _) {
           return Padding(
             padding: const EdgeInsets.all(24),
             child: Column(

@@ -6,11 +6,16 @@ import { Sport } from "@prisma/client";
 export class DiscoverService {
   constructor(private prisma: PrismaService) {}
 
-  async discover(sport?: Sport) {
+  async discover(currentUserId: string, sport?: Sport) {
     const users = await this.prisma.user.findMany({
-      where: sport
-        ? { profile: { is: { sports: { has: sport } } } }
-        : undefined,
+      where: {
+        id: { not: currentUserId },
+        profile: {
+          is: {
+            ...(sport ? { sports: { has: sport } } : {}),
+          },
+        },
+      },
       select: {
         id: true,
         profile: {

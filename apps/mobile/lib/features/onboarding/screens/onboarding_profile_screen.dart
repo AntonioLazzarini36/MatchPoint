@@ -127,7 +127,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return OnboardingStepScaffold(
           currentPage: _currentPage,
           totalPages: 3,
