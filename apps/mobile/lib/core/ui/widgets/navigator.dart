@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../features/auth/screens/discovery/discovery_screen.dart';
-import '../../../features/auth/screens/matches/matches_screen.dart';
-import '../../../features/auth/screens/profile/profile_screen.dart';
+import '../../../features/discovery/screens/discovery_screen.dart';
+import '../../../features/matches/screens/matches_screen.dart';
+import '../../../features/profile/screens/profile_screen.dart';
 
 class NavigatorShell extends StatefulWidget {
   const NavigatorShell({super.key});

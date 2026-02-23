@@ -1,11 +1,19 @@
 class AppRoutes {
   // Auth / onboarding
   static const welcome = '/welcome';
-  static const onboardingProfile = '/onboarding/profile';
+  static const onboardingAuth = '/onboarding-auth';
+  static const onboarding = '/onboarding';
+  static const shell = '/shell';
 
-  // App core
-  static const shell = '/';
+  // Main app
+  static const discovery = '/discovery';
   static const partnerDetail = '/partner';
+
+  // Matches / chat
+  static const matches = '/matches';
   static const chat = '/chat';
+
+  // Profile / settings
+  static const profile = '/profile';
   static const settings = '/settings';
 }

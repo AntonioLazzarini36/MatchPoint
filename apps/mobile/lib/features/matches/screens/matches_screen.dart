@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../app/routes.dart';
+import '../../../app/routes.dart';
 
 class MatchesScreen extends StatelessWidget {
   const MatchesScreen({super.key});
