@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:go_router/go_router.dart';
+import 'package:match_point/app/routes.dart';
 
 import '../../../core/network/api.dart';
 import '../discovery_controller.dart';
@@ -206,7 +208,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               Icons.close,
               Colors.red,
             ),
-            child: DiscoverySwipeCard(user: user, isFront: true),
+            child: DiscoverySwipeCard(
+              user: user, 
+              isFront: true, 
+              onOpenProfile: () {
+                context.pushNamed(
+                  AppRoutes.userProfileName,
+                  pathParameters: {'userId': user.userId},
+                );
+              },
+            ),
           );
         }).toList(),
       ),

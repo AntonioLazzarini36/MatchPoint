@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:match_point/app/routes.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
@@ -11,12 +13,14 @@ import '../../../core/ui/widgets/chat/chat_input_bar.dart';
 class ChatScreen extends StatefulWidget {
   final String matchId;
   final String myUserId;
+  final String otherUserId;
   final String otherName;
 
   const ChatScreen({
     super.key,
     required this.matchId,
     required this.myUserId,
+    required this.otherUserId,
     required this.otherName,
   });
 
@@ -54,7 +58,15 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (_, __) {
         return Scaffold(
           appBar: AppBar(
-            title: Row(
+            title: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () {
+              context.pushNamed(
+                AppRoutes.userProfileName,
+                pathParameters: {'userId': widget.otherUserId},
+              );
+            },
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 CircleAvatar(
@@ -66,7 +78,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(widget.otherName, style: context.textStyles.titleMedium),
               ],
             ),
-            centerTitle: true,
+          ),
+          centerTitle: true,
           ),
           body: Column(
             children: [

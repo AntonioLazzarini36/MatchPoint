@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:match_point/core/network/api.dart';
 
-import '../../../core/network/api.dart';
-import '../../onboarding/services/profile_service.dart';
 import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
-
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+import '../../onboarding/services/profile_service.dart';
+import '../../discovery/models/discover_profile.dart';
+class OtherProfileScreen extends StatefulWidget {
+  final String userId;
+  const OtherProfileScreen({super.key, required this.userId});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<OtherProfileScreen> createState() => _OtherProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _OtherProfileScreenState extends State<OtherProfileScreen> {
   late final ProfileService service;
 
   bool loading = true;
@@ -33,24 +34,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final me = await service.getMe();
-      final p = me.profile;
+      final DiscoverProfile p = await service.getUserProfile(widget.userId);
 
       if (!mounted) return;
-
-      if (p == null) {
-        // No hay perfil todavía: renderizamos algo “vacío”
-        setState(() {
-          data = const ProfileHeaderData(
-            displayName: 'Sin perfil',
-            photos: [],
-            sports: [],
-          );
-          loading = false;
-        });
-        return;
-      }
-
       setState(() {
         data = ProfileHeaderData(
           displayName: p.displayName,
@@ -89,7 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('No se pudo cargar el perfil'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 FilledButton(
@@ -103,18 +89,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final d = data!;
     return Scaffold(
       body: ProfileView(
-        data: d,
-        sportsTitle: 'Mis Deportes',
-        bioTitle: 'Sobre mí',
-        showStats: true,
-        showBottomButton: true,
-        bottomButtonText: 'Ver mi perfil público',
-        onBottomButton: () {},
-        onSettings: () {},
-        onEdit: () {},
+        data: data!,
+        sportsTitle: 'Deportes',
+        bioTitle: 'Sobre',
+        showStats: false,
+        showBottomButton: false,
+        onSettings: null,
+        onEdit: null,
       ),
     );
   }

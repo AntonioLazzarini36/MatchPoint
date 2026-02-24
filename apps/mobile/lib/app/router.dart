@@ -13,7 +13,7 @@ import 'package:match_point/features/discovery/screens/partner_detail_screen.dar
 import 'package:match_point/features/matches/models/match_item.dart';
 import 'package:match_point/features/matches/screens/matches_screen.dart';
 import 'package:match_point/features/matches/screens/chat_screen.dart';
-
+import 'package:match_point/features/profile/screens/other_profile_screen.dart';
 import 'package:match_point/features/profile/screens/profile_screen.dart';
 import 'package:match_point/features/profile/screens/settings_screen.dart';
 
@@ -64,6 +64,7 @@ class AppRouter {
           return ChatScreen(
             matchId: matchId,
             myUserId: match.me.userId,
+            otherUserId: match.otherUser.userId,
             otherName: match.otherUser.profile?.displayName ?? 'Sin nombre',
           );
         },
@@ -74,6 +75,14 @@ class AppRouter {
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileScreen(),
       ),
+      GoRoute(
+      path: AppRoutes.userProfile,
+      name: AppRoutes.userProfileName,
+      builder: (context, state) {
+        final userId = state.pathParameters['userId']!;
+        return OtherProfileScreen(userId: userId);
+      },
+    ),
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),

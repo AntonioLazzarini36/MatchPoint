@@ -5,11 +5,13 @@ import '../../../../features/discovery/models/discover_profile.dart';
 class DiscoverySwipeCard extends StatelessWidget {
   final DiscoverProfile user;
   final bool isFront;
+  final VoidCallback? onOpenProfile;
 
   const DiscoverySwipeCard({
     super.key,
     required this.user,
     required this.isFront,
+    this.onOpenProfile,
   });
 
   @override
@@ -60,39 +62,46 @@ class DiscoverySwipeCard extends StatelessWidget {
               left: 16,
               right: 16,
               bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${user.displayName}, ${user.age}',
-                    style: context.textStyles.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if ((user.city ?? '').isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        user.city!,
-                        style: context.textStyles.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ),
-                  if ((user.bio ?? '').isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        user.bio!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.textStyles.bodyMedium?.copyWith(
+              child: InkWell(
+                onTap: onOpenProfile,
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${user.displayName}, ${user.age}',
+                        style: context.textStyles.headlineSmall?.copyWith(
                           color: Colors.white,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
-                ],
+                      if ((user.city ?? '').isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            user.city!,
+                            style: context.textStyles.bodyMedium?.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                      if ((user.bio ?? '').isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            user.bio!,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textStyles.bodyMedium?.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
