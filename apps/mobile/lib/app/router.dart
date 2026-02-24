@@ -10,7 +10,7 @@ import 'package:match_point/features/onboarding/screens/onboarding_profile_scree
 
 import 'package:match_point/features/discovery/screens/discovery_screen.dart';
 import 'package:match_point/features/discovery/screens/partner_detail_screen.dart';
-
+import 'package:match_point/features/matches/models/match_item.dart';
 import 'package:match_point/features/matches/screens/matches_screen.dart';
 import 'package:match_point/features/matches/screens/chat_screen.dart';
 
@@ -58,7 +58,13 @@ class AppRouter {
         path: AppRoutes.chat,
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
-          return ChatScreen(matchId: matchId);
+          final match = state.extra as MatchItem; // lo pasamos desde MatchesScreen
+
+          return ChatScreen(
+            matchId: matchId,
+            myUserId: match.me.userId,
+            otherName: match.otherUser.profile?.displayName ?? 'Sin nombre',
+          );
         },
       ),
 

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:go_router/go_router.dart';
 
 import '../matches_controller.dart';
 import '../services/matches_service.dart';
-import 'chat_screen.dart';
-
 import '../../../core/ui/widgets/matches/matches_section_title.dart';
 import '../../../core/ui/widgets/matches/new_match_avatar_item.dart';
 import '../../../core/ui/widgets/matches/match_chat_item.dart';
@@ -123,10 +122,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
                         ? m.otherUser.profile!.photos.first
                         : null,
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(matchId: m.matchId),
-                        ),
+                      context.push(
+                        '/chat/${m.matchId}',
+                        extra: m,
                       );
                     },
                   ),
@@ -150,10 +148,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
             unread: false,
             isGroup: false,
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(matchId: m.matchId),
-                ),
+              context.push(
+                '/chat/${m.matchId}',
+                extra: m,
               );
             },
           ),
