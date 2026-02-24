@@ -37,7 +37,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Mensajes'),

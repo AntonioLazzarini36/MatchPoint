@@ -10,6 +10,7 @@ import { MeModule } from './me/me.module';
 import { AuthModule } from './auth/auth.module';
 import { SwipesModule } from './swipes/swipes.module';
 import { MatchesModule } from './matches/matches.module';
+import { ChatsModule } from "./chats/chats.module";
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { MatchesModule } from './matches/matches.module';
     MeModule,
     AuthModule,
     SwipesModule,
-    MatchesModule
+    MatchesModule,
+    ChatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
