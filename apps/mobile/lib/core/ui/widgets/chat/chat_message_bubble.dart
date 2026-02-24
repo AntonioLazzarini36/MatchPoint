@@ -15,7 +15,9 @@ class ChatMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isMe ? context.colors.primary : context.colors.surfaceContainerHighest;
+    final bg = isMe
+        ? context.colors.primary
+        : context.colors.surfaceContainerHighest;
     final fg = isMe ? context.colors.onPrimary : context.colors.onSurface;
     final timeColor = isMe
         ? context.colors.onPrimary.withValues(alpha: 0.75)
@@ -40,7 +42,10 @@ class ChatMessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(text, style: context.textStyles.bodyMedium?.copyWith(color: fg)),
+            Text(
+              text,
+              style: context.textStyles.bodyMedium?.copyWith(color: fg),
+            ),
             const SizedBox(height: 2),
             Text(
               time,

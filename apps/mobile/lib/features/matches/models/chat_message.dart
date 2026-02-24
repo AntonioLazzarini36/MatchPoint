@@ -16,13 +16,13 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-        id: json['id'] as String,
-        matchId: json['matchId'] as String,
-        senderId: json['senderId'] as String,
-        text: (json['text'] ?? '') as String,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        readAt: json['readAt'] == null
-            ? null
-            : DateTime.parse(json['readAt'] as String),
-      );
+    id: json['id'] as String,
+    matchId: json['matchId'] as String,
+    senderId: json['senderId'] as String,
+    text: (json['text'] ?? '') as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    readAt: json['readAt'] == null
+        ? null
+        : DateTime.parse(json['readAt'] as String),
+  );
 }

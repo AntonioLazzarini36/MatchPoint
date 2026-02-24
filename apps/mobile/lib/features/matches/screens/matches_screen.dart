@@ -67,7 +67,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
             children: [
               Icon(Icons.error_outline, size: 48, color: context.colors.error),
               const SizedBox(height: 12),
-              Text('Error cargando matches', style: context.textStyles.titleMedium),
+              Text(
+                'Error cargando matches',
+                style: context.textStyles.titleMedium,
+              ),
               const SizedBox(height: 6),
               Text(
                 controller.error!,
@@ -122,10 +125,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                         ? m.otherUser.profile!.photos.first
                         : null,
                     onTap: () {
-                      context.push(
-                        '/chat/${m.matchId}',
-                        extra: m,
-                      );
+                      context.push('/chat/${m.matchId}', extra: m);
                     },
                   ),
                 ),
@@ -148,10 +148,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
             unread: false,
             isGroup: false,
             onTap: () {
-              context.push(
-                '/chat/${m.matchId}',
-                extra: m,
-              );
+              context.push('/chat/${m.matchId}', extra: m);
             },
           ),
       ],
@@ -161,7 +158,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
   String _formatTime(DateTime dt) {
     final local = dt.toLocal();
     final now = DateTime.now();
-    final sameDay = local.year == now.year && local.month == now.month && local.day == now.day;
+    final sameDay =
+        local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
 
     if (sameDay) {
       final hh = local.hour.toString().padLeft(2, '0');

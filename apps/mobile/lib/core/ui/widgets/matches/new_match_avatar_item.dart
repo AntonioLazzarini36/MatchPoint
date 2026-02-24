@@ -27,7 +27,10 @@ class NewMatchAvatarItem extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: context.colors.primary, width: 2),
               image: imageUrl != null
-                  ? DecorationImage(image: NetworkImage(imageUrl!), fit: BoxFit.cover)
+                  ? DecorationImage(
+                      image: NetworkImage(imageUrl!),
+                      fit: BoxFit.cover,
+                    )
                   : null,
               color: imageUrl == null ? context.colors.primaryContainer : null,
             ),

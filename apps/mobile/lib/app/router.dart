@@ -58,7 +58,8 @@ class AppRouter {
         path: AppRoutes.chat,
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
-          final match = state.extra as MatchItem; // lo pasamos desde MatchesScreen
+          final match =
+              state.extra as MatchItem; // lo pasamos desde MatchesScreen
 
           return ChatScreen(
             matchId: matchId,

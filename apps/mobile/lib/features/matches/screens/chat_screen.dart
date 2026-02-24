@@ -111,7 +111,10 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Icon(Icons.error_outline, size: 48, color: context.colors.error),
               const SizedBox(height: 12),
-              Text('Error cargando mensajes', style: context.textStyles.titleMedium),
+              Text(
+                'Error cargando mensajes',
+                style: context.textStyles.titleMedium,
+              ),
               const SizedBox(height: 6),
               Text(
                 controller.error!,

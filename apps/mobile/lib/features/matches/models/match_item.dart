@@ -14,12 +14,11 @@ class MatchItem {
   });
 
   factory MatchItem.fromJson(Map<String, dynamic> json) => MatchItem(
-        matchId: json['matchId'] as String,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        otherUser:
-            MatchUser.fromJson(json['otherUser'] as Map<String, dynamic>),
-        me: MatchUser.fromJson(json['me'] as Map<String, dynamic>),
-      );
+    matchId: json['matchId'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    otherUser: MatchUser.fromJson(json['otherUser'] as Map<String, dynamic>),
+    me: MatchUser.fromJson(json['me'] as Map<String, dynamic>),
+  );
 }
 
 class MatchUser {
@@ -29,9 +28,9 @@ class MatchUser {
   const MatchUser({required this.userId, required this.profile});
 
   factory MatchUser.fromJson(Map<String, dynamic> json) => MatchUser(
-        userId: json['userId'] as String,
-        profile: json['profile'] == null
-            ? null
-            : Profile.fromJson(json['profile'] as Map<String, dynamic>),
-      );
+    userId: json['userId'] as String,
+    profile: json['profile'] == null
+        ? null
+        : Profile.fromJson(json['profile'] as Map<String, dynamic>),
+  );
 }

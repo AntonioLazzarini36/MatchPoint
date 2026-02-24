@@ -31,10 +31,15 @@ class MatchChatItem extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 28,
-              backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
+              backgroundImage: imageUrl != null
+                  ? NetworkImage(imageUrl!)
+                  : null,
               backgroundColor: context.colors.primaryContainer,
               child: imageUrl == null
-                  ? Icon(isGroup ? Icons.groups : Icons.person, color: context.colors.primary)
+                  ? Icon(
+                      isGroup ? Icons.groups : Icons.person,
+                      color: context.colors.primary,
+                    )
                   : null,
             ),
             const SizedBox(width: 16),

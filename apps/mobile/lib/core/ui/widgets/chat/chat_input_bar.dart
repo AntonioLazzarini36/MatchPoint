@@ -37,7 +37,10 @@ class ChatInputBar extends StatelessWidget {
                 maxLines: 5,
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje...',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
