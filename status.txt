@@ -9,7 +9,14 @@ modified:   services/api/src/main.ts		        -> await app.listen(process.env.PO
 modified:   apps/mobile/lib/core/network/api.dart   -> changed ip address so that works on emulator.
 modified:   services/api/prisma/schema.prisma       -> probably when testing if prisma works and generating new client
 ---
-Pending for commit
+COMANDOS
+
+Init backend -> Iniciar docker -> check: curl http://localhost:3000/health -> {status:ok}
+Init frontend -> flutter emulators --launch <emulator_id> -> run emulator
+                -> flutter devices -> check id emulator -> check running devices
+                -> flutter run -d <emulator_id> -> only once (install app)
+
+---
 
 Frontend:   ❌No way to refresh token when expires. 
 Frontend:   ✅flutter runs on emulator (problem when registering and login)- Solved! Check: apps/mobile/lib/core/network/api.dart 
