@@ -25,5 +25,3 @@ build/
 .DS_Store
 Thumbs.db
 
-# Other
-status.txt
