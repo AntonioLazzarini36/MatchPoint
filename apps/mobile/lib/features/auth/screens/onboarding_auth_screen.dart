@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
-import '../../../core/network/api_client.dart';
+import 'package:match_point/core/network/api.dart';
 import '../auth_controller.dart';
 import '../services/auth_service.dart';
+import '../../onboarding/services/profile_service.dart';
 
 class OnboardingAuthScreen extends StatefulWidget {
   const OnboardingAuthScreen({super.key});
@@ -26,8 +27,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     super.initState();
 
     // ⚠️ Pon aquí tu baseUrl real (ej: http://10.0.2.2:3000 para Android emulator)
-    final api = ApiClient(baseUrl: 'http://localhost:3000');
-    controller = AuthController(AuthService(api));
+    controller = AuthController(AuthService(Api.client));
   }
 
   @override
@@ -46,7 +46,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
       appBar: AppBar(title: Text(isLogin ? 'Login' : 'Register')),
       body: AnimatedBuilder(
         animation: controller,
-        builder: (_, __) {
+        builder: (_, _) {
           return Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -119,7 +119,24 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                               : await controller.register(email, pass);
 
                           if (ok && context.mounted) {
-                            context.go(AppRoutes.onboarding);
+                            try {
+                              final profileService = ProfileService(Api.client);
+                              final me = await profileService.getMe();
+
+                              // Si ya tiene profile → al shell
+                              if (me.profile != null) {
+                                context.go(AppRoutes.shell);
+                              } else {
+                                // Si no tiene profile → onboarding profile
+                                context.go(AppRoutes.onboarding);
+                              }
+                            } catch (e) {
+                              // Si falla GET /me (token inválido, backend caído, etc.)
+                              // Mejor mandarlo a onboarding (o mostrar error)
+                              controller.setError(
+                                'Could not load profile. Please try again.',
+                              );
+                            }
                           }
                         },
                   child: controller.isLoading

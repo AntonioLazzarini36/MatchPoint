@@ -13,7 +13,6 @@ export class MatchesService {
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        sport: true,
         createdAt: true,
         userAId: true,
         userBId: true,
@@ -23,7 +22,6 @@ export class MatchesService {
       take: 50,
     });
 
-    // Normaliza: devuelve "otherUser" para UI
     return matches.map((m) => {
       const isA = m.userAId === userId;
       const me = isA ? m.userA : m.userB;
@@ -31,11 +29,10 @@ export class MatchesService {
 
       return {
         matchId: m.id,
-        sport: m.sport,
         createdAt: m.createdAt,
         otherUser: {
           userId: other.id,
-          profile: other.profile, // puede ser null si no tiene
+          profile: other.profile,
         },
         me: {
           userId: me.id,

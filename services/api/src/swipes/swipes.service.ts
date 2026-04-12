@@ -16,7 +16,6 @@ export class SwipesService {
       throw new BadRequestException("Cannot swipe yourself");
     }
 
-    // Upsert del swipe (si ya existe, lo actualizamos)
     const swipe = await this.prisma.swipe.upsert({
       where: { fromUserId_toUserId_sport: { fromUserId, toUserId: dto.toUserId, sport: dto.sport } },
       create: {
@@ -28,26 +27,29 @@ export class SwipesService {
       update: { type: dto.type },
     });
 
-    // Solo hay match si es LIKE
     if (dto.type !== SwipeType.LIKE) {
       return { match: false, swipeId: swipe.id };
     }
 
-    // ¿Existe like contrario?
-    const reverse = await this.prisma.swipe.findUnique({
-      where: { fromUserId_toUserId_sport: { fromUserId: dto.toUserId, toUserId: fromUserId, sport: dto.sport } },
+    // Reverse LIKE en cualquier sport
+    const reverse = await this.prisma.swipe.findFirst({
+      where: {
+        fromUserId: dto.toUserId,
+        toUserId: fromUserId,
+        type: SwipeType.LIKE,
+      },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!reverse || reverse.type !== SwipeType.LIKE) {
+    if (!reverse) {
       return { match: false, swipeId: swipe.id };
     }
 
-    // Crear match (con ids ordenados para evitar duplicados)
     const pair = this.orderPair(fromUserId, dto.toUserId);
 
     const match = await this.prisma.match.upsert({
-      where: { userAId_userBId_sport: { ...pair, sport: dto.sport } },
-      create: { ...pair, sport: dto.sport },
+      where: { userAId_userBId: pair },
+      create: pair,
       update: {}, // ya existe
     });
 

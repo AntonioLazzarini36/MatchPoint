@@ -17,17 +17,17 @@ enum Sport {
   RUNNING
 }
 
-enum SwipeType { 
+enum SwipeType {
   LIKE
-  PASS 
+  PASS
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   profile       Profile?
   preferences   Preferences?
@@ -40,9 +40,9 @@ model User {
 }
 
 model Profile {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   displayName String
   birthDate   DateTime
@@ -52,29 +52,29 @@ model Profile {
 
   sports Sport[] @default([]) // simple y práctico para MVP 
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Preferences {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  sportsWanted Sport[] @default([])
-  distanceKm      Int      @default(25)
-  ageMin          Int      @default(18)
-  ageMax          Int      @default(60)
+  sportsWanted     Sport[] @default([])
+  distanceKm       Int     @default(25)
+  ageMin           Int     @default(18)
+  ageMax           Int     @default(60)
   genderPreference String? // opcional
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   tokenHash String
   revokedAt DateTime?
@@ -83,15 +83,15 @@ model RefreshToken {
 }
 
 model Swipe {
-  id        String    @id @default(uuid())
+  id         String    @id @default(uuid())
   fromUserId String
   toUserId   String
   sport      Sport
   type       SwipeType
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
-  fromUser   User      @relation("SwipesFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser     User      @relation("SwipesTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  fromUser User @relation("SwipesFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("SwipesTo", fields: [toUserId], references: [id], onDelete: Cascade)
 
   @@unique([fromUserId, toUserId, sport]) // 1 swipe por deporte
   @@index([toUserId, sport])
@@ -101,13 +101,26 @@ model Match {
   id        String   @id @default(uuid())
   userAId   String
   userBId   String
-  sport     Sport
   createdAt DateTime @default(now())
 
-  userA     User     @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB     User     @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
+  userA User @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
 
-  @@unique([userAId, userBId, sport]) // guardamos ordenado (A < B)
-  @@index([userAId])
-  @@index([userBId])
+  messages Message[]
+
+  @@unique([userAId, userBId])
+}
+
+model Message {
+  id         String    @id @default(uuid())
+  matchId    String
+  senderId   String
+  ciphertext String
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@index([senderId])
 }
