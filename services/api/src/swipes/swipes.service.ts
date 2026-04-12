@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { CreateSwipeDto } from "./dto";
-import { SwipeType } from "@prisma/client";
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateSwipeDto } from './dto';
+import { SwipeType } from '@prisma/client';
 
 @Injectable()
 export class SwipesService {
@@ -13,11 +13,17 @@ export class SwipesService {
 
   async createSwipe(fromUserId: string, dto: CreateSwipeDto) {
     if (dto.toUserId === fromUserId) {
-      throw new BadRequestException("Cannot swipe yourself");
+      throw new BadRequestException('Cannot swipe yourself');
     }
 
     const swipe = await this.prisma.swipe.upsert({
-      where: { fromUserId_toUserId_sport: { fromUserId, toUserId: dto.toUserId, sport: dto.sport } },
+      where: {
+        fromUserId_toUserId_sport: {
+          fromUserId,
+          toUserId: dto.toUserId,
+          sport: dto.sport,
+        },
+      },
       create: {
         fromUserId,
         toUserId: dto.toUserId,
@@ -38,7 +44,7 @@ export class SwipesService {
         toUserId: fromUserId,
         type: SwipeType.LIKE,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!reverse) {
