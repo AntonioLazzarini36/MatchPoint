@@ -24,3 +24,7 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Pluggins
+apps/mobile/linux/flutter/generated_plugins.cmake
+apps/mobile/windows/flutter/generated_plugins.cmake
