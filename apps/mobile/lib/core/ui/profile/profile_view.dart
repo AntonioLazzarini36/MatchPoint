@@ -217,7 +217,7 @@ class ProfileView extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.colors.outline.withValues(alpha: 0.2)),
+        border: Border.all(color: context.colors.outline.withOpacity(0.2)),
       ),
       child: Column(
         children: [

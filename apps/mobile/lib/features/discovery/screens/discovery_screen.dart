@@ -186,7 +186,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
               final res = await controller.swipeUser(user: user, type: type);
 
-              if (!context.mounted) return;
+              if (!mounted) return;
 
               if (type == SwipeType.like && res.matched) {
                 await showDiscoveryMatchDialog(
@@ -247,9 +247,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             color: context.colors.primary,
             onTap: () async {
               final res = await controller.likeTop();
-
-              if (!context.mounted) return;
-
+              if (!mounted) return;
               if (res.matched && res.user != null) {
                 await showDiscoveryMatchDialog(
                   context,
@@ -266,7 +264,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 );
               }
             },
-          )
+          ),
         ],
       ),
     );
