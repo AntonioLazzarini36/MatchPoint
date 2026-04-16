@@ -49,8 +49,8 @@ class DiscoverySwipeCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.05),
-                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withOpacity(0.05),
+                      Colors.black.withOpacity(0.75),
                     ],
                   ),
                 ),
