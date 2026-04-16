@@ -1,4 +1,4 @@
-import { Sport } from "@prisma/client";
+import { Sport } from '@prisma/client';
 
 export class UpdateProfileDto {
   displayName?: string;
