@@ -1,0 +1,110 @@
+04/04/2026:
+On branch gonzalo
+modified:   .gitignore				                -> Just added status.txt
+modified:   apps/mobile/pubspec.lock		        -> Dependancies: probably version change when flutter clean and flutter pub get
+modified:   docker-compose.yml			            -> Was dockerfile: Dockerfile but actual name was DockerFile, so changed the name
+modified:   services/api/package-lock.json	        -> Dependancies: Probably when installing
+modified:   services/api/package.json		        -> Dependancies: Probably when installing
+modified:   services/api/src/main.ts		        -> await app.listen(process.env.PORT ?? 3000); added '0.0.0.0' so that api responds
+modified:   apps/mobile/lib/core/network/api.dart   -> changed ip address so that works on emulator.
+modified:   services/api/prisma/schema.prisma       -> probably when testing if prisma works and generating new client
+---
+COMANDOS
+
+Init backend -> Iniciar docker -> check: curl http://localhost:3000/health -> {status:ok}
+Init frontend -> flutter emulators --launch <emulator_id> -> run emulator
+                -> flutter devices -> check id emulator -> check running devices
+                -> flutter run -d <emulator_id> -> only once (install app)
+
+---
+
+Frontend:   ❌No way to refresh token when expires. 
+Frontend:   ✅flutter runs on emulator (problem when registering and login)- Solved! Check: apps/mobile/lib/core/network/api.dart 
+Backend:    ✅Seems to work api responds on login and signup (curl http://localhost:3000/health {"ok":true})
+DB:         ✅Some test users have been created - verified at docker exec -it matchpoint_db psql -U matchpoint -d matchpoint
+            Currently:
+            matchpoint=# \dt
+                            List of relations
+            Schema |        Name        | Type  |   Owner    
+            --------+--------------------+-------+------------
+            public | Match              | table | matchpoint
+            public | Preferences        | table | matchpoint
+            public | Profile            | table | matchpoint
+            public | RefreshToken       | table | matchpoint
+            public | Swipe              | table | matchpoint
+            public | User               | table | matchpoint
+            public | _prisma_migrations | table | matchpoint
+            (7 rows)
+
+            matchpoint=# select email from "User";
+                email      
+            ----------------
+            test@test.com
+            test2@test.com
+            test3@test.com
+            test4@test.com
+            (4 rows)
+
+Next step: Look for API and DB migration to cloud server instead of docker
+
+05/04/2026:
+DONE:
+✅- Access prisma studio correctly:
+    export DATABASE_URL="postgresql://matchpoint:matchpoint@localhost:5432/matchpoint?schema=public"
+    npx prisma studio
+✅- Setup -> App frontend and backend work
+✅- Understand general workflow of project: 
+                ┌─────────────────────────────┐
+ FRONTEND:      │         FLUTTER APP         │
+                │ (Dart - UI + lógica cliente)│
+                └──────────────┬──────────────┘
+                               │
+                               │ HTTP (REST API)
+ BACKEND-------------------------------------------
+                               ▼
+                ┌─────────────────────────────┐
+                │        NESTJS API           │
+                │ (TypeScript - Backend)      │
+                │                             │
+                │ Controllers (routes)        │
+                │ Services (business logic)   │
+                └──────────────┬──────────────┘
+                               │
+                               │ Prisma ORM
+                               ▼
+                ┌─────────────────────────────┐
+                │          PRISMA             │
+                │ (Query builder / ORM)       │
+                └──────────────┬──────────────┘
+                               │
+                               │ PostgreSQL protocol (TCP)
+                               ▼
+                ┌─────────────────────────────┐
+                │        POSTGRESQL DB        │
+                │ (Persistencia de datos)     │
+                └─────────────────────────────┘
+
+
+Currently: Backend is inside docker and listens on port 3000
+                ┌─────────────────────────────┐
+                │        DOCKER HOST          │
+                │                             │
+                │  ┌───────────────────────┐  │
+                │  │   matchpoint_api      │  │
+                │  │   (NestJS backend)    │  │
+                │  └─────────┬─────────────┘  │
+                │            │                │
+                │            │ internal net   │
+                │            ▼                │
+                │  ┌───────────────────────┐  │
+                │  │   matchpoint_db       │  │
+                │  │   (PostgreSQL)        │  │
+                │  └───────────────────────┘  │
+                │                             │
+                └─────────────────────────────┘
+
+TODO:
+- Note errors noticed to be corrected
+- Look for API and DB migration to cloud server instead of docker
+
+

@@ -1,15 +1,88 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  matchesA      Match[]        @relation("MatchesA")
+  matchesB      Match[]        @relation("MatchesB")
+  preferences   Preferences?
+  profile       Profile?
+  refreshTokens RefreshToken[]
+  swipesFrom    Swipe[]        @relation("SwipesFrom")
+  swipesTo      Swipe[]        @relation("SwipesTo")
+}
+
+model Profile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  displayName String
+  birthDate   DateTime
+  city        String?
+  bio         String?
+  photos      String[] @default([])
+  sports      Sport[]  @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Preferences {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  sportsWanted     Sport[]  @default([])
+  distanceKm       Int      @default(25)
+  ageMin           Int      @default(18)
+  ageMax           Int      @default(60)
+  genderPreference String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Swipe {
+  id         String    @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  sport      Sport
+  type       SwipeType
+  createdAt  DateTime  @default(now())
+  fromUser   User      @relation("SwipesFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User      @relation("SwipesTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId, sport])
+  @@index([toUserId, sport])
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  sport     Sport
+  createdAt DateTime @default(now())
+  userA     User     @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId, sport])
+  @@index([userAId])
+  @@index([userBId])
 }
 
 enum Sport {
@@ -20,107 +93,4 @@ enum Sport {
 enum SwipeType {
   LIKE
   PASS
-}
-
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  profile       Profile?
-  preferences   Preferences?
-  refreshTokens RefreshToken[]
-
-  swipesFrom Swipe[] @relation("SwipesFrom")
-  swipesTo   Swipe[] @relation("SwipesTo")
-  matchesA   Match[] @relation("MatchesA")
-  matchesB   Match[] @relation("MatchesB")
-}
-
-model Profile {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  displayName String
-  birthDate   DateTime
-  city        String?
-  bio         String?
-  photos      String[] @default([]) // URLs
-
-  sports Sport[] @default([]) // simple y práctico para MVP 
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Preferences {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  sportsWanted     Sport[] @default([])
-  distanceKm       Int     @default(25)
-  ageMin           Int     @default(18)
-  ageMax           Int     @default(60)
-  genderPreference String? // opcional
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model RefreshToken {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  tokenHash String
-  revokedAt DateTime?
-
-  createdAt DateTime @default(now())
-}
-
-model Swipe {
-  id         String    @id @default(uuid())
-  fromUserId String
-  toUserId   String
-  sport      Sport
-  type       SwipeType
-  createdAt  DateTime  @default(now())
-
-  fromUser User @relation("SwipesFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser   User @relation("SwipesTo", fields: [toUserId], references: [id], onDelete: Cascade)
-
-  @@unique([fromUserId, toUserId, sport]) // 1 swipe por deporte
-  @@index([toUserId, sport])
-}
-
-model Match {
-  id        String   @id @default(uuid())
-  userAId   String
-  userBId   String
-  createdAt DateTime @default(now())
-
-  userA User @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB User @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
-
-  messages Message[]
-
-  @@unique([userAId, userBId])
-}
-
-model Message {
-  id         String    @id @default(uuid())
-  matchId    String
-  senderId   String
-  ciphertext String
-  createdAt  DateTime  @default(now())
-  readAt     DateTime?
-
-  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
-
-  @@index([matchId, createdAt])
-  @@index([senderId])
 }
