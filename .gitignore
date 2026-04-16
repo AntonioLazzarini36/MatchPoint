@@ -28,3 +28,4 @@ Thumbs.db
 # Pluggins
 apps/mobile/linux/flutter/generated_plugins.cmake
 apps/mobile/windows/flutter/generated_plugins.cmake
+apps/mobile/macos/Flutter/GeneratedPluginRegistrant.swift
