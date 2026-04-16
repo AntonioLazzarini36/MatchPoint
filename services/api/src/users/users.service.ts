@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -24,7 +24,7 @@ export class UsersService {
     });
 
     if (!user || !user.profile) {
-      throw new NotFoundException("Profile not found");
+      throw new NotFoundException('Profile not found');
     }
 
     // Forma parecida a DiscoverProfile para que el móvil lo consuma fácil

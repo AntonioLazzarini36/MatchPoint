@@ -1,6 +1,11 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { decryptText, encryptText } from "./crypto";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
+import { decryptText, encryptText } from './crypto';
 
 @Injectable()
 export class ChatsService {
@@ -12,21 +17,26 @@ export class ChatsService {
       select: { id: true, userAId: true, userBId: true },
     });
 
-    if (!match) throw new NotFoundException("Match not found");
+    if (!match) throw new NotFoundException('Match not found');
 
     const ok = match.userAId === userId || match.userBId === userId;
-    if (!ok) throw new ForbiddenException("Not allowed");
+    if (!ok) throw new ForbiddenException('Not allowed');
 
     return match;
   }
 
-  async listMessages(matchId: string, userId: string, limit = 50, cursor?: string) {
+  async listMessages(
+    matchId: string,
+    userId: string,
+    limit = 50,
+    cursor?: string,
+  ) {
     await this.assertMember(matchId, userId);
 
     const take = Math.min(Math.max(limit, 1), 100);
 
     // cursor = createdAt ISO; traemos mensajes anteriores a esa fecha
-    const where: any = { matchId };
+    const where: Prisma.MessageWhereInput = { matchId };
     if (cursor) {
       const dt = new Date(cursor);
       if (!Number.isNaN(dt.getTime())) {
@@ -36,7 +46,7 @@ export class ChatsService {
 
     const rows = await this.prisma.message.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       take,
       select: {
         id: true,
@@ -49,16 +59,14 @@ export class ChatsService {
     });
 
     // devolvemos en orden asc (antiguo -> nuevo) para ListView
-    return rows
-      .reverse()
-      .map((m) => ({
-        id: m.id,
-        matchId: m.matchId,
-        senderId: m.senderId,
-        text: decryptText(m.ciphertext),
-        createdAt: m.createdAt,
-        readAt: m.readAt,
-      }));
+    return rows.reverse().map((m) => ({
+      id: m.id,
+      matchId: m.matchId,
+      senderId: m.senderId,
+      text: decryptText(m.ciphertext),
+      createdAt: m.createdAt,
+      readAt: m.readAt,
+    }));
   }
 
   async sendMessage(matchId: string, userId: string, text: string) {

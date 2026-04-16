@@ -1,4 +1,4 @@
-import { Sport, SwipeType } from "@prisma/client";
+import { Sport, SwipeType } from '@prisma/client';
 
 export class CreateSwipeDto {
   toUserId!: string;

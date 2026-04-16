@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { UpdatePreferencesDto, UpdateProfileDto } from "./dto";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { UpdatePreferencesDto, UpdateProfileDto } from './dto';
 
 @Injectable()
 export class MeService {
@@ -17,7 +17,7 @@ export class MeService {
         createdAt: true,
       },
     });
-    if (!user) throw new NotFoundException("User not found");
+    if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
@@ -27,8 +27,10 @@ export class MeService {
       where: { userId },
       create: {
         userId,
-        displayName: dto.displayName ?? "Unknown",
-        birthDate: dto.birthDate ? new Date(dto.birthDate) : new Date("2000-01-01"),
+        displayName: dto.displayName ?? 'Unknown',
+        birthDate: dto.birthDate
+          ? new Date(dto.birthDate)
+          : new Date('2000-01-01'),
         city: dto.city ?? null,
         bio: dto.bio ?? null,
         photos: dto.photos ?? [],
