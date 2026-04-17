@@ -55,7 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return Scaffold(
           appBar: AppBar(
             title: InkWell(
@@ -90,14 +90,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 onSend: () async {
                   final text = input.text;
                   if (text.trim().isEmpty) return;
-                  input.clear();
+                  final messenger = ScaffoldMessenger.of(context);
 
+                  input.clear();
                   try {
                     await controller.send(text);
+
+                    if (!mounted) return;
                     _scrollToBottom();
                   } catch (e) {
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(content: Text('Error enviando: $e')),
                     );
                   }

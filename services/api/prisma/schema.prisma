@@ -19,6 +19,7 @@ model User {
   refreshTokens RefreshToken[]
   swipesFrom    Swipe[]        @relation("SwipesFrom")
   swipesTo      Swipe[]        @relation("SwipesTo")
+  messages      Message[]
 }
 
 model Profile {
@@ -71,14 +72,30 @@ model Swipe {
   @@index([toUserId, sport])
 }
 
+model Message {
+  id         String    @id @default(uuid())
+  matchId    String
+  senderId   String
+  ciphertext String
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+
+  match  Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender User  @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@index([senderId])
+}
+
 model Match {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userAId   String
   userBId   String
   sport     Sport
-  createdAt DateTime @default(now())
-  userA     User     @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB     User     @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  userA     User      @relation("MatchesA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User      @relation("MatchesB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages  Message[]
 
   @@unique([userAId, userBId, sport])
   @@index([userAId])

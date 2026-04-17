@@ -1,14 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSwipeDto } from './dto';
-import { SwipeType } from '@prisma/client';
+import { Sport, SwipeType } from '@prisma/client';
 
 @Injectable()
 export class SwipesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  private orderPair(a: string, b: string) {
-    return a < b ? { userAId: a, userBId: b } : { userAId: b, userBId: a };
+  private orderPair(a: string, b: string, sport: Sport) {
+    return a < b
+      ? { userAId: a, userBId: b, sport }
+      : { userAId: b, userBId: a, sport };
   }
 
   async createSwipe(fromUserId: string, dto: CreateSwipeDto) {
@@ -37,12 +39,12 @@ export class SwipesService {
       return { match: false, swipeId: swipe.id };
     }
 
-    // Reverse LIKE en cualquier sport
     const reverse = await this.prisma.swipe.findFirst({
       where: {
         fromUserId: dto.toUserId,
         toUserId: fromUserId,
         type: SwipeType.LIKE,
+        sport: dto.sport,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -51,12 +53,12 @@ export class SwipesService {
       return { match: false, swipeId: swipe.id };
     }
 
-    const pair = this.orderPair(fromUserId, dto.toUserId);
+    const pair = this.orderPair(fromUserId, dto.toUserId, dto.sport);
 
     const match = await this.prisma.match.upsert({
-      where: { userAId_userBId: pair },
+      where: { userAId_userBId_sport: pair },
       create: pair,
-      update: {}, // ya existe
+      update: {},
     });
 
     return { match: true, matchId: match.id, swipeId: swipe.id };

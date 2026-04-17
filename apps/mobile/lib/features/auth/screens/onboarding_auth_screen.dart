@@ -115,28 +115,26 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                           }
 
                           final ok = isLogin
-                              ? await controller.login(email, pass)
-                              : await controller.register(email, pass);
+                            ? await controller.login(email, pass)
+                            : await controller.register(email, pass);
 
-                          if (ok && context.mounted) {
-                            try {
-                              final profileService = ProfileService(Api.client);
-                              final me = await profileService.getMe();
+                          if (!context.mounted || !ok) return;
 
-                              // Si ya tiene profile → al shell
-                              if (me.profile != null) {
-                                context.go(AppRoutes.shell);
-                              } else {
-                                // Si no tiene profile → onboarding profile
-                                context.go(AppRoutes.onboarding);
-                              }
-                            } catch (e) {
-                              // Si falla GET /me (token inválido, backend caído, etc.)
-                              // Mejor mandarlo a onboarding (o mostrar error)
-                              controller.setError(
-                                'Could not load profile. Please try again.',
-                              );
+                          try {
+                            final profileService = ProfileService(Api.client);
+                            final me = await profileService.getMe();
+
+                            if (!context.mounted) return;
+
+                            if (me.profile != null) {
+                              context.go(AppRoutes.shell);
+                            } else {
+                              context.go(AppRoutes.onboarding);
                             }
+                          } catch (e) {
+                            controller.setError(
+                              'Could not load profile. Please try again.',
+                            );
                           }
                         },
                   child: controller.isLoading

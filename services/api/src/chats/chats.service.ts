@@ -7,9 +7,22 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { decryptText, encryptText } from './crypto';
 
+const messageSelect = {
+  id: true,
+  matchId: true,
+  senderId: true,
+  ciphertext: true,
+  createdAt: true,
+  readAt: true,
+} satisfies Prisma.MessageSelect;
+
+type SelectedMessage = Prisma.MessageGetPayload<{
+  select: typeof messageSelect;
+}>;
+
 @Injectable()
 export class ChatsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private async assertMember(matchId: string, userId: string) {
     const match = await this.prisma.match.findUnique({
@@ -35,8 +48,8 @@ export class ChatsService {
 
     const take = Math.min(Math.max(limit, 1), 100);
 
-    // cursor = createdAt ISO; traemos mensajes anteriores a esa fecha
     const where: Prisma.MessageWhereInput = { matchId };
+
     if (cursor) {
       const dt = new Date(cursor);
       if (!Number.isNaN(dt.getTime())) {
@@ -44,21 +57,13 @@ export class ChatsService {
       }
     }
 
-    const rows = await this.prisma.message.findMany({
+    const rows: SelectedMessage[] = await this.prisma.message.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take,
-      select: {
-        id: true,
-        matchId: true,
-        senderId: true,
-        ciphertext: true,
-        createdAt: true,
-        readAt: true,
-      },
+      select: messageSelect,
     });
 
-    // devolvemos en orden asc (antiguo -> nuevo) para ListView
     return rows.reverse().map((m) => ({
       id: m.id,
       matchId: m.matchId,
@@ -74,27 +79,20 @@ export class ChatsService {
 
     const ciphertext = encryptText(text);
 
-    const created = await this.prisma.message.create({
+    const created: SelectedMessage = await this.prisma.message.create({
       data: {
         matchId,
         senderId: userId,
         ciphertext,
       },
-      select: {
-        id: true,
-        matchId: true,
-        senderId: true,
-        ciphertext: true,
-        createdAt: true,
-        readAt: true,
-      },
+      select: messageSelect,
     });
 
     return {
       id: created.id,
       matchId: created.matchId,
       senderId: created.senderId,
-      text: decryptText(created.ciphertext), // devuelve plaintext al cliente
+      text: decryptText(created.ciphertext),
       createdAt: created.createdAt,
       readAt: created.readAt,
     };
@@ -103,7 +101,6 @@ export class ChatsService {
   async markRead(matchId: string, userId: string) {
     await this.assertMember(matchId, userId);
 
-    // marca como leídos TODOS los mensajes del otro usuario
     const now = new Date();
 
     const res = await this.prisma.message.updateMany({
