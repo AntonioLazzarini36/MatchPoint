@@ -11,7 +11,7 @@ class DiscoveryService {
   DiscoveryService(this.api);
 
   Future<List<DiscoverProfile>> fetchFeed({required Sport sport}) async {
-    // ApiClient no tiene query params, así que los montamos en la URL
+    // ApiClient no tiene query params, asi que los montamos en la URL
     final res = await api.get(
       '/discover?sport=${Uri.encodeQueryComponent(sport.apiValue)}',
       auth: true,

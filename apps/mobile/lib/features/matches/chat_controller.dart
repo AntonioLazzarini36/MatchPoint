@@ -17,7 +17,7 @@ class ChatController extends ChangeNotifier {
 
   Future<void> init() async {
     await reload();
-    // marcar leído al entrar (best effort)
+    // marcar leido al entrar (best effort)
     try {
       await service.markRead(matchId: matchId);
     } catch (_) {}

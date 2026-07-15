@@ -42,7 +42,7 @@ Future<void> showDiscoveryMatchDialog(
             ),
             const SizedBox(height: 8),
             Text(
-              'Tú y ${user.displayName} os habéis gustado.',
+              'Tu y ${user.displayName} os habeis gustado.',
               textAlign: TextAlign.center,
               style: context.textStyles.bodyLarge,
             ),
@@ -60,7 +60,7 @@ Future<void> showDiscoveryMatchDialog(
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(ctx).pop();
-                      // Si tu chat necesita matchId, pásalo:
+                      // Si tu chat necesita matchId, pasalo:
                       context.go(AppRoutes.chat, extra: {'matchId': matchId});
                     },
                     child: const Text('Enviar mensaje'),

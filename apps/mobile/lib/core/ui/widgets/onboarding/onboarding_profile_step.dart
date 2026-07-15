@@ -30,7 +30,7 @@ class OnboardingProfileStep extends StatelessWidget {
         children: [
           Text('Tu perfil', style: t.headlineMedium),
           const SizedBox(height: 8),
-          Text('Dinos quién eres.', style: t.bodyLarge),
+          Text('Dinos quien eres.', style: t.bodyLarge),
           const SizedBox(height: 24),
 
           TextField(

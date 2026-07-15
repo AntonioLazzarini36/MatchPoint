@@ -39,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       if (p == null) {
-        // No hay perfil todavía: renderizamos algo “vacío”
+        // No hay perfil todavia: renderizamos algo “vacio”
         setState(() {
           data = const ProfileHeaderData(
             displayName: 'Sin perfil',
@@ -108,10 +108,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: ProfileView(
         data: d,
         sportsTitle: 'Mis Deportes',
-        bioTitle: 'Sobre mí',
+        bioTitle: 'Sobre mi',
         showStats: true,
         showBottomButton: true,
-        bottomButtonText: 'Ver mi perfil público',
+        bottomButtonText: 'Ver mi perfil publico',
         onBottomButton: () {},
         onSettings: () {},
         onEdit: () {},

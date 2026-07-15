@@ -26,7 +26,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
   void initState() {
     super.initState();
 
-    // ⚠️ Pon aquí tu baseUrl real (ej: http://10.0.2.2:3000 para Android emulator)
+    // ⚠️ Pon aqui tu baseUrl real (ej: http://10.0.2.2:3000 para Android emulator)
     controller = AuthController(AuthService(Api.client));
   }
 
@@ -154,7 +154,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       : () => setState(() => isLogin = !isLogin),
                   child: Text(
                     isLogin
-                        ? 'No tienes cuenta? Regístrate'
+                        ? 'No tienes cuenta? Registrate'
                         : 'Ya tienes cuenta? Login',
                   ),
                 ),

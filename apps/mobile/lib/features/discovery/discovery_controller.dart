@@ -57,7 +57,7 @@ class DiscoveryController extends ChangeNotifier {
     // quitamos ese user concreto (por id) para no romper el stack
     final idx = _stack.lastIndexWhere((u) => u.userId == user.userId);
     if (idx == -1) {
-      // ya no está (puede pasar si se swypea rápido)
+      // ya no esta (puede pasar si se swypea rapido)
       return (matched: false, matchId: null, user: user);
     }
 

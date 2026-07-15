@@ -95,7 +95,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     if (matches.isEmpty) {
       return Center(
         child: Text(
-          'No tienes matches todavía',
+          'No tienes matches todavia',
           style: context.textStyles.titleMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),
@@ -103,7 +103,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
       );
     }
 
-    // “Nuevos matches” (horizontal): los 12 más recientes
+    // “Nuevos matches” (horizontal): los 12 mas recientes
     final newMatches = matches.take(12).toList();
 
     return ListView(

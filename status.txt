@@ -56,7 +56,7 @@ DONE:
 ✅- Understand general workflow of project: 
                 ┌─────────────────────────────┐
  FRONTEND:      │         FLUTTER APP         │
-                │ (Dart - UI + lógica cliente)│
+                │ (Dart - UI + logica cliente)│
                 └──────────────┬──────────────┘
                                │
                                │ HTTP (REST API)

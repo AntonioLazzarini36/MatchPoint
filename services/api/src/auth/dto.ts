@@ -4,7 +4,7 @@ export class RegisterDto {
   email!: string;
   password!: string;
 
-  // opcionales para crear perfil rápido
+  // opcionales para crear perfil rapido
   displayName?: string;
   birthDate?: string; // ISO string o "YYYY-MM-DD"
   city?: string;

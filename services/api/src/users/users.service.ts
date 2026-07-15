@@ -27,7 +27,7 @@ export class UsersService {
       throw new NotFoundException('Profile not found');
     }
 
-    // Forma parecida a DiscoverProfile para que el móvil lo consuma fácil
+    // Forma parecida a DiscoverProfile para que el movil lo consuma facil
     return {
       userId: user.id,
       displayName: user.profile.displayName,

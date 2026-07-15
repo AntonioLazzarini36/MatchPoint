@@ -156,7 +156,7 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     } catch {
-      // si es inválido, igual respondemos ok
+      // si es invalido, igual respondemos ok
     }
 
     return { ok: true };

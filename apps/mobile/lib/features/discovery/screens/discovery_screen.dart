@@ -134,14 +134,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             Icon(Icons.search_off, size: 64, color: context.colors.outline),
             const SizedBox(height: 16),
             Text(
-              'No hay más perfiles cerca',
+              'No hay mas perfiles cerca',
               style: context.textStyles.titleMedium?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
             ),
             TextButton(
               onPressed: controller.reload,
-              child: const Text('Reiniciar búsqueda'),
+              child: const Text('Reiniciar busqueda'),
             ),
           ],
         ),
@@ -239,7 +239,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             icon: Icons.star,
             color: Colors.amber,
             onTap: () {
-              // TODO super-like si lo añades en backend
+              // TODO super-like si lo anades en backend
             },
           ),
           DiscoveryActionButton(

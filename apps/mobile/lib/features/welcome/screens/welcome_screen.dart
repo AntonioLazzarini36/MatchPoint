@@ -37,13 +37,13 @@ class WelcomeScreen extends StatelessWidget {
 
           OutlinedButton(
             onPressed: null,
-            child: const Text('Google (próximamente)'),
+            child: const Text('Google (proximamente)'),
           ),
           const SizedBox(height: 12),
 
           OutlinedButton(
             onPressed: null,
-            child: const Text('Apple (próximamente)'),
+            child: const Text('Apple (proximamente)'),
           ),
           const SizedBox(height: 16),
         ],

@@ -20,7 +20,7 @@ class OnboardingLocationStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Ubicación', style: t.headlineMedium),
+          Text('Ubicacion', style: t.headlineMedium),
           const SizedBox(height: 8),
           Text('Encuentra partners cerca de ti.', style: t.bodyLarge),
           const SizedBox(height: 24),
@@ -33,7 +33,7 @@ class OnboardingLocationStep extends StatelessWidget {
                     children: [
                       Icon(Icons.location_on, color: scheme.primary),
                       const SizedBox(width: 8),
-                      Text('Madrid, España', style: t.titleMedium),
+                      Text('Madrid, Espana', style: t.titleMedium),
                     ],
                   ),
                   const SizedBox(height: 16),

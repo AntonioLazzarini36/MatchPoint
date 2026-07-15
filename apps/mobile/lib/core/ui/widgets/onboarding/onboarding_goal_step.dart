@@ -19,7 +19,7 @@ class OnboardingGoalStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('¿Cuál es tu objetivo?', style: t.headlineMedium),
+          Text('¿Cual es tu objetivo?', style: t.headlineMedium),
           const SizedBox(height: 12),
 
           _optionCard(

@@ -111,7 +111,7 @@ class ProfileView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   (data.bio == null || data.bio!.trim().isEmpty)
-                      ? 'Aún no hay bio.'
+                      ? 'Aun no hay bio.'
                       : data.bio!,
                   style: context.textStyles.bodyMedium,
                 ),
@@ -169,7 +169,7 @@ class ProfileView extends StatelessWidget {
   Widget _sportsWrap(BuildContext context, List<Sport> sports) {
     if (sports.isEmpty) {
       return Text(
-        'Aún no hay deportes.',
+        'Aun no hay deportes.',
         style: context.textStyles.bodyMedium
             ?.copyWith(color: context.colors.outline),
       );

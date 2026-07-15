@@ -5,7 +5,7 @@ class Api {
   static final ApiClient client = ApiClient(baseUrl: _baseUrl);
 
   static String get _baseUrl {
-    // por lo que he entendido, mira la plataforma que quiere correr la app y entonces elige qué direccion usar
+    // por lo que he entendido, mira la plataforma que quiere correr la app y entonces elige que direccion usar
     if (kIsWeb) return 'http://localhost:3000';
     return 'http://10.0.2.2:3000';
   }

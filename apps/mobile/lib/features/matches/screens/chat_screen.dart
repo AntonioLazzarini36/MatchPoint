@@ -154,7 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (msgs.isEmpty) {
       return Center(
         child: Text(
-          'No hay mensajes todavía',
+          'No hay mensajes todavia',
           style: context.textStyles.titleMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),
