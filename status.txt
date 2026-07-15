@@ -108,3 +108,35 @@ TODO:
 - Look for API and DB migration to cloud server instead of docker
 
 
+------------
+INIT APP
+------------
+Desde la raíz del repo:
+
+git clone <repo-url>
+cd <repo>
+docker compose up -d db
+
+Luego backend:
+
+cd services/api
+npm ci
+npx prisma generate
+npx prisma migrate deploy
+
+Y frontend:
+
+cd ../../apps/mobile
+flutter pub get
+
+
+igual necesitas cambiar cosas en el .env si te da problemas, si no sigues con levantar la app:
+
+backend: cd services/api
+npm run start:dev
+
+y frontend:
+cd apps/mobile
+flutter run -d chrome o el comando que uses tu para usar el emulador
+
+
