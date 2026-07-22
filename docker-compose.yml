@@ -27,5 +27,23 @@ services:
       - /app/node_modules
     command: npm run start:dev
 
+  api-rust:
+    build:
+      context: ./services/api-rust
+      dockerfile: Dockerfile
+    container_name: matchpoint_api_rust
+    environment:
+      DATABASE_URL: "postgresql://matchpoint:matchpoint@db:5432/matchpoint"
+      PORT: 3000
+      JWT_ACCESS_SECRET: "dev_access_secret_change_me"
+      JWT_REFRESH_SECRET: "dev_refresh_secret_change_me"
+      JWT_ACCESS_EXPIRES_IN_SECONDS: 900
+      JWT_REFRESH_EXPIRES_IN_SECONDS: 2592000
+      MESSAGE_KEY_BASE64: "1mKQdNgaRWyt/45tyC5TKw9ogvCE45Kq5p+wciokGtg="
+    ports:
+      - "3001:3000"
+    depends_on:
+      - db
+
 volumes:
   matchpoint_db_data:
