@@ -19,8 +19,12 @@ pub struct Claims {
 }
 
 pub fn sign(claims: &Claims, secret: &str) -> String {
-    encode(&Header::default(), claims, &EncodingKey::from_secret(secret.as_bytes()))
-        .expect("jwt signing should not fail")
+    encode(
+        &Header::default(),
+        claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .expect("jwt signing should not fail")
 }
 
 pub fn verify(token: &str, secret: &str) -> Result<Claims, jsonwebtoken::errors::Error> {

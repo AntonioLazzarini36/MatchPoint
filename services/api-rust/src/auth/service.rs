@@ -1,9 +1,9 @@
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel::result::OptionalExtension;
-use diesel_async::RunQueryDsl;
-use diesel_async::AsyncConnection;
 use diesel_async::scoped_futures::ScopedFutureExt;
+use diesel_async::AsyncConnection;
+use diesel_async::RunQueryDsl;
 
 use crate::auth::dto::{LoginDto, RegisterDto};
 use crate::auth::jwt::{self, Claims};
@@ -64,7 +64,11 @@ async fn issue_tokens(
     let token_hash =
         bcrypt::hash(&refresh_token, bcrypt::DEFAULT_COST).expect("bcrypt should not fail");
 
-    let mut conn = state.db.get().await.map_err(|e| AuthError::Pool(e.to_string()))?;
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
 
     // MVP: 1 refresh activo por usuario (limpiamos los anteriores) — igual que auth.service.ts
     diesel::delete(refresh_tokens::table.filter(refresh_tokens::user_id.eq(user_id)))
@@ -86,7 +90,11 @@ async fn issue_tokens(
 pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, AuthError> {
     let email = dto.email.trim().to_lowercase();
 
-    let mut conn = state.db.get().await.map_err(|e| AuthError::Pool(e.to_string()))?;
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
 
     let existing = users::table
         .filter(users::email.eq(&email))
@@ -155,20 +163,28 @@ pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, 
 
             Ok(())
         }
-            .scope_boxed()
+        .scope_boxed()
     })
-        .await?;
+    .await?;
 
     drop(conn);
 
     let (access_token, refresh_token) = issue_tokens(state, &user_id, &email).await?;
-    Ok(AuthTokens { user_id, access_token, refresh_token })
+    Ok(AuthTokens {
+        user_id,
+        access_token,
+        refresh_token,
+    })
 }
 
 pub async fn login(state: &AppState, dto: LoginDto) -> Result<AuthTokens, AuthError> {
     let email = dto.email.trim().to_lowercase();
 
-    let mut conn = state.db.get().await.map_err(|e| AuthError::Pool(e.to_string()))?;
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
 
     let (user_id, password_hash) = users::table
         .filter(users::email.eq(&email))
@@ -185,7 +201,11 @@ pub async fn login(state: &AppState, dto: LoginDto) -> Result<AuthTokens, AuthEr
     }
 
     let (access_token, refresh_token) = issue_tokens(state, &user_id, &email).await?;
-    Ok(AuthTokens { user_id, access_token, refresh_token })
+    Ok(AuthTokens {
+        user_id,
+        access_token,
+        refresh_token,
+    })
 }
 
 pub async fn refresh(state: &AppState, refresh_token: &str) -> Result<AuthTokens, AuthError> {
@@ -196,7 +216,11 @@ pub async fn refresh(state: &AppState, refresh_token: &str) -> Result<AuthTokens
     let claims = jwt::verify(refresh_token, &state.config.jwt_refresh_secret)
         .map_err(|_| AuthError::InvalidRefreshToken)?;
 
-    let mut conn = state.db.get().await.map_err(|e| AuthError::Pool(e.to_string()))?;
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
 
     let stored = refresh_tokens::table
         .filter(refresh_tokens::user_id.eq(&claims.sub))
@@ -223,7 +247,11 @@ pub async fn refresh(state: &AppState, refresh_token: &str) -> Result<AuthTokens
     drop(conn);
 
     let (access_token, refresh_token) = issue_tokens(state, &claims.sub, &user_email).await?;
-    Ok(AuthTokens { user_id: claims.sub, access_token, refresh_token })
+    Ok(AuthTokens {
+        user_id: claims.sub,
+        access_token,
+        refresh_token,
+    })
 }
 
 pub async fn logout(state: &AppState, refresh_token: &str) -> Result<(), AuthError> {
@@ -238,9 +266,9 @@ pub async fn logout(state: &AppState, refresh_token: &str) -> Result<(), AuthErr
                     .filter(refresh_tokens::user_id.eq(&claims.sub))
                     .filter(refresh_tokens::revoked_at.is_null()),
             )
-                .set(refresh_tokens::revoked_at.eq(Some(Utc::now())))
-                .execute(&mut conn)
-                .await;
+            .set(refresh_tokens::revoked_at.eq(Some(Utc::now())))
+            .execute(&mut conn)
+            .await;
         }
     }
 

@@ -55,5 +55,13 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
 
     let (user_id, display_name, birth_date, city, bio, photos, sports) = row;
 
-    Ok(DiscoverProfile { user_id, display_name, birth_date, city, bio, photos, sports })
+    Ok(DiscoverProfile {
+        user_id,
+        display_name,
+        birth_date,
+        city,
+        bio,
+        photos,
+        sports,
+    })
 }

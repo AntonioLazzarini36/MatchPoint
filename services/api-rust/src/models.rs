@@ -8,7 +8,7 @@ use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::schema::{matches, preferences, profiles, refresh_tokens, swipes, users, messages};
+use crate::schema::{matches, messages, preferences, profiles, refresh_tokens, swipes, users};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize)]
 #[ExistingTypePath = "crate::schema::sql_types::Sport"]

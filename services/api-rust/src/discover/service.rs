@@ -8,8 +8,8 @@
 //! which gives the same end result as the `.filter((u) => u.profile)` in
 //! the TS version.
 
-use diesel::PgArrayExpressionMethods;
 use diesel::prelude::*;
+use diesel::PgArrayExpressionMethods;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
 

@@ -1,12 +1,8 @@
 //! Direct port of me.controller.ts.
 
 use axum::{
-    extract::{State},
-    http::StatusCode,
-    response::IntoResponse,
-    routing::patch,
-    routing::get,
-    Json, Router,
+    extract::State, http::StatusCode, response::IntoResponse, routing::get, routing::patch, Json,
+    Router,
 };
 use serde_json::json;
 
@@ -22,10 +18,7 @@ pub fn router() -> Router<AppState> {
         .route("/me/preferences", patch(update_preferences))
 }
 
-async fn get_me(
-    State(state): State<AppState>,
-    user: AuthUser,
-) -> impl IntoResponse {
+async fn get_me(State(state): State<AppState>, user: AuthUser) -> impl IntoResponse {
     match service::get_me(&state, &user.user_id).await {
         Ok(me) => Json(me).into_response(),
         Err(e) => me_error_response(e),

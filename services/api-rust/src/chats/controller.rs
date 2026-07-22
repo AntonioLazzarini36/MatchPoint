@@ -17,7 +17,10 @@ use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/chats/:matchId/messages", get(list_messages).post(send_message))
+        .route(
+            "/chats/:matchId/messages",
+            get(list_messages).post(send_message),
+        )
         .route("/chats/:matchId/read", patch(mark_read))
 }
 
@@ -33,8 +36,14 @@ async fn list_messages(
     Path(match_id): Path<String>,
     Query(params): Query<ListMessagesQuery>,
 ) -> impl IntoResponse {
-    match service::list_messages(&state, &match_id, &user.user_id, params.limit, params.cursor)
-        .await
+    match service::list_messages(
+        &state,
+        &match_id,
+        &user.user_id,
+        params.limit,
+        params.cursor,
+    )
+    .await
     {
         Ok(messages) => Json(messages).into_response(),
         Err(err) => chats_error_response(err),

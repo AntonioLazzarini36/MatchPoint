@@ -91,8 +91,14 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
         result.push(MatchListItem {
             match_id,
             created_at,
-            other_user: UserWithProfile { user_id: other_id, profile: other_profile },
-            me: UserWithProfile { user_id: me_id, profile: me_profile },
+            other_user: UserWithProfile {
+                user_id: other_id,
+                profile: other_profile,
+            },
+            me: UserWithProfile {
+                user_id: me_id,
+                profile: me_profile,
+            },
         });
     }
 

@@ -5,18 +5,18 @@
 //! requests from the Flutter emulator. We do the same here from day one.
 
 mod app;
+mod auth;
+mod chats;
 mod config;
 mod db;
-mod state;
-mod schema;
-mod models;
-mod auth;
 mod discover;
-mod me;
-mod swipes;
 mod matches;
+mod me;
+mod models;
+mod schema;
+mod state;
+mod swipes;
 mod users;
-mod chats;
 
 use std::sync::Arc;
 
@@ -50,7 +50,7 @@ async fn main() {
                 .await
                 .map_err(|e| format!("query failed: {e}"))
         })
-            .await;
+        .await;
 
         match check {
             Ok(Ok(_)) => tracing::info!("database connectivity OK"),

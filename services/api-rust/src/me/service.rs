@@ -44,7 +44,11 @@ pub struct MeResponse {
 }
 
 pub async fn get_me(state: &AppState, user_id: &str) -> Result<MeResponse, MeError> {
-    let mut conn = state.db.get().await.map_err(|e| MeError::Pool(e.to_string()))?;
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
 
     let (id, email, created_at) = users::table
         .filter(users::id.eq(user_id))
@@ -66,7 +70,13 @@ pub async fn get_me(state: &AppState, user_id: &str) -> Result<MeResponse, MeErr
         .await
         .optional()?;
 
-    Ok(MeResponse { id, email, profile, preferences, created_at })
+    Ok(MeResponse {
+        id,
+        email,
+        profile,
+        preferences,
+        created_at,
+    })
 }
 
 pub async fn update_profile(
@@ -101,8 +111,12 @@ pub async fn update_profile(
         .or_else(|| existing.as_ref().map(|p| p.birth_date))
         .unwrap_or_else(|| parse_date("2000-01-01"));
 
-    let city = dto.city.or_else(|| existing.as_ref().and_then(|p| p.city.clone()));
-    let bio = dto.bio.or_else(|| existing.as_ref().and_then(|p| p.bio.clone()));
+    let city = dto
+        .city
+        .or_else(|| existing.as_ref().and_then(|p| p.city.clone()));
+    let bio = dto
+        .bio
+        .or_else(|| existing.as_ref().and_then(|p| p.bio.clone()));
     let photos = dto
         .photos
         .or_else(|| existing.as_ref().map(|p| p.photos.clone()))

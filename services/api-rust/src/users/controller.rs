@@ -19,7 +19,7 @@ pub fn router() -> Router<AppState> {
 
 async fn get_profile(
     State(state): State<AppState>,
-    _user: AuthUser,  // guard exige token, pero no se usa el resultado
+    _user: AuthUser, // guard exige token, pero no se usa el resultado
     Path(user_id): Path<String>,
 ) -> impl IntoResponse {
     match service::get_profile(&state, &user_id).await {

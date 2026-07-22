@@ -32,4 +32,3 @@ async fn list(State(state): State<AppState>, user: AuthUser) -> impl IntoRespons
         }
     }
 }
- 

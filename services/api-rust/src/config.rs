@@ -29,15 +29,14 @@ impl AppConfig {
             .and_then(|v| v.parse().ok())
             .unwrap_or(3000);
 
-        let database_url =
-            env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
         // Mirrors the `?? 'dev_access_secret'` fallbacks in auth.service.ts.
         // Fine for local dev, but you should override these in every real env.
-        let jwt_access_secret = env::var("JWT_ACCESS_SECRET")
-            .unwrap_or_else(|_| "dev_access_secret".to_string());
-        let jwt_refresh_secret = env::var("JWT_REFRESH_SECRET")
-            .unwrap_or_else(|_| "dev_refresh_secret".to_string());
+        let jwt_access_secret =
+            env::var("JWT_ACCESS_SECRET").unwrap_or_else(|_| "dev_access_secret".to_string());
+        let jwt_refresh_secret =
+            env::var("JWT_REFRESH_SECRET").unwrap_or_else(|_| "dev_refresh_secret".to_string());
 
         let jwt_access_expires_in_seconds = env::var("JWT_ACCESS_EXPIRES_IN_SECONDS")
             .ok()

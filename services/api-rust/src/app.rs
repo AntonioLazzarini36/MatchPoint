@@ -8,13 +8,13 @@
 
 use axum::Router;
 
-use crate::{auth, chats, users};
 use crate::app;
 use crate::discover;
-use crate::swipes;
 use crate::matches;
 use crate::me;
 use crate::state::AppState;
+use crate::swipes;
+use crate::{auth, chats, users};
 
 pub mod controller;
 pub mod service;
@@ -22,12 +22,12 @@ pub mod service;
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(app::controller::router())
-        .merge(discover::controller::router())   // next: DiscoverModule
-        .merge(me::controller::router())         // next: MeModule
-        .merge(auth::controller::router())       // next: AuthModule
-        .merge(swipes::controller::router())     // next: SwipesModule
-        .merge(matches::controller::router())    // next: MatchesModule
-        .merge(chats::controller::router())      // next: ChatsModule
-        .merge(users::controller::router())      // next: UsersModule
+        .merge(discover::controller::router()) // next: DiscoverModule
+        .merge(me::controller::router()) // next: MeModule
+        .merge(auth::controller::router()) // next: AuthModule
+        .merge(swipes::controller::router()) // next: SwipesModule
+        .merge(matches::controller::router()) // next: MatchesModule
+        .merge(chats::controller::router()) // next: ChatsModule
+        .merge(users::controller::router()) // next: UsersModule
         .with_state(state)
 }

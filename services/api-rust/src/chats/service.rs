@@ -104,7 +104,14 @@ pub async fn list_messages(
             messages::created_at,
             messages::read_at,
         ))
-        .load::<(String, String, String, String, DateTime<Utc>, Option<DateTime<Utc>>)>(&mut conn)
+        .load::<(
+            String,
+            String,
+            String,
+            String,
+            DateTime<Utc>,
+            Option<DateTime<Utc>>,
+        )>(&mut conn)
         .await?;
 
     // We queried DESC (newest first, so LIMIT keeps the most recent N),
@@ -116,7 +123,14 @@ pub async fn list_messages(
     let mut result = Vec::with_capacity(rows.len());
     for (id, match_id, sender_id, ciphertext, created_at, read_at) in rows {
         let text = crypto::decrypt_text(&ciphertext, key)?;
-        result.push(MessageResponse { id, match_id, sender_id, text, created_at, read_at });
+        result.push(MessageResponse {
+            id,
+            match_id,
+            sender_id,
+            text,
+            created_at,
+            read_at,
+        });
     }
 
     Ok(result)
@@ -191,9 +205,12 @@ pub async fn mark_read(
             .filter(messages::sender_id.ne(user_id))
             .filter(messages::read_at.is_null()),
     )
-        .set(messages::read_at.eq(now))
-        .execute(&mut conn)
-        .await?;
+    .set(messages::read_at.eq(now))
+    .execute(&mut conn)
+    .await?;
 
-    Ok(MarkReadResponse { updated, read_at: now })
+    Ok(MarkReadResponse {
+        updated,
+        read_at: now,
+    })
 }

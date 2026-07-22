@@ -1,9 +1,4 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::post,
-    Json, Router};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
 use serde_json::json;
 
 use crate::auth::dto::{LoginDto, LogoutDto, RefreshDto, RegisterDto};
@@ -18,7 +13,10 @@ pub fn router() -> Router<AppState> {
         .route("/auth/logout", post(logout))
 }
 
-async fn register(State(state): State<AppState>, Json(dto): Json<RegisterDto>) -> impl IntoResponse {
+async fn register(
+    State(state): State<AppState>,
+    Json(dto): Json<RegisterDto>,
+) -> impl IntoResponse {
     match service::register(&state, dto).await {
         Ok(t) => tokens_response(t).into_response(),
         Err(e) => AuthRejection(e).into_response(),

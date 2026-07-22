@@ -79,7 +79,11 @@ pub async fn create_swipe(
         .await?;
 
     if dto.swipe_type != SwipeType::Like {
-        return Ok(SwipeResult { matched: false, match_id: None, swipe_id });
+        return Ok(SwipeResult {
+            matched: false,
+            match_id: None,
+            swipe_id,
+        });
     }
 
     // Look for the reverse LIKE (dto.toUserId -> me) on the same sport.
@@ -95,7 +99,11 @@ pub async fn create_swipe(
         .optional()?;
 
     if reverse.is_none() {
-        return Ok(SwipeResult { matched: false, match_id: None, swipe_id });
+        return Ok(SwipeResult {
+            matched: false,
+            match_id: None,
+            swipe_id,
+        });
     }
 
     let (user_a_id, user_b_id, sport) = order_pair(from_user_id, &dto.to_user_id, dto.sport);
