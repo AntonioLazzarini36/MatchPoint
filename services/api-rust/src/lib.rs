@@ -52,7 +52,7 @@ pub async fn run() {
                 .await
                 .map_err(|e| format!("query failed: {e}"))
         })
-            .await;
+        .await;
 
         match check {
             Ok(Ok(_)) => tracing::info!("database connectivity OK"),
