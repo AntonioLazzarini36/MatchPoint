@@ -11,22 +11,6 @@ services:
     volumes:
       - matchpoint_db_data:/var/lib/postgresql/data
 
-  api:
-    build:
-      context: ./services/api
-      dockerfile: DockerFile
-    container_name: matchpoint_api
-    env_file:
-      - ./.env
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-    volumes:
-      - ./services/api:/app
-      - /app/node_modules
-    command: npm run start:dev
-
   api-rust:
     build:
       context: ./services/api-rust
@@ -41,7 +25,7 @@ services:
       JWT_REFRESH_EXPIRES_IN_SECONDS: 2592000
       MESSAGE_KEY_BASE64: "1mKQdNgaRWyt/45tyC5TKw9ogvCE45Kq5p+wciokGtg="
     ports:
-      - "3001:3000"
+      - "3000:3000"
     depends_on:
       - db
 
