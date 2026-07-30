@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
+import '../../../core/ui/profile/photo_manager_sheet.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
@@ -113,7 +114,21 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     );
 
     final ok = await controller.submitProfile(req);
-    if (ok && mounted) context.go(AppRoutes.shell);
+    if (!ok || !mounted) return;
+
+    // Foto opcional: el perfil ya existe (se acaba de crear arriba), así
+    // que ya se puede subir. Cerrar el sheet (con o sin foto) continúa.
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => PhotoManagerSheet(
+        service: controller.service,
+        initialPhotos: const [],
+        onChanged: (_) {},
+      ),
+    );
+
+    if (mounted) context.go(AppRoutes.shell);
   }
 
   void _goBack() {

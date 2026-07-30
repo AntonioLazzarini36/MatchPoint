@@ -41,4 +41,39 @@ class ProfileService {
       jsonDecode(res.body) as Map<String, dynamic>,
     );
   }
+
+  Future<Profile> uploadPhoto({
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final res = await api.postMultipart(
+      '/me/photos',
+      fieldName: 'photo',
+      bytes: bytes,
+      filename: filename,
+      contentType: contentType,
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UploadPhoto failed: ${res.statusCode} ${res.body}');
+    }
+
+    return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  Future<Profile> deletePhoto(String url) async {
+    final res = await api.delete(
+      '/me/photos',
+      body: {'url': url},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('DeletePhoto failed: ${res.statusCode} ${res.body}');
+    }
+
+    return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
 }

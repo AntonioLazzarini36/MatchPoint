@@ -61,11 +61,14 @@ class AppRouter {
           final match =
               state.extra as MatchItem; // lo pasamos desde MatchesScreen
 
+          final otherPhotos = match.otherUser.profile?.photos ?? const [];
+
           return ChatScreen(
             matchId: matchId,
             myUserId: match.me.userId,
             otherUserId: match.otherUser.userId,
             otherName: match.otherUser.profile?.displayName ?? 'Sin nombre',
+            otherPhotoUrl: otherPhotos.isNotEmpty ? otherPhotos.first : null,
           );
         },
       ),

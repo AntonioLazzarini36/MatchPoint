@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api.dart';
+import '../../onboarding/models/profile.dart' as onboarding_profile;
 import '../../onboarding/services/profile_service.dart';
+import '../../../core/ui/profile/photo_manager_sheet.dart';
 import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
 
@@ -18,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool loading = true;
   Object? error;
   ProfileHeaderData? data;
+  onboarding_profile.Profile? profile;
 
   @override
   void initState() {
@@ -41,6 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (p == null) {
         // No hay perfil todavia: renderizamos algo “vacio”
         setState(() {
+          profile = null;
           data = const ProfileHeaderData(
             displayName: 'Sin perfil',
             photos: [],
@@ -52,6 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       setState(() {
+        profile = p;
         data = ProfileHeaderData(
           displayName: p.displayName,
           age: p.age,
@@ -69,6 +74,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         loading = false;
       });
     }
+  }
+
+  void _openPhotoManager() {
+    final currentProfile = profile;
+    if (currentProfile == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => PhotoManagerSheet(
+        service: service,
+        initialPhotos: currentProfile.photos,
+        onChanged: (photos) {
+          setState(() {
+            data = ProfileHeaderData(
+              displayName: currentProfile.displayName,
+              age: currentProfile.age,
+              city: currentProfile.city,
+              bio: currentProfile.bio,
+              photos: photos,
+              sports: currentProfile.sports,
+            );
+          });
+        },
+      ),
+    );
   }
 
   @override
@@ -114,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         bottomButtonText: 'Ver mi perfil publico',
         onBottomButton: () {},
         onSettings: () {},
-        onEdit: () {},
+        onEdit: _openPhotoManager,
       ),
     );
   }
