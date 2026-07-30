@@ -65,6 +65,7 @@ Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D
 - Each feature module (`auth/`, `discover/`, `me/`, `swipes/`, `matches/`, `chats/`, `users/`, `app/`) follows the same three-file shape as its Nest ancestor: `controller.rs` (Axum router + handlers, maps errors to `StatusCode`), `service.rs` (business logic, DB queries), and `dto.rs` where request/response shapes need their own types. `auth/` additionally has `jwt.rs`; `chats/` additionally has `crypto.rs` (AES-256-GCM message encryption — ciphertext at rest, plaintext over the API).
 - `src/models.rs` / `src/schema.rs` — Diesel models and schema, hand-maintained (see migrations note above; do not expect `schema.rs` to auto-regenerate).
 - `src/bin/datagen.rs` — extra binary in the same crate (auto-discovered by Cargo, no `Cargo.toml` change needed) for seeding test data; see Commands above.
+- `src/openapi.rs` — OpenAPI spec aggregator (`utoipa`), served as Swagger UI + JSON via `app.rs`. See "OpenAPI docs" below.
 
 ### Auth & data model
 
@@ -84,7 +85,15 @@ Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D
 - Users: `GET /users/:userId/profile` (public profile, still requires auth; 404 if missing)
 - Misc: `GET /`, `GET /health`
 
-There's no rating/skill-level system yet (Elo vs Glicko-2 undecided) — `discover` currently has nothing to rank matches by skill. No OpenAPI/Swagger docs exist.
+There's no rating/skill-level system yet (Elo vs Glicko-2 undecided) — `discover` currently has nothing to rank matches by skill.
+
+### OpenAPI docs
+
+Swagger UI at `http://localhost:3000/docs`, raw spec at `/api-docs/openapi.json` (`utoipa` + `utoipa-swagger-ui`, mounted in `app.rs`). When adding an endpoint: derive `ToSchema` on its DTO/response types, add a `#[utoipa::path(...)]` block above the handler (copy a neighboring one in the same `controller.rs` as a template), then register the handler and any new schema types in `src/openapi.rs`'s `paths(...)`/`components(schemas(...))`. Missing/mismatched entries fail `cargo build`, so the docs can't silently drift from the code.
+
+**Gotcha:** in `request_body`/`responses(body = ...)`, always reference the type by its **short name** (`body = MeResponse`), never a fully-qualified path (`body = crate::me::service::MeResponse`) — with utoipa 4.x the latter produces a broken literal `$ref` (`crate.me.service.MeResponse`) that doesn't match how the type gets registered in `components/schemas` (by short name), and Swagger UI shows "could not resolve reference" errors. This means the short name has to be `use`-imported into `controller.rs` purely for the macro, which clippy then flags as `unused_imports` since nothing else in the file references it by that path — put `#[allow(unused_imports)]` above that `use` (every `controller.rs` already does this; copy the pattern).
+
+**Gotcha:** `utoipa-swagger-ui`'s build script downloads the Swagger UI static assets at compile time via the system `curl` binary. `services/api-rust/Dockerfile`'s builder stage (`rust:1-slim-bookworm`) installs `curl` + `ca-certificates` for this — don't remove them, `cargo build --release` inside the image fails without them (`utoipa-swagger-ui` build script panics: `curl` not found).
 
 ## Frontend architecture
 

@@ -2,7 +2,7 @@ FROM rust:1-slim-bookworm AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev pkg-config libssl-dev \
+    libpq-dev pkg-config libssl-dev ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock* ./
