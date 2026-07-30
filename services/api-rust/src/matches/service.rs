@@ -13,6 +13,7 @@ use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::models::Profile;
 use crate::schema::{matches, profiles};
@@ -26,14 +27,14 @@ pub enum MatchesError {
     Pool(String),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserWithProfile {
     pub user_id: String,
     pub profile: Option<Profile>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchListItem {
     pub match_id: String,

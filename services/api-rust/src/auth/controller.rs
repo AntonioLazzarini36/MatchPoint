@@ -2,7 +2,11 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::po
 use serde_json::json;
 
 use crate::auth::dto::{LoginDto, LogoutDto, RefreshDto, RegisterDto};
+#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
+use crate::auth::service::AuthTokens;
 use crate::auth::service::{self, AuthError};
+#[allow(unused_imports)]
+use crate::openapi::{ErrorResponse, OkResponse};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -13,43 +17,74 @@ pub fn router() -> Router<AppState> {
         .route("/auth/logout", post(logout))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/register",
+    tag = "auth",
+    request_body = RegisterDto,
+    responses(
+        (status = 200, description = "Cuenta creada, tokens emitidos", body = AuthTokens),
+        (status = 400, description = "El email ya está en uso", body = ErrorResponse),
+    )
+)]
 async fn register(
     State(state): State<AppState>,
     Json(dto): Json<RegisterDto>,
 ) -> impl IntoResponse {
     match service::register(&state, dto).await {
-        Ok(t) => tokens_response(t).into_response(),
+        Ok(t) => Json(t).into_response(),
         Err(e) => AuthRejection(e).into_response(),
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    tag = "auth",
+    request_body = LoginDto,
+    responses(
+        (status = 200, description = "Login correcto, tokens emitidos", body = AuthTokens),
+        (status = 401, description = "Credenciales inválidas", body = ErrorResponse),
+    )
+)]
 async fn login(State(state): State<AppState>, Json(dto): Json<LoginDto>) -> impl IntoResponse {
     match service::login(&state, dto).await {
-        Ok(t) => tokens_response(t).into_response(),
+        Ok(t) => Json(t).into_response(),
         Err(e) => AuthRejection(e).into_response(),
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/refresh",
+    tag = "auth",
+    request_body = RefreshDto,
+    responses(
+        (status = 200, description = "Nuevo par de tokens", body = AuthTokens),
+        (status = 401, description = "Refresh token inválido, caducado o revocado", body = ErrorResponse),
+    )
+)]
 async fn refresh(State(state): State<AppState>, Json(dto): Json<RefreshDto>) -> impl IntoResponse {
     match service::refresh(&state, &dto.refresh_token).await {
-        Ok(t) => tokens_response(t).into_response(),
+        Ok(t) => Json(t).into_response(),
         Err(e) => AuthRejection(e).into_response(),
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    tag = "auth",
+    request_body = LogoutDto,
+    responses(
+        (status = 200, description = "Refresh token revocado (siempre 200, incluso si ya era inválido)", body = OkResponse),
+    )
+)]
 async fn logout(State(state): State<AppState>, Json(dto): Json<LogoutDto>) -> impl IntoResponse {
     match service::logout(&state, &dto.refresh_token).await {
         Ok(()) => Json(json!({ "ok": true })).into_response(),
         Err(e) => AuthRejection(e).into_response(),
     }
-}
-
-fn tokens_response(t: service::AuthTokens) -> Json<serde_json::Value> {
-    Json(json!({
-        "userId": t.user_id,
-        "accessToken": t.access_token,
-        "refreshToken": t.refresh_token,
-    }))
 }
 
 struct AuthRejection(AuthError);

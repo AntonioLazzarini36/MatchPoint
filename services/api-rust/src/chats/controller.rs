@@ -13,6 +13,10 @@ use serde_json::json;
 use crate::auth::jwt::AuthUser;
 use crate::chats::dto::SendMessageDto;
 use crate::chats::service::{self, ChatsError};
+#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
+use crate::chats::service::{MarkReadResponse, MessageResponse};
+#[allow(unused_imports)]
+use crate::openapi::ErrorResponse;
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -24,12 +28,28 @@ pub fn router() -> Router<AppState> {
         .route("/chats/:matchId/read", patch(mark_read))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 struct ListMessagesQuery {
     limit: Option<i64>,
     cursor: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/chats/{matchId}/messages",
+    tag = "chats",
+    security(("bearerAuth" = [])),
+    params(
+        ("matchId" = String, Path, description = "Id del match"),
+        ListMessagesQuery,
+    ),
+    responses(
+        (status = 200, description = "Mensajes del match, descifrados", body = Vec<MessageResponse>),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 403, description = "No eres miembro de este match", body = ErrorResponse),
+        (status = 404, description = "Match no encontrado", body = ErrorResponse),
+    )
+)]
 async fn list_messages(
     State(state): State<AppState>,
     user: AuthUser,
@@ -50,6 +70,21 @@ async fn list_messages(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/chats/{matchId}/messages",
+    tag = "chats",
+    security(("bearerAuth" = [])),
+    params(("matchId" = String, Path, description = "Id del match")),
+    request_body = SendMessageDto,
+    responses(
+        (status = 200, description = "Mensaje enviado", body = MessageResponse),
+        (status = 400, description = "Texto vacío o demasiado largo (1-2000 chars)", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 403, description = "No eres miembro de este match", body = ErrorResponse),
+        (status = 404, description = "Match no encontrado", body = ErrorResponse),
+    )
+)]
 async fn send_message(
     State(state): State<AppState>,
     user: AuthUser,
@@ -62,6 +97,19 @@ async fn send_message(
     }
 }
 
+#[utoipa::path(
+    patch,
+    path = "/chats/{matchId}/read",
+    tag = "chats",
+    security(("bearerAuth" = [])),
+    params(("matchId" = String, Path, description = "Id del match")),
+    responses(
+        (status = 200, description = "Mensajes marcados como leídos", body = MarkReadResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 403, description = "No eres miembro de este match", body = ErrorResponse),
+        (status = 404, description = "Match no encontrado", body = ErrorResponse),
+    )
+)]
 async fn mark_read(
     State(state): State<AppState>,
     user: AuthUser,

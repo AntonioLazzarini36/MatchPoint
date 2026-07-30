@@ -12,6 +12,7 @@ use diesel::prelude::*;
 use diesel::PgArrayExpressionMethods;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::models::Sport;
 use crate::schema::profiles;
@@ -21,7 +22,7 @@ use crate::state::AppState;
 /// this has to match discover.service.ts's return shape exactly, since
 /// Flutter is already coded against it (and users.service.ts reuses the
 /// same shape, so keep this struct in sync if that one changes too).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoverProfile {
     pub user_id: String,

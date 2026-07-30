@@ -3,10 +3,11 @@
 //! came through (same as `dto.city ?? undefined` in the TS version).
 
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 use crate::models::Sport;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateProfileDto {
     pub display_name: Option<String>,
@@ -17,7 +18,7 @@ pub struct UpdateProfileDto {
     pub sports: Option<Vec<Sport>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePreferencesDto {
     pub sports_wanted: Option<Vec<Sport>>,

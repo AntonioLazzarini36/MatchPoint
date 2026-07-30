@@ -154,6 +154,7 @@ fn parse_birth_date(s: &str) -> DateTime<Utc> {
 /// Shared insert logic: User + Profile + Preferences in one transaction,
 /// same shape as auth::service::register. Returns `true` if it inserted,
 /// `false` if the email already existed and was skipped.
+#[allow(clippy::too_many_arguments)]
 async fn seed_one(
     conn: &mut AsyncPgConnection,
     email: &str,

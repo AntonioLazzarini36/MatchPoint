@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::models::{Match, NewMatch, NewSwipe, Sport, SwipeType};
 use crate::schema::{matches, swipes};
@@ -25,7 +26,7 @@ pub enum SwipesError {
 /// `matched` is the Rust field name because `match` is a reserved
 /// keyword; `#[serde(rename = "match")]` puts the JSON key back to what
 /// the TS version (and therefore Flutter) expects.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SwipeResult {
     #[serde(rename = "match")]

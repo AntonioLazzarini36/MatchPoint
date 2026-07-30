@@ -7,11 +7,14 @@
 //! like `src/app/controller.rs` does today for the root module.
 
 use axum::Router;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::app;
 use crate::discover;
 use crate::matches;
 use crate::me;
+use crate::openapi::ApiDoc;
 use crate::state::AppState;
 use crate::swipes;
 use crate::{auth, chats, users};
@@ -29,5 +32,6 @@ pub fn build_router(state: AppState) -> Router {
         .merge(matches::controller::router()) // next: MatchesModule
         .merge(chats::controller::router()) // next: ChatsModule
         .merge(users::controller::router()) // next: UsersModule
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
 }

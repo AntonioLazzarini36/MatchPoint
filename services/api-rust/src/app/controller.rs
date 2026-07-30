@@ -10,6 +10,8 @@ use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};
 
 use crate::app::service;
+#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
+use crate::openapi::OkResponse;
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -18,10 +20,22 @@ pub fn router() -> Router<AppState> {
         .route("/health", get(health))
 }
 
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "misc",
+    responses((status = 200, description = "Saludo de prueba", body = String))
+)]
 async fn get_hello() -> &'static str {
     service::get_hello()
 }
 
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "misc",
+    responses((status = 200, description = "Healthcheck", body = OkResponse))
+)]
 async fn health() -> Json<Value> {
     Json(json!({ "ok": true }))
 }

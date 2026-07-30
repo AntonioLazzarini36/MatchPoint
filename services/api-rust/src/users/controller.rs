@@ -10,6 +10,10 @@ use axum::{
 use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
+#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
+use crate::discover::service::DiscoverProfile;
+#[allow(unused_imports)]
+use crate::openapi::ErrorResponse;
 use crate::state::AppState;
 use crate::users::service::{self, UsersError};
 
@@ -17,6 +21,18 @@ pub fn router() -> Router<AppState> {
     Router::new().route("/users/:userId/profile", get(get_profile))
 }
 
+#[utoipa::path(
+    get,
+    path = "/users/{userId}/profile",
+    tag = "users",
+    security(("bearerAuth" = [])),
+    params(("userId" = String, Path, description = "Id del usuario")),
+    responses(
+        (status = 200, description = "Perfil público del usuario", body = DiscoverProfile),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 404, description = "Perfil no encontrado", body = ErrorResponse),
+    )
+)]
 async fn get_profile(
     State(state): State<AppState>,
     _user: AuthUser, // guard exige token, pero no se usa el resultado

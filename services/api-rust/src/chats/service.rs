@@ -6,6 +6,7 @@ use diesel::result::OptionalExtension;
 use diesel_async::AsyncPgConnection;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::chats::crypto;
 use crate::models::{Match, NewMessage};
@@ -28,7 +29,7 @@ pub enum ChatsError {
     Crypto(#[from] crypto::CryptoError),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageResponse {
     pub id: String,
@@ -39,7 +40,7 @@ pub struct MessageResponse {
     pub read_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkReadResponse {
     pub updated: usize,

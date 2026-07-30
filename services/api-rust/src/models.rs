@@ -7,10 +7,11 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::schema::{matches, messages, preferences, profiles, refresh_tokens, swipes, users};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
 #[ExistingTypePath = "crate::schema::sql_types::Sport"]
 pub enum Sport {
     #[db_rename = "TENNIS"]
@@ -21,7 +22,7 @@ pub enum Sport {
     Running,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
 #[ExistingTypePath = "crate::schema::sql_types::SwipeType"]
 pub enum SwipeType {
     #[db_rename = "LIKE"]
@@ -54,7 +55,7 @@ pub struct NewUser<'a> {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Queryable, Selectable, Serialize)]
+#[derive(Debug, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = profiles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[serde(rename_all = "camelCase")]
@@ -85,7 +86,7 @@ pub struct NewProfile {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Queryable, Selectable, Serialize)]
+#[derive(Debug, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = preferences)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[serde(rename_all = "camelCase")]

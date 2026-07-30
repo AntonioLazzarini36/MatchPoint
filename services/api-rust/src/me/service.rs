@@ -14,6 +14,7 @@ use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::me::dto::{UpdatePreferencesDto, UpdateProfileDto};
 use crate::models::{NewPreferences, NewProfile, Preferences, Profile, Sport};
@@ -33,7 +34,7 @@ pub enum MeError {
 /// Mirrors exactly what me.service.ts's `getMe` selects — note the TS
 /// version only returns `createdAt`, not `updatedAt`, so we keep this as
 /// its own struct instead of reusing the full `User` model.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MeResponse {
     pub id: String,

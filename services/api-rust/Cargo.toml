@@ -2,6 +2,7 @@
 name = "matchpoint_api"
 version = "0.1.0"
 edition = "2021"
+default-run = "matchpoint_api"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -27,3 +28,5 @@ diesel-derive-enum = { version = "2.1", features = ["postgres"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
 aes-gcm = "0.10"
 base64 = "0.22"
+utoipa = { version = "4", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "7", features = ["axum"] }

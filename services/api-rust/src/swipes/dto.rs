@@ -1,10 +1,11 @@
 //! Direct port of swipes/dto.ts.
 
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 use crate::models::{Sport, SwipeType};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSwipeDto {
     pub to_user_id: String,

@@ -15,6 +15,7 @@ pub mod discover;
 pub mod matches;
 pub mod me;
 pub mod models;
+pub mod openapi;
 pub mod schema;
 pub mod state;
 pub mod swipes;

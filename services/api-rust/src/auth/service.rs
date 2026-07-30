@@ -4,6 +4,8 @@ use diesel::result::OptionalExtension;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
 use diesel_async::RunQueryDsl;
+use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::auth::dto::{LoginDto, RegisterDto};
 use crate::auth::jwt::{self, Claims};
@@ -11,6 +13,8 @@ use crate::models::{NewPreferences, NewProfile, NewRefreshToken, NewUser};
 use crate::schema::{preferences, profiles, refresh_tokens, users};
 use crate::state::AppState;
 
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthTokens {
     pub user_id: String,
     pub access_token: String,

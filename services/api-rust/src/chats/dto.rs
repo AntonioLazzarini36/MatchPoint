@@ -3,8 +3,9 @@
 //! enforced by hand in service.rs instead of here.
 
 use serde::Deserialize;
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct SendMessageDto {
     pub text: String,
 }
