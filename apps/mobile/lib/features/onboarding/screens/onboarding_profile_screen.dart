@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
-import '../../../core/ui/profile/photo_manager_sheet.dart';
+import '../../../core/ui/profile/photo_grid_editor.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
@@ -12,6 +13,7 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_step_scaffold.
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
 
 class OnboardingProfileScreen extends StatefulWidget {
   const OnboardingProfileScreen({super.key});
@@ -22,6 +24,9 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
+  static const _totalPages = 4;
+  static const _photoStepIndex = 3;
+
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -31,6 +36,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
   final displayNameCtrl = TextEditingController();
   DateTime? birthDate;
+
+  List<String> _photos = [];
+  bool _photoBusy = false;
+  String? _photoError;
 
   late final OnboardingController controller;
 
@@ -94,45 +103,97 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       return;
     }
 
-    final name = displayNameCtrl.text.trim();
-    if (name.isEmpty) {
-      controller.setError('Display name is required');
+    if (_currentPage == 2) {
+      final name = displayNameCtrl.text.trim();
+      if (name.isEmpty) {
+        controller.setError('Display name is required');
+        return;
+      }
+      if (birthDate == null) {
+        controller.setError('Birth date is required');
+        return;
+      }
+
+      final req = UpdateProfileRequest(
+        displayName: name,
+        birthDate: _formatDate(birthDate!),
+        city: 'Madrid',
+        bio: _goal,
+        photos: const [],
+        sports: _sportsForBackend(), // ✅ solo Tenis/Correr
+      );
+
+      // El perfil se crea aquí (sin fotos) para que el paso siguiente ya
+      // pueda subir alguna — POST /me/photos necesita un perfil existente.
+      final ok = await controller.submitProfile(req);
+      if (!ok || !mounted) return;
+
+      await _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
       return;
     }
-    if (birthDate == null) {
-      controller.setError('Birth date is required');
-      return;
-    }
 
-    final req = UpdateProfileRequest(
-      displayName: name,
-      birthDate: _formatDate(birthDate!),
-      city: 'Madrid',
-      bio: _goal,
-      photos: const [],
-      sports: _sportsForBackend(), // ✅ solo Tenis/Correr
-    );
-
-    final ok = await controller.submitProfile(req);
-    if (!ok || !mounted) return;
-
-    // Foto obligatoria: el perfil ya existe (se acaba de crear arriba), así
-    // que ya se puede subir. No se puede cerrar el sheet (ni tocando fuera,
-    // ni con el botón atrás) hasta añadir al menos 1 foto.
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      builder: (_) => PhotoManagerSheet(
-        service: controller.service,
-        initialPhotos: const [],
-        requireAtLeastOne: true,
-        onChanged: (_) {},
-      ),
-    );
-
+    // _currentPage == _photoStepIndex: el botón solo llega aquí activo si
+    // ya hay al menos 1 foto (ver `onNext` en build()).
     if (mounted) context.go(AppRoutes.shell);
+  }
+
+  Future<void> _addOnboardingPhoto() async {
+    if (_photos.length >= PhotoGridEditor.maxPhotos) {
+      setState(
+        () => _photoError = 'Máximo ${PhotoGridEditor.maxPhotos} fotos.',
+      );
+      return;
+    }
+
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _photoBusy = true;
+      _photoError = null;
+    });
+
+    try {
+      final bytes = await picked.readAsBytes();
+      final profile = await controller.service.uploadPhoto(
+        bytes: bytes,
+        filename: picked.name,
+        contentType: picked.mimeType ?? guessPhotoContentType(picked.name),
+      );
+      if (!mounted) return;
+      setState(() => _photos = profile.photos);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _photoError = 'No se pudo subir la foto: $e');
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
+  }
+
+  Future<void> _deleteOnboardingPhoto(String url) async {
+    if (_photos.length <= 1) return;
+
+    setState(() {
+      _photoBusy = true;
+      _photoError = null;
+    });
+
+    try {
+      final profile = await controller.service.deletePhoto(url);
+      if (!mounted) return;
+      setState(() => _photos = profile.photos);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _photoError = 'No se pudo borrar la foto: $e');
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
   }
 
   void _goBack() {
@@ -147,17 +208,26 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     return AnimatedBuilder(
       animation: controller,
       builder: (_, _) {
+        final onPhotoStepWithoutPhoto =
+            _currentPage == _photoStepIndex && _photos.isEmpty;
+
         return OnboardingStepScaffold(
           currentPage: _currentPage,
-          totalPages: 3,
+          totalPages: _totalPages,
           onBack: _goBack,
-          onSkip: () => context.go(AppRoutes.shell),
-          onNext: controller.isLoading ? null : _goNextOrFinish,
+          // El paso de fotos es obligatorio: no se puede saltar desde ahí.
+          onSkip: _currentPage == _photoStepIndex
+              ? null
+              : () => context.go(AppRoutes.shell),
+          onNext: (controller.isLoading || onPhotoStepWithoutPhoto)
+              ? null
+              : _goNextOrFinish,
           isLoading: controller.isLoading,
-          nextLabel: _currentPage == 2 ? 'Comenzar' : 'Siguiente',
+          nextLabel: _currentPage == _photoStepIndex ? 'Comenzar' : 'Siguiente',
           errorText: controller.error,
           child: PageView(
             controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) => setState(() => _currentPage = index),
             children: [
               OnboardingProfileStep(
@@ -185,6 +255,13 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               OnboardingLocationStep(
                 radiusKm: _radiusKm,
                 onRadiusChanged: (v) => setState(() => _radiusKm = v),
+              ),
+              OnboardingPhotoStep(
+                photos: _photos,
+                busy: _photoBusy,
+                error: _photoError,
+                onAdd: _addOnboardingPhoto,
+                onDelete: _deleteOnboardingPhoto,
               ),
             ],
           ),
