@@ -7,17 +7,24 @@ import '../../theme/app_theme.dart';
 /// Bottom sheet para gestionar las fotos del propio perfil: grid de fotos
 /// actuales + tile para añadir (abre el selector de imagen) + borrar por
 /// foto. Reutilizado tanto desde `ProfileScreen` (editar) como desde el
-/// onboarding (añadir la primera foto, opcional).
+/// onboarding (añadir la primera foto, obligatoria ahí).
 class PhotoManagerSheet extends StatefulWidget {
   final ProfileService service;
   final List<String> initialPhotos;
   final ValueChanged<List<String>> onChanged;
+
+  /// Si es `true`, no se puede cerrar el sheet hasta tener al menos 1 foto
+  /// (usado en el onboarding). El backend igualmente nunca deja borrar la
+  /// última foto de un perfil que ya tenía alguna, así que esto es solo la
+  /// versión "obligar a añadir la primera" de esa misma regla.
+  final bool requireAtLeastOne;
 
   const PhotoManagerSheet({
     super.key,
     required this.service,
     required this.initialPhotos,
     required this.onChanged,
+    this.requireAtLeastOne = false,
   });
 
   static const maxPhotos = 6;
@@ -83,6 +90,11 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
   }
 
   Future<void> _deletePhoto(String url) async {
+    if (_photos.length <= 1) {
+      setState(() => _error = 'Tu perfil necesita al menos 1 foto.');
+      return;
+    }
+
     setState(() {
       _busy = true;
       _error = null;
@@ -103,51 +115,71 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Tus fotos', style: context.textStyles.titleLarge),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
+    final canClose = !widget.requireAtLeastOne || _photos.isNotEmpty;
+
+    return PopScope(
+      canPop: canClose,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Tus fotos', style: context.textStyles.titleLarge),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: canClose
+                        ? () => Navigator.of(context).pop()
+                        : null,
+                  ),
+                ],
+              ),
+              if (!canClose) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Añade al menos 1 foto para continuar.',
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
                 ),
               ],
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: context.colors.error)),
-            ],
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!, style: TextStyle(color: context.colors.error)),
+              ],
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount:
+                    _photos.length +
+                    (_photos.length < PhotoManagerSheet.maxPhotos ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == _photos.length) {
+                    return _AddTile(
+                      busy: _busy,
+                      onTap: _busy ? null : _addPhoto,
+                    );
+                  }
+                  final url = _photos[index];
+                  final canDelete = !_busy && _photos.length > 1;
+                  return _PhotoTile(
+                    url: url,
+                    onDelete: canDelete ? () => _deletePhoto(url) : null,
+                  );
+                },
               ),
-              itemCount:
-                  _photos.length +
-                  (_photos.length < PhotoManagerSheet.maxPhotos ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _photos.length) {
-                  return _AddTile(busy: _busy, onTap: _busy ? null : _addPhoto);
-                }
-                final url = _photos[index];
-                return _PhotoTile(
-                  url: url,
-                  onDelete: _busy ? null : () => _deletePhoto(url),
-                );
-              },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

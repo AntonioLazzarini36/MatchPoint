@@ -133,6 +133,7 @@ async fn add_photo(
     request_body = DeletePhotoDto,
     responses(
         (status = 200, description = "Foto eliminada del perfil", body = Profile),
+        (status = 400, description = "No puedes borrar tu última foto", body = ErrorResponse),
         (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
         (status = 404, description = "Perfil no encontrado", body = ErrorResponse),
     )
@@ -151,7 +152,7 @@ async fn remove_photo(
 fn me_error_response(err: MeError) -> axum::response::Response {
     let status = match &err {
         MeError::UserNotFound | MeError::ProfileNotFound => StatusCode::NOT_FOUND,
-        MeError::TooManyPhotos => StatusCode::BAD_REQUEST,
+        MeError::TooManyPhotos | MeError::LastPhotoRequired => StatusCode::BAD_REQUEST,
         MeError::Photo(
             PhotoError::UnsupportedContentType(_)
             | PhotoError::TooLarge

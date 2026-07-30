@@ -15,7 +15,10 @@ class OnboardingAuthScreen extends StatefulWidget {
 }
 
 class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
-  bool isLogin = true;
+  // El único punto de entrada a esta pantalla es el botón "Get Started" de
+  // WelcomeScreen, pensado para gente nueva — por eso arranca en modo
+  // registro. Quien ya tenga cuenta usa el enlace de abajo para cambiar.
+  bool isLogin = false;
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
   final confirmPassCtrl = TextEditingController();
@@ -115,8 +118,8 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                           }
 
                           final ok = isLogin
-                            ? await controller.login(email, pass)
-                            : await controller.register(email, pass);
+                              ? await controller.login(email, pass)
+                              : await controller.register(email, pass);
 
                           if (!context.mounted || !ok) return;
 
@@ -126,7 +129,11 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
 
                             if (!context.mounted) return;
 
-                            if (me.profile != null) {
+                            final profile = me.profile;
+                            final complete =
+                                profile != null && profile.photos.isNotEmpty;
+
+                            if (complete) {
                               context.go(AppRoutes.shell);
                             } else {
                               context.go(AppRoutes.onboarding);

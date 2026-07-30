@@ -30,6 +30,8 @@ pub enum MeError {
     ProfileNotFound,
     #[error("Ya tienes el máximo de {MAX_PHOTOS} fotos")]
     TooManyPhotos,
+    #[error("Tu perfil necesita al menos 1 foto — no puedes borrar la última")]
+    LastPhotoRequired,
     #[error(transparent)]
     Photo(#[from] PhotoError),
     #[error("Database error: {0}")]
@@ -284,7 +286,12 @@ pub async fn remove_photo(state: &AppState, user_id: &str, url: &str) -> Result<
         .optional()?
         .ok_or(MeError::ProfileNotFound)?;
 
+    let had_photos = !existing.photos.is_empty();
     let updated_photos: Vec<String> = existing.photos.into_iter().filter(|p| p != url).collect();
+
+    if had_photos && updated_photos.is_empty() {
+        return Err(MeError::LastPhotoRequired);
+    }
 
     let saved = diesel::update(profiles::table.filter(profiles::user_id.eq(user_id)))
         .set((

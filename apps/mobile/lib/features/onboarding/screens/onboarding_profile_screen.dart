@@ -116,14 +116,18 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     final ok = await controller.submitProfile(req);
     if (!ok || !mounted) return;
 
-    // Foto opcional: el perfil ya existe (se acaba de crear arriba), así
-    // que ya se puede subir. Cerrar el sheet (con o sin foto) continúa.
+    // Foto obligatoria: el perfil ya existe (se acaba de crear arriba), así
+    // que ya se puede subir. No se puede cerrar el sheet (ni tocando fuera,
+    // ni con el botón atrás) hasta añadir al menos 1 foto.
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => PhotoManagerSheet(
         service: controller.service,
         initialPhotos: const [],
+        requireAtLeastOne: true,
         onChanged: (_) {},
       ),
     );

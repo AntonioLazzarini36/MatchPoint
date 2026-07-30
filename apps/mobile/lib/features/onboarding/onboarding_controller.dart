@@ -10,10 +10,14 @@ class OnboardingController extends ChangeNotifier {
 
   OnboardingController(this.service);
 
+  /// Un perfil "hecho" necesita, además de existir, al menos 1 foto — si
+  /// no, se vuelve a mandar al usuario por el onboarding (o al paso de
+  /// fotos) hasta que la tenga.
   Future<bool> hasProfile() async {
     try {
       final me = await service.getMe();
-      return me.profile != null;
+      final profile = me.profile;
+      return profile != null && profile.photos.isNotEmpty;
     } catch (_) {
       return false;
     }
