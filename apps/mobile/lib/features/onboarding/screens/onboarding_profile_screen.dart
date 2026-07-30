@@ -1,10 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
+import '../../../core/storage/token_storage.dart';
 import '../../../core/ui/profile/photo_grid_editor.dart';
+import '../../auth/models/login_request.dart';
+import '../../auth/models/register_request.dart';
+import '../../auth/services/auth_service.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
@@ -15,8 +21,26 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
 
+class _PickedPhoto {
+  final Uint8List bytes;
+  final String filename;
+  final String contentType;
+
+  const _PickedPhoto({
+    required this.bytes,
+    required this.filename,
+    required this.contentType,
+  });
+}
+
 class OnboardingProfileScreen extends StatefulWidget {
-  const OnboardingProfileScreen({super.key});
+  /// Null cuando se llega aquí ya logueado (cuenta a medias de un intento
+  /// interrumpido, ver el redirect de `router.dart`) — en ese caso el
+  /// paso final solo termina de rellenar el perfil, no vuelve a registrar.
+  final String? email;
+  final String? password;
+
+  const OnboardingProfileScreen({super.key, this.email, this.password});
 
   @override
   State<OnboardingProfileScreen> createState() =>
@@ -37,16 +61,18 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   final displayNameCtrl = TextEditingController();
   DateTime? birthDate;
 
-  List<String> _photos = [];
+  final List<_PickedPhoto> _localPhotos = [];
   bool _photoBusy = false;
   String? _photoError;
 
   late final OnboardingController controller;
+  late final AuthService authService;
 
   @override
   void initState() {
     super.initState();
     controller = OnboardingController(ProfileService(Api.client));
+    authService = AuthService(Api.client);
     _skipIfHasProfile();
   }
 
@@ -95,15 +121,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   }
 
   Future<void> _goNextOrFinish() async {
-    if (_currentPage < 2) {
-      await _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      return;
-    }
-
-    if (_currentPage == 2) {
+    if (_currentPage == 0) {
       final name = displayNameCtrl.text.trim();
       if (name.isEmpty) {
         controller.setError('Display name is required');
@@ -113,21 +131,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         controller.setError('Birth date is required');
         return;
       }
+    }
 
-      final req = UpdateProfileRequest(
-        displayName: name,
-        birthDate: _formatDate(birthDate!),
-        city: 'Madrid',
-        bio: _goal,
-        photos: const [],
-        sports: _sportsForBackend(), // ✅ solo Tenis/Correr
-      );
-
-      // El perfil se crea aquí (sin fotos) para que el paso siguiente ya
-      // pueda subir alguna — POST /me/photos necesita un perfil existente.
-      final ok = await controller.submitProfile(req);
-      if (!ok || !mounted) return;
-
+    if (_currentPage < _photoStepIndex) {
+      controller.setError(null);
       await _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -136,12 +143,71 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     }
 
     // _currentPage == _photoStepIndex: el botón solo llega aquí activo si
-    // ya hay al menos 1 foto (ver `onNext` en build()).
-    if (mounted) context.go(AppRoutes.shell);
+    // ya hay al menos 1 foto local (ver `onNext` en build()).
+    await _completeRegistration();
+  }
+
+  /// Nada existe en el backend hasta este punto: aquí se crea (o se
+  /// recupera, si un intento anterior falló a medias) el usuario, se
+  /// guarda el perfil, y se suben todas las fotos elegidas — uno detrás
+  /// de otro, disparado por el único "Comenzar" final del wizard.
+  Future<void> _completeRegistration() async {
+    controller.setError(null);
+    controller.setLoading(true);
+
+    try {
+      final email = widget.email;
+      final password = widget.password;
+
+      if (email != null && password != null) {
+        String accessToken;
+        try {
+          final tokens = await authService.register(
+            RegisterRequest(email: email, password: password),
+          );
+          accessToken = tokens.accessToken;
+        } catch (_) {
+          // Recuperación: si un intento anterior ya llegó a crear el
+          // usuario (p.ej. se cortó la conexión justo después del
+          // register) o hay una carrera rara con el check de
+          // disponibilidad, intentar login con las mismas credenciales
+          // es la forma segura de continuar en vez de quedar atascado.
+          final tokens = await authService.login(
+            LoginRequest(email: email, password: password),
+          );
+          accessToken = tokens.accessToken;
+        }
+        await TokenStorage.saveToken(accessToken);
+      }
+
+      final req = UpdateProfileRequest(
+        displayName: displayNameCtrl.text.trim(),
+        birthDate: _formatDate(birthDate!),
+        city: 'Madrid',
+        bio: _goal,
+        photos: const [],
+        sports: _sportsForBackend(), // ✅ solo Tenis/Correr
+      );
+      await controller.service.updateProfile(req);
+
+      for (final photo in _localPhotos) {
+        await controller.service.uploadPhoto(
+          bytes: photo.bytes,
+          filename: photo.filename,
+          contentType: photo.contentType,
+        );
+      }
+
+      if (mounted) context.go(AppRoutes.shell);
+    } catch (e) {
+      controller.setError('No se pudo completar el registro: $e');
+    } finally {
+      if (mounted) controller.setLoading(false);
+    }
   }
 
   Future<void> _addOnboardingPhoto() async {
-    if (_photos.length >= PhotoGridEditor.maxPhotos) {
+    if (_localPhotos.length >= PhotoGridEditor.maxPhotos) {
       setState(
         () => _photoError = 'Máximo ${PhotoGridEditor.maxPhotos} fotos.',
       );
@@ -161,39 +227,31 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
     try {
       final bytes = await picked.readAsBytes();
-      final profile = await controller.service.uploadPhoto(
-        bytes: bytes,
-        filename: picked.name,
-        contentType: picked.mimeType ?? guessPhotoContentType(picked.name),
-      );
       if (!mounted) return;
-      setState(() => _photos = profile.photos);
+      setState(() {
+        _localPhotos.add(
+          _PickedPhoto(
+            bytes: bytes,
+            filename: picked.name,
+            contentType:
+                picked.mimeType ?? guessPhotoContentType(picked.name),
+          ),
+        );
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _photoError = 'No se pudo subir la foto: $e');
+      setState(() => _photoError = 'No se pudo leer la foto: $e');
     } finally {
       if (mounted) setState(() => _photoBusy = false);
     }
   }
 
-  Future<void> _deleteOnboardingPhoto(String url) async {
-    if (_photos.length <= 1) return;
-
+  void _deleteOnboardingPhoto(int index) {
+    if (_localPhotos.length <= 1) return;
     setState(() {
-      _photoBusy = true;
       _photoError = null;
+      _localPhotos.removeAt(index);
     });
-
-    try {
-      final profile = await controller.service.deletePhoto(url);
-      if (!mounted) return;
-      setState(() => _photos = profile.photos);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _photoError = 'No se pudo borrar la foto: $e');
-    } finally {
-      if (mounted) setState(() => _photoBusy = false);
-    }
   }
 
   void _goBack() {
@@ -209,16 +267,16 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       animation: controller,
       builder: (_, _) {
         final onPhotoStepWithoutPhoto =
-            _currentPage == _photoStepIndex && _photos.isEmpty;
+            _currentPage == _photoStepIndex && _localPhotos.isEmpty;
 
         return OnboardingStepScaffold(
           currentPage: _currentPage,
           totalPages: _totalPages,
           onBack: _goBack,
-          // El paso de fotos es obligatorio: no se puede saltar desde ahí.
-          onSkip: _currentPage == _photoStepIndex
-              ? null
-              : () => context.go(AppRoutes.shell),
+          // Nada existe todavía hasta completar el wizard entero — no
+          // hay a dónde "saltar" (el redirect global mandaría de vuelta
+          // aquí igualmente).
+          onSkip: null,
           onNext: (controller.isLoading || onPhotoStepWithoutPhoto)
               ? null
               : _goNextOrFinish,
@@ -257,7 +315,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 onRadiusChanged: (v) => setState(() => _radiusKm = v),
               ),
               OnboardingPhotoStep(
-                photos: _photos,
+                photos: _localPhotos.map((p) => p.bytes).toList(),
                 busy: _photoBusy,
                 error: _photoError,
                 onAdd: _addOnboardingPhoto,

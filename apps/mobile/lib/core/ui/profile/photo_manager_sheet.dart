@@ -121,10 +121,10 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
             ],
             const SizedBox(height: 12),
             PhotoGridEditor(
-              photos: _photos,
+              photos: _photos.map(RemotePhoto.new).toList(),
               busy: _busy,
               onAdd: _addPhoto,
-              onDelete: _deletePhoto,
+              onDelete: (i) => _deletePhoto(_photos[i]),
             ),
           ],
         ),

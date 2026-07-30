@@ -31,6 +31,7 @@ pub struct OkResponse {
     paths(
         crate::app::controller::get_hello,
         crate::app::controller::health,
+        crate::auth::controller::email_available,
         crate::auth::controller::register,
         crate::auth::controller::login,
         crate::auth::controller::refresh,
@@ -60,6 +61,7 @@ pub struct OkResponse {
         crate::auth::dto::RefreshDto,
         crate::auth::dto::LogoutDto,
         crate::auth::service::AuthTokens,
+        crate::auth::service::EmailAvailability,
         crate::me::dto::UpdateProfileDto,
         crate::me::dto::UpdatePreferencesDto,
         crate::me::dto::DeletePhotoDto,

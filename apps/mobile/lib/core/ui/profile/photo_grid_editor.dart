@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
@@ -12,17 +14,35 @@ String guessPhotoContentType(String filename) {
   return 'image/jpeg';
 }
 
+/// Una foto ya subida (tiene URL) o todavía solo elegida en el dispositivo
+/// (bytes en memoria, sin subir — caso del onboarding, que no toca el
+/// backend hasta completar el registro entero al final).
+sealed class PhotoTileData {
+  const PhotoTileData();
+}
+
+class RemotePhoto extends PhotoTileData {
+  final String url;
+  const RemotePhoto(this.url);
+}
+
+class LocalPhoto extends PhotoTileData {
+  final Uint8List bytes;
+  const LocalPhoto(this.bytes);
+}
+
 /// Grid de fotos + tile de "añadir" + borrar por foto. Presentacional puro
 /// — quien lo usa (`PhotoManagerSheet`, `OnboardingPhotoStep`) es quien
 /// gestiona subir/borrar de verdad; este widget solo pinta el estado que
-/// le pasan y avisa mediante `onAdd`/`onDelete`.
+/// le pasan y avisa mediante `onAdd`/`onDelete` (por índice, válido tanto
+/// para fotos remotas como locales).
 class PhotoGridEditor extends StatelessWidget {
   static const maxPhotos = 6;
 
-  final List<String> photos;
+  final List<PhotoTileData> photos;
   final bool busy;
   final VoidCallback? onAdd;
-  final ValueChanged<String>? onDelete;
+  final ValueChanged<int>? onDelete;
 
   const PhotoGridEditor({
     super.key,
@@ -47,11 +67,10 @@ class PhotoGridEditor extends StatelessWidget {
         if (index == photos.length) {
           return _AddTile(busy: busy, onTap: busy ? null : onAdd);
         }
-        final url = photos[index];
         final canDelete = !busy && photos.length > 1 && onDelete != null;
         return _PhotoTile(
-          url: url,
-          onDelete: canDelete ? () => onDelete!(url) : null,
+          data: photos[index],
+          onDelete: canDelete ? () => onDelete!(index) : null,
         );
       },
     );
@@ -85,19 +104,24 @@ class _AddTile extends StatelessWidget {
 }
 
 class _PhotoTile extends StatelessWidget {
-  final String url;
+  final PhotoTileData data;
   final VoidCallback? onDelete;
 
-  const _PhotoTile({required this.url, required this.onDelete});
+  const _PhotoTile({required this.data, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
+    final image = switch (data) {
+      RemotePhoto(:final url) => Image.network(url, fit: BoxFit.cover),
+      LocalPhoto(:final bytes) => Image.memory(bytes, fit: BoxFit.cover),
+    };
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(url, fit: BoxFit.cover),
+          image,
           Positioned(
             top: 4,
             right: 4,

@@ -1,17 +1,21 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../profile/photo_grid_editor.dart';
 
-/// Último paso del onboarding: subir al menos 1 foto antes de poder
-/// entrar a la app. A diferencia del resto de pasos, este es obligatorio
-/// — el botón "Comenzar" del wizard permanece deshabilitado hasta que
-/// `photos` deja de estar vacío (lo controla `OnboardingProfileScreen`).
+/// Último paso del onboarding: elegir al menos 1 foto antes de poder
+/// entrar a la app. Las fotos aquí son solo bytes en memoria — no se
+/// suben hasta el "Comenzar" final, junto con el resto del registro (ver
+/// `OnboardingProfileScreen`). A diferencia del resto de pasos, este es
+/// obligatorio: el botón "Comenzar" permanece deshabilitado hasta que
+/// `photos` deja de estar vacío.
 class OnboardingPhotoStep extends StatelessWidget {
-  final List<String> photos;
+  final List<Uint8List> photos;
   final bool busy;
   final String? error;
   final VoidCallback onAdd;
-  final ValueChanged<String> onDelete;
+  final ValueChanged<int> onDelete;
 
   const OnboardingPhotoStep({
     super.key,
@@ -45,7 +49,7 @@ class OnboardingPhotoStep extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           PhotoGridEditor(
-            photos: photos,
+            photos: photos.map(LocalPhoto.new).toList(),
             busy: busy,
             onAdd: onAdd,
             onDelete: onDelete,

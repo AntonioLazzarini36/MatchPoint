@@ -40,8 +40,13 @@ class OnboardingController extends ChangeNotifier {
     }
   }
 
-  void setError(String message) {
+  void setError(String? message) {
     error = message;
+    notifyListeners();
+  }
+
+  void setLoading(bool value) {
+    isLoading = value;
     notifyListeners();
   }
 }
