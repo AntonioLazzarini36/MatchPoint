@@ -19,8 +19,8 @@ use chrono::{DateTime, NaiveDate, Utc};
 use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::scoped_futures::ScopedFutureExt;
-use diesel_async::{AsyncConnection, AsyncPgConnection};
 use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, AsyncPgConnection};
 
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::db;
@@ -316,8 +316,12 @@ async fn main() -> anyhow::Result<()> {
 
     if args.len() > 1 && args[1] == "--me" {
         // cargo run --bin datagen -- --me email password "Display Name" "City"
-        let email = args.get(2).expect("uso: --me <email> <password> [displayName] [city]");
-        let password = args.get(3).expect("uso: --me <email> <password> [displayName] [city]");
+        let email = args
+            .get(2)
+            .expect("uso: --me <email> <password> [displayName] [city]");
+        let password = args
+            .get(3)
+            .expect("uso: --me <email> <password> [displayName] [city]");
         let display_name = args.get(4).map(String::as_str).unwrap_or("Yo");
         let city = args.get(5).map(String::as_str);
 
