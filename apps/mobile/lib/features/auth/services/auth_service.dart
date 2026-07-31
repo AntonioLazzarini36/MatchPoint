@@ -40,4 +40,18 @@ class AuthService {
     }
     return AuthResponse.fromJson(jsonDecode(res.body));
   }
+
+  /// Revoca el refresh token en el backend. Best-effort a propósito (igual
+  /// que `auth::service::logout` en el backend): el cliente hoy no guarda
+  /// refresh token (solo access token, ver `TokenStorage`), así que esto
+  /// manda uno vacío — el backend lo trata como no-op — y nunca bloquea el
+  /// logout local aunque la llamada falle por red.
+  Future<void> logout() async {
+    try {
+      await api.post('/auth/logout', body: const {'refreshToken': ''});
+    } catch (_) {
+      // Ignorado a propósito: el logout local (borrar el token guardado)
+      // debe completarse igual aunque el backend sea inalcanzable.
+    }
+  }
 }
