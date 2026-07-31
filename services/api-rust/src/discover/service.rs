@@ -8,6 +8,7 @@
 //! which gives the same end result as the `.filter((u) => u.profile)` in
 //! the TS version.
 
+use chrono::Datelike;
 use diesel::prelude::*;
 use diesel::PgArrayExpressionMethods;
 use diesel_async::RunQueryDsl;
@@ -22,16 +23,46 @@ use crate::state::AppState;
 /// this has to match discover.service.ts's return shape exactly, since
 /// Flutter is already coded against it (and users.service.ts reuses the
 /// same shape, so keep this struct in sync if that one changes too).
+///
+/// `age` instead of `birth_date`: this struct goes out to *other* users
+/// (`/discover`, `/users/:userId/profile`, and the `otherUser` side of
+/// `/matches`), so exact date of birth is PII that has no business leaving
+/// the server — only `/me` (and the `me` side of `/matches`) returns the
+/// raw `birth_date` (via `Profile`, to the owner of that data).
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoverProfile {
     pub user_id: String,
     pub display_name: String,
-    pub birth_date: chrono::DateTime<chrono::Utc>,
+    pub age: i32,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+}
+
+impl From<crate::models::Profile> for DiscoverProfile {
+    fn from(p: crate::models::Profile) -> Self {
+        DiscoverProfile {
+            user_id: p.user_id,
+            display_name: p.display_name,
+            age: age_from_birth_date(p.birth_date),
+            city: p.city,
+            bio: p.bio,
+            photos: p.photos,
+            sports: p.sports,
+        }
+    }
+}
+
+/// Age in whole years as of now, from a stored `birth_date`.
+pub fn age_from_birth_date(birth_date: chrono::DateTime<chrono::Utc>) -> i32 {
+    let now = chrono::Utc::now();
+    let mut age = now.year() - birth_date.year();
+    if (now.month(), now.day()) < (birth_date.month(), birth_date.day()) {
+        age -= 1;
+    }
+    age
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -93,7 +124,7 @@ pub async fn discover(
             |(user_id, display_name, birth_date, city, bio, photos, sports)| DiscoverProfile {
                 user_id,
                 display_name,
-                birth_date,
+                age: age_from_birth_date(birth_date),
                 city,
                 bio,
                 photos,

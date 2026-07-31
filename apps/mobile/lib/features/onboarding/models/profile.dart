@@ -4,6 +4,13 @@ class Profile {
   final String id;
   final String displayName;
   final DateTime? birthDate;
+
+  /// Edad ya calculada por el backend — presente en el lado `otherUser`
+  /// de `/matches` (que, como `/discover`, no manda `birthDate` exacto
+  /// por privacidad). Cuando esto viene seteado tiene prioridad sobre
+  /// calcular la edad a partir de `birthDate`.
+  final int? _explicitAge;
+
   final String? city;
   final String? bio;
   final List<String> photos;
@@ -15,11 +22,13 @@ class Profile {
     required this.photos,
     required this.sports,
     this.birthDate,
+    int? age,
     this.city,
     this.bio,
-  });
+  }) : _explicitAge = age;
 
   int? get age {
+    if (_explicitAge != null) return _explicitAge;
     if (birthDate == null) return null;
     final now = DateTime.now();
     int a = now.year - birthDate!.year;
@@ -39,6 +48,7 @@ class Profile {
       birthDate: json['birthDate'] == null
           ? null
           : DateTime.tryParse(json['birthDate'].toString()),
+      age: json['age'] is int ? json['age'] as int : null,
       city: json['city']?.toString(),
       bio: json['bio']?.toString(),
       photos: (json['photos'] as List<dynamic>? ?? const [])

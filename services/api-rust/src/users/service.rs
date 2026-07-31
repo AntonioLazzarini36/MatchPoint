@@ -8,7 +8,7 @@ use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 
-use crate::discover::service::DiscoverProfile;
+use crate::discover::service::{age_from_birth_date, DiscoverProfile};
 use crate::schema::profiles;
 use crate::state::AppState;
 
@@ -58,7 +58,7 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
     Ok(DiscoverProfile {
         user_id,
         display_name,
-        birth_date,
+        age: age_from_birth_date(birth_date),
         city,
         bio,
         photos,
