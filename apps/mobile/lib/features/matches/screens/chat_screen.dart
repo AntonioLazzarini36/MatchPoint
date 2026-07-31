@@ -15,6 +15,7 @@ class ChatScreen extends StatefulWidget {
   final String myUserId;
   final String otherUserId;
   final String otherName;
+  final String? otherPhotoUrl;
 
   const ChatScreen({
     super.key,
@@ -22,6 +23,7 @@ class ChatScreen extends StatefulWidget {
     required this.myUserId,
     required this.otherUserId,
     required this.otherName,
+    this.otherPhotoUrl,
   });
 
   @override
@@ -72,7 +74,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: context.colors.primaryContainer,
-                  child: Icon(Icons.person, color: context.colors.primary),
+                  backgroundImage: widget.otherPhotoUrl == null
+                      ? null
+                      : NetworkImage(widget.otherPhotoUrl!),
+                  child: widget.otherPhotoUrl == null
+                      ? Icon(Icons.person, color: context.colors.primary)
+                      : null,
                 ),
                 const SizedBox(width: 10),
                 Text(widget.otherName, style: context.textStyles.titleMedium),

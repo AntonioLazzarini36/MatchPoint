@@ -4,7 +4,7 @@ class OnboardingStepScaffold extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final VoidCallback? onBack;
-  final VoidCallback onSkip;
+  final VoidCallback? onSkip;
   final VoidCallback? onNext;
   final bool isLoading;
   final String nextLabel;
@@ -16,7 +16,7 @@ class OnboardingStepScaffold extends StatelessWidget {
     required this.currentPage,
     required this.totalPages,
     this.onBack,
-    required this.onSkip,
+    this.onSkip,
     required this.onNext,
     required this.isLoading,
     required this.nextLabel,
@@ -33,7 +33,9 @@ class OnboardingStepScaffold extends StatelessWidget {
         leading: currentPage > 0
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack)
             : null,
-        actions: [TextButton(onPressed: onSkip, child: const Text('Saltar'))],
+        actions: onSkip == null
+            ? const []
+            : [TextButton(onPressed: onSkip, child: const Text('Saltar'))],
       ),
       body: Column(
         children: [

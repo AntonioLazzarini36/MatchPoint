@@ -23,6 +23,7 @@ pub mod users;
 
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::EnvFilter;
 
@@ -37,6 +38,9 @@ pub async fn run() {
 
     let cfg = AppConfig::from_env();
     let port = cfg.port;
+
+    std::fs::create_dir_all(&cfg.photos_dir)
+        .unwrap_or_else(|e| panic!("failed to create photos_dir {:?}: {e}", cfg.photos_dir));
 
     let pool = db::build_pool(&cfg.database_url).await;
 
@@ -74,7 +78,11 @@ pub async fn run() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let router = app::build_router(state).layer(cors);
+    // axum's extractors default to a 2MB body limit; photos go up to 5MB
+    // (see me::photos::MAX_PHOTO_BYTES), so raise the ceiling app-wide.
+    let router = app::build_router(state)
+        .layer(cors)
+        .layer(DefaultBodyLimit::max(8 * 1024 * 1024));
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)

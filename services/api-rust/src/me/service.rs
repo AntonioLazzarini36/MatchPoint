@@ -17,6 +17,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::me::dto::{UpdatePreferencesDto, UpdateProfileDto};
+use crate::me::photos::{self, PhotoError, MAX_PHOTOS};
 use crate::models::{NewPreferences, NewProfile, Preferences, Profile, Sport};
 use crate::schema::{preferences, profiles, users};
 use crate::state::AppState;
@@ -25,6 +26,14 @@ use crate::state::AppState;
 pub enum MeError {
     #[error("User not found")]
     UserNotFound,
+    #[error("Profile not found — completa tu perfil antes de subir fotos")]
+    ProfileNotFound,
+    #[error("Ya tienes el máximo de {MAX_PHOTOS} fotos")]
+    TooManyPhotos,
+    #[error("Tu perfil necesita al menos 1 foto — no puedes borrar la última")]
+    LastPhotoRequired,
+    #[error(transparent)]
+    Photo(#[from] PhotoError),
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -216,6 +225,83 @@ pub async fn update_preferences(
         ))
         .get_result::<Preferences>(&mut conn)
         .await?;
+
+    Ok(saved)
+}
+
+pub async fn add_photo(
+    state: &AppState,
+    user_id: &str,
+    multipart: axum::extract::Multipart,
+) -> Result<Profile, MeError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
+
+    let existing = profiles::table
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(MeError::ProfileNotFound)?;
+
+    if existing.photos.len() >= MAX_PHOTOS {
+        return Err(MeError::TooManyPhotos);
+    }
+
+    let url = photos::save_uploaded_photo(
+        multipart,
+        &state.config.photos_dir,
+        &state.config.public_base_url,
+    )
+    .await?;
+
+    let mut updated_photos = existing.photos;
+    updated_photos.push(url);
+
+    let saved = diesel::update(profiles::table.filter(profiles::user_id.eq(user_id)))
+        .set((
+            profiles::photos.eq(updated_photos),
+            profiles::updated_at.eq(Utc::now()),
+        ))
+        .get_result::<Profile>(&mut conn)
+        .await?;
+
+    Ok(saved)
+}
+
+pub async fn remove_photo(state: &AppState, user_id: &str, url: &str) -> Result<Profile, MeError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
+
+    let existing = profiles::table
+        .filter(profiles::user_id.eq(user_id))
+        .first::<Profile>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(MeError::ProfileNotFound)?;
+
+    let had_photos = !existing.photos.is_empty();
+    let updated_photos: Vec<String> = existing.photos.into_iter().filter(|p| p != url).collect();
+
+    if had_photos && updated_photos.is_empty() {
+        return Err(MeError::LastPhotoRequired);
+    }
+
+    let saved = diesel::update(profiles::table.filter(profiles::user_id.eq(user_id)))
+        .set((
+            profiles::photos.eq(updated_photos),
+            profiles::updated_at.eq(Utc::now()),
+        ))
+        .get_result::<Profile>(&mut conn)
+        .await?;
+
+    photos::delete_photo_file(url, &state.config.photos_dir, &state.config.public_base_url).await;
 
     Ok(saved)
 }

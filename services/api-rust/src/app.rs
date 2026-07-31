@@ -7,6 +7,7 @@
 //! like `src/app/controller.rs` does today for the root module.
 
 use axum::Router;
+use tower_http::services::ServeDir;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -23,6 +24,8 @@ pub mod controller;
 pub mod service;
 
 pub fn build_router(state: AppState) -> Router {
+    let photos_dir = state.config.photos_dir.clone();
+
     Router::new()
         .merge(app::controller::router())
         .merge(discover::controller::router()) // next: DiscoverModule
@@ -33,5 +36,6 @@ pub fn build_router(state: AppState) -> Router {
         .merge(chats::controller::router()) // next: ChatsModule
         .merge(users::controller::router()) // next: UsersModule
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .nest_service("/uploads", ServeDir::new(photos_dir))
         .with_state(state)
 }

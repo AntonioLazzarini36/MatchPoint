@@ -1,13 +1,18 @@
 //! Direct port of me.controller.ts.
 
 use axum::{
-    extract::State, http::StatusCode, response::IntoResponse, routing::get, routing::patch, Json,
-    Router,
+    extract::{Multipart, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, patch, post},
+    Json, Router,
 };
 use serde_json::json;
+use utoipa::ToSchema;
 
 use crate::auth::jwt::AuthUser;
-use crate::me::dto::{UpdatePreferencesDto, UpdateProfileDto};
+use crate::me::dto::{DeletePhotoDto, UpdatePreferencesDto, UpdateProfileDto};
+use crate::me::photos::PhotoError;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
 use crate::me::service::MeResponse;
 use crate::me::service::{self, MeError};
@@ -22,6 +27,16 @@ pub fn router() -> Router<AppState> {
         .route("/me", get(get_me))
         .route("/me/profile", patch(update_profile))
         .route("/me/preferences", patch(update_preferences))
+        .route("/me/photos", post(add_photo).delete(remove_photo))
+}
+
+/// Doc-only shape of the multipart body `POST /me/photos` expects — never
+/// constructed, exists purely so utoipa can describe the binary field.
+#[derive(ToSchema)]
+#[allow(dead_code)]
+pub(crate) struct PhotoUploadForm {
+    #[schema(value_type = String, format = Binary)]
+    photo: Vec<u8>,
 }
 
 #[utoipa::path(
@@ -86,9 +101,65 @@ async fn update_preferences(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/me/photos",
+    tag = "me",
+    security(("bearerAuth" = [])),
+    request_body(content = PhotoUploadForm, content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "Foto subida y añadida al perfil", body = Profile),
+        (status = 400, description = "Archivo inválido, demasiado grande, o límite de fotos alcanzado", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 404, description = "Completa tu perfil antes de subir fotos", body = ErrorResponse),
+    )
+)]
+async fn add_photo(
+    State(state): State<AppState>,
+    user: AuthUser,
+    multipart: Multipart,
+) -> impl IntoResponse {
+    match service::add_photo(&state, &user.user_id, multipart).await {
+        Ok(profile) => Json(profile).into_response(),
+        Err(e) => me_error_response(e),
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/me/photos",
+    tag = "me",
+    security(("bearerAuth" = [])),
+    request_body = DeletePhotoDto,
+    responses(
+        (status = 200, description = "Foto eliminada del perfil", body = Profile),
+        (status = 400, description = "No puedes borrar tu última foto", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 404, description = "Perfil no encontrado", body = ErrorResponse),
+    )
+)]
+async fn remove_photo(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(dto): Json<DeletePhotoDto>,
+) -> impl IntoResponse {
+    match service::remove_photo(&state, &user.user_id, &dto.url).await {
+        Ok(profile) => Json(profile).into_response(),
+        Err(e) => me_error_response(e),
+    }
+}
+
 fn me_error_response(err: MeError) -> axum::response::Response {
     let status = match &err {
-        MeError::UserNotFound => StatusCode::NOT_FOUND,
+        MeError::UserNotFound | MeError::ProfileNotFound => StatusCode::NOT_FOUND,
+        MeError::TooManyPhotos | MeError::LastPhotoRequired => StatusCode::BAD_REQUEST,
+        MeError::Photo(
+            PhotoError::UnsupportedContentType(_)
+            | PhotoError::TooLarge
+            | PhotoError::MissingField
+            | PhotoError::Multipart(_),
+        ) => StatusCode::BAD_REQUEST,
+        MeError::Photo(PhotoError::Io(_)) => StatusCode::INTERNAL_SERVER_ERROR,
         MeError::Db(_) | MeError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
     (status, Json(json!({ "message": err.to_string() }))).into_response()

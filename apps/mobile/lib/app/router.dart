@@ -5,6 +5,7 @@ import 'package:match_point/core/auth/auth_gate.dart';
 
 // Screens
 import 'package:match_point/features/welcome/screens/welcome_screen.dart';
+import 'package:match_point/features/auth/models/register_request.dart';
 import 'package:match_point/features/auth/screens/onboarding_auth_screen.dart';
 import 'package:match_point/features/onboarding/screens/onboarding_profile_screen.dart';
 
@@ -36,7 +37,19 @@ class AppRouter {
       ),
       GoRoute(
         path: AppRoutes.onboarding,
-        builder: (context, state) => const OnboardingProfileScreen(),
+        builder: (context, state) {
+          // El registro (email+password) todavía no ha pasado cuando se
+          // entra aquí desde OnboardingAuthScreen — se completa entero
+          // (usuario+perfil+foto) al terminar el wizard. `extra` es null
+          // cuando se llega aquí por el redirect de "cuenta a medias"
+          // (ver abajo): en ese caso ya hay token, solo falta completar
+          // el perfil, no registrar de nuevo.
+          final draft = state.extra as RegisterRequest?;
+          return OnboardingProfileScreen(
+            email: draft?.email,
+            password: draft?.password,
+          );
+        },
       ),
 
       // --- MAIN APP ---
@@ -61,11 +74,14 @@ class AppRouter {
           final match =
               state.extra as MatchItem; // lo pasamos desde MatchesScreen
 
+          final otherPhotos = match.otherUser.profile?.photos ?? const [];
+
           return ChatScreen(
             matchId: matchId,
             myUserId: match.me.userId,
             otherUserId: match.otherUser.userId,
             otherName: match.otherUser.profile?.displayName ?? 'Sin nombre',
+            otherPhotoUrl: otherPhotos.isNotEmpty ? otherPhotos.first : null,
           );
         },
       ),
@@ -98,15 +114,27 @@ class AppRouter {
 
       final isPublicRoute =
           loc == AppRoutes.welcome || loc == AppRoutes.onboardingAuth;
+      // El registro se completa al final del wizard, así que /onboarding
+      // tiene que poder visitarse sin estar logueado todavía.
+      final isOnboardingRoute = loc == AppRoutes.onboarding;
 
-      // 🚫 No loggeado intentando entrar a algo privado
-      if (!loggedIn && !isPublicRoute) {
+      // 🚫 No loggeado intentando entrar a algo privado (y que no sea el
+      // propio onboarding, que es el único sitio pensado para eso)
+      if (!loggedIn && !isPublicRoute && !isOnboardingRoute) {
         return AppRoutes.onboardingAuth;
       }
 
       // ✅ Ya loggeado intentando ir a login o welcome
       if (loggedIn && isPublicRoute) {
         return AppRoutes.shell;
+      }
+
+      // 🚧 Logueado pero con una cuenta a medias (de un intento de
+      // onboarding interrumpido) intentando entrar a cualquier otra
+      // pantalla privada — de vuelta al onboarding hasta completarlo.
+      if (loggedIn && !isOnboardingRoute) {
+        final complete = await _authGate.hasCompleteProfile();
+        if (!complete) return AppRoutes.onboarding;
       }
 
       return null;

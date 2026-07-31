@@ -21,6 +21,11 @@ pub struct AuthTokens {
     pub refresh_token: String,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct EmailAvailability {
+    pub available: bool,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
     #[error("Email already in use")]
@@ -89,6 +94,28 @@ async fn issue_tokens(
         .await?;
 
     Ok((access_token, refresh_token))
+}
+
+/// Consulta pública (sin auth) para que el frontend compruebe el email
+/// *antes* de meter al usuario en todo el wizard de onboarding — evita
+/// descubrir "email ya en uso" al final, después de rellenar todo.
+pub async fn email_available(state: &AppState, email: &str) -> Result<bool, AuthError> {
+    let email = email.trim().to_lowercase();
+
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
+
+    let existing = users::table
+        .filter(users::email.eq(&email))
+        .select(users::id)
+        .first::<String>(&mut conn)
+        .await
+        .optional()?;
+
+    Ok(existing.is_none())
 }
 
 pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, AuthError> {

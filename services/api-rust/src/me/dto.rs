@@ -27,3 +27,8 @@ pub struct UpdatePreferencesDto {
     pub age_max: Option<i32>,
     pub gender_preference: Option<String>,
 }
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct DeletePhotoDto {
+    pub url: String,
+}

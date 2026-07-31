@@ -33,17 +33,15 @@ class ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photoUrl = data.mainPhoto;
-
     return CustomScrollView(
       slivers: [
         SliverAppBar(
           expandedHeight: 220,
           pinned: true,
           flexibleSpace: FlexibleSpaceBar(
-            background: photoUrl == null
+            background: data.photos.isEmpty
                 ? _emptyHeader(context)
-                : Image.network(photoUrl, fit: BoxFit.cover),
+                : _PhotoCarousel(photos: data.photos),
           ),
           actions: [
             if (onSettings != null)
@@ -237,6 +235,68 @@ class ProfileView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Carrusel horizontal con puntos indicadores para las fotos del perfil
+/// (a diferencia de las cards de discovery, que de momento solo muestran
+/// la primera foto — eso se rediseñará aparte).
+class _PhotoCarousel extends StatefulWidget {
+  final List<String> photos;
+
+  const _PhotoCarousel({required this.photos});
+
+  @override
+  State<_PhotoCarousel> createState() => _PhotoCarouselState();
+}
+
+class _PhotoCarouselState extends State<_PhotoCarousel> {
+  final _controller = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _controller,
+          itemCount: widget.photos.length,
+          onPageChanged: (i) => setState(() => _index = i),
+          itemBuilder: (context, i) =>
+              Image.network(widget.photos[i], fit: BoxFit.cover),
+        ),
+        if (widget.photos.length > 1)
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < widget.photos.length; i++)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: i == _index
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

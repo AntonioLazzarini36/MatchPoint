@@ -1,20 +1,52 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
+};
+use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::dto::{LoginDto, LogoutDto, RefreshDto, RegisterDto};
-#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
-use crate::auth::service::AuthTokens;
 use crate::auth::service::{self, AuthError};
+#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
+use crate::auth::service::{AuthTokens, EmailAvailability};
 #[allow(unused_imports)]
 use crate::openapi::{ErrorResponse, OkResponse};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/auth/email-available", get(email_available))
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
         .route("/auth/refresh", post(refresh))
         .route("/auth/logout", post(logout))
+}
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct EmailAvailableQuery {
+    email: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/auth/email-available",
+    tag = "auth",
+    params(EmailAvailableQuery),
+    responses(
+        (status = 200, description = "Si el email ya está registrado o no", body = EmailAvailability),
+    )
+)]
+async fn email_available(
+    State(state): State<AppState>,
+    Query(params): Query<EmailAvailableQuery>,
+) -> impl IntoResponse {
+    match service::email_available(&state, &params.email).await {
+        Ok(available) => Json(EmailAvailability { available }).into_response(),
+        Err(e) => AuthRejection(e).into_response(),
+    }
 }
 
 #[utoipa::path(

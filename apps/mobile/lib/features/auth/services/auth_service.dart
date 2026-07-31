@@ -9,6 +9,22 @@ class AuthService {
 
   AuthService(this.api);
 
+  /// Comprueba si un email ya está registrado, sin crear nada — se llama
+  /// al principio del flujo de registro (antes de entrar al onboarding)
+  /// para no hacer perder el tiempo a nadie rellenando todo el wizard.
+  Future<bool> isEmailAvailable(String email) async {
+    final res = await api.get(
+      '/auth/email-available?email=${Uri.encodeQueryComponent(email)}',
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('EmailAvailable check failed: ${res.statusCode} ${res.body}');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return data['available'] as bool;
+  }
+
   Future<AuthResponse> login(LoginRequest request) async {
     final res = await api.post('/auth/login', body: request.toJson());
     if (res.statusCode < 200 || res.statusCode >= 300) {

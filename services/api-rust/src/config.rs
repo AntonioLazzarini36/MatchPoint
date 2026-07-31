@@ -15,6 +15,14 @@ pub struct AppConfig {
     pub jwt_refresh_expires_in_seconds: i64,
 
     pub message_key_base64: String,
+
+    /// Directorio local donde se guardan las fotos subidas. Servido por
+    /// tanto tower-http (`ServeDir`) como escrito por `me::service::upload_photo`.
+    pub photos_dir: String,
+    /// Base pública usada para construir la URL absoluta de cada foto
+    /// (`{public_base_url}/uploads/{archivo}`). En dev es `http://localhost:{port}`;
+    /// en un despliegue real habría que apuntarlo al dominio/proxy público.
+    pub public_base_url: String,
 }
 
 impl AppConfig {
@@ -51,6 +59,10 @@ impl AppConfig {
         let message_key_base64 = env::var("MESSAGE_KEY_BASE64")
             .expect("MESSAGE_KEY_BASE64 must be set (used by chats/crypto)");
 
+        let photos_dir = env::var("PHOTOS_DIR").unwrap_or_else(|_| "./uploads".to_string());
+        let public_base_url =
+            env::var("PUBLIC_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
+
         Self {
             port,
             database_url,
@@ -59,6 +71,8 @@ impl AppConfig {
             jwt_access_expires_in_seconds,
             jwt_refresh_expires_in_seconds,
             message_key_base64,
+            photos_dir,
+            public_base_url,
         }
     }
 }

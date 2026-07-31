@@ -54,7 +54,7 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  void setError(String message) {
+  void setError(String? message) {
     error = message;
     notifyListeners();
   }
