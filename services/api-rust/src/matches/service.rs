@@ -15,6 +15,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use crate::discover::service::DiscoverProfile;
 use crate::models::Profile;
 use crate::schema::{matches, profiles};
 use crate::state::AppState;
@@ -27,6 +28,8 @@ pub enum MatchesError {
     Pool(String),
 }
 
+/// The authenticated user's own side of a match — full `Profile`
+/// (including `birth_date`) is fine here, same reasoning as `/me`.
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserWithProfile {
@@ -34,12 +37,21 @@ pub struct UserWithProfile {
     pub profile: Option<Profile>,
 }
 
+/// The other side of a match — `DiscoverProfile` (age, not exact
+/// birth_date), same PII reasoning as `/discover` and `/users/:userId`.
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OtherUserWithProfile {
+    pub user_id: String,
+    pub profile: Option<DiscoverProfile>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchListItem {
     pub match_id: String,
     pub created_at: DateTime<Utc>,
-    pub other_user: UserWithProfile,
+    pub other_user: OtherUserWithProfile,
     pub me: UserWithProfile,
 }
 
@@ -92,9 +104,9 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
         result.push(MatchListItem {
             match_id,
             created_at,
-            other_user: UserWithProfile {
+            other_user: OtherUserWithProfile {
                 user_id: other_id,
-                profile: other_profile,
+                profile: other_profile.map(DiscoverProfile::from),
             },
             me: UserWithProfile {
                 user_id: me_id,

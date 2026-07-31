@@ -3,7 +3,7 @@ import 'sport.dart';
 class DiscoverProfile {
   final String userId;
   final String displayName;
-  final DateTime birthDate;
+  final int age;
   final String? city;
   final String? bio;
   final List<String> photos;
@@ -12,28 +12,18 @@ class DiscoverProfile {
   DiscoverProfile({
     required this.userId,
     required this.displayName,
-    required this.birthDate,
+    required this.age,
     required this.photos,
     required this.sports,
     this.city,
     this.bio,
   });
 
-  int get age {
-    final now = DateTime.now();
-    int a = now.year - birthDate.year;
-    final hadBirthday =
-        (now.month > birthDate.month) ||
-        (now.month == birthDate.month && now.day >= birthDate.day);
-    if (!hadBirthday) a--;
-    return a;
-  }
-
   String? get mainPhoto => photos.isNotEmpty ? photos.first : null;
 
   factory DiscoverProfile.fromJson(Map<String, dynamic> json) {
     // Soporta dos formas comunes:
-    // A) { userId, displayName, birthDate, city, bio, photos, sports }
+    // A) { userId, displayName, age, city, bio, photos, sports }
     // B) { userId, profile: { ... } }
     final Map<String, dynamic> p = (json['profile'] is Map<String, dynamic>)
         ? (json['profile'] as Map<String, dynamic>)
@@ -42,7 +32,7 @@ class DiscoverProfile {
     return DiscoverProfile(
       userId: (json['userId'] ?? p['userId'] ?? p['id']).toString(),
       displayName: (p['displayName'] ?? '').toString(),
-      birthDate: DateTime.parse(p['birthDate'].toString()),
+      age: p['age'] is int ? p['age'] as int : int.parse(p['age'].toString()),
       city: p['city']?.toString(),
       bio: p['bio']?.toString(),
       photos: (p['photos'] as List<dynamic>? ?? const [])
