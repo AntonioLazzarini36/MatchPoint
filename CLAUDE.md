@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Autonomy — do not stop mid-task
+
+When given a task on this repo, execute it fully yourself, start to finish, without pausing to ask for permission or confirmation along the way. This includes:
+
+- Running any checks, builds, tests, lints (`cargo fmt`/`clippy`/`build`/`test`, `flutter analyze`/`test`).
+- Starting/stopping Docker, the backend, the Flutter app, seeding or querying the dev DB, curling local endpoints.
+- Making implementation and scope decisions yourself (e.g. "should this fix also cover X related case?") instead of stopping to ask — use your best judgement, note the decision briefly in your summary, and keep going.
+
+**The only point where you stop and wait is right before `git commit` / `git push`.** Get everything to a finished, verified state, then stop there for review. Do not use a clarifying-question tool (e.g. `AskUserQuestion`) for implementation/scope calls mid-task — only for things truly blocking that the user must decide before *any* further progress is possible, and even then, prefer picking the sensible default and mentioning it over stopping.
+
+Do not ask "should I proceed?", "want me to also fix X?", or similar mid-task check-ins. Just do it, and report what you did when you stop at the commit/push checkpoint.
+
 ## What this is
 
 MatchPoint is a sports-based dating app (tennis / running). Monorepo with a Rust backend and a Flutter frontend.

@@ -30,4 +30,12 @@ class MatchesService {
         .map((e) => MatchItem.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<void> unmatch(String matchId) async {
+    final res = await api.delete('/matches/$matchId', auth: true);
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Unmatch failed: ${res.statusCode} ${res.body}');
+    }
+  }
 }

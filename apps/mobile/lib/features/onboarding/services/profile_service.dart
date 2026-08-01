@@ -42,6 +42,20 @@ class ProfileService {
     );
   }
 
+  /// No bloquea ni borra el match — es solo constancia para revisión. Si
+  /// además quieres cortar todo contacto, eso es un unmatch aparte.
+  Future<void> reportUser(String userId, String reason) async {
+    final res = await api.post(
+      '/users/$userId/report',
+      body: {'reason': reason},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('ReportUser failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
   Future<Profile> uploadPhoto({
     required List<int> bytes,
     required String filename,

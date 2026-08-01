@@ -1,6 +1,12 @@
 //! Direct port of matches.controller.ts.
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
+};
 use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
@@ -8,11 +14,13 @@ use crate::auth::jwt::AuthUser;
 use crate::matches::service::MatchListItem;
 use crate::matches::service::{self, MatchesError};
 #[allow(unused_imports)]
-use crate::openapi::ErrorResponse;
+use crate::openapi::{ErrorResponse, OkResponse};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/matches", get(list))
+    Router::new()
+        .route("/matches", get(list))
+        .route("/matches/:matchId", axum::routing::delete(unmatch))
 }
 
 #[utoipa::path(
@@ -28,21 +36,42 @@ pub fn router() -> Router<AppState> {
 async fn list(State(state): State<AppState>, user: AuthUser) -> impl IntoResponse {
     match service::list(&state, &user.user_id).await {
         Ok(matches) => Json(matches).into_response(),
-        Err(MatchesError::Db(e)) => {
-            tracing::error!("matches query failed: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": "Internal server error" })),
-            )
-                .into_response()
-        }
-        Err(MatchesError::Pool(e)) => {
-            tracing::error!("matches pool error: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": "Internal server error" })),
-            )
-                .into_response()
-        }
+        Err(err) => matches_error_response(err),
     }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/matches/{matchId}",
+    tag = "matches",
+    security(("bearerAuth" = [])),
+    params(("matchId" = String, Path, description = "Id del match")),
+    responses(
+        (status = 200, description = "Match deshecho (y sus mensajes, con él)", body = OkResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 403, description = "No eres miembro de este match", body = ErrorResponse),
+        (status = 404, description = "Match no encontrado", body = ErrorResponse),
+    )
+)]
+async fn unmatch(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(match_id): Path<String>,
+) -> impl IntoResponse {
+    match service::unmatch(&state, &match_id, &user.user_id).await {
+        Ok(()) => Json(json!({ "ok": true })).into_response(),
+        Err(err) => matches_error_response(err),
+    }
+}
+
+fn matches_error_response(err: MatchesError) -> axum::response::Response {
+    let status = match &err {
+        MatchesError::NotFound => StatusCode::NOT_FOUND,
+        MatchesError::Forbidden => StatusCode::FORBIDDEN,
+        MatchesError::Db(_) | MatchesError::Pool(_) => {
+            tracing::error!("matches error: {err}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    };
+    (status, Json(json!({ "message": err.to_string() }))).into_response()
 }

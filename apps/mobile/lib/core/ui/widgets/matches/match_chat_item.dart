@@ -9,6 +9,7 @@ class MatchChatItem extends StatelessWidget {
   final bool unread;
   final bool isGroup;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const MatchChatItem({
     super.key,
@@ -19,12 +20,14 @@ class MatchChatItem extends StatelessWidget {
     required this.unread,
     this.isGroup = false,
     this.onTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(

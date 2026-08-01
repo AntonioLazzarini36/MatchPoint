@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/network/api.dart';
 
+import '../../../core/ui/dialogs/report_reason_dialog.dart';
 import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
 import '../../onboarding/services/profile_service.dart';
@@ -19,12 +20,31 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
   bool loading = true;
   Object? error;
   ProfileHeaderData? data;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
     service = ProfileService(Api.client);
     _load();
+  }
+
+  Future<void> _report() async {
+    final reason = await showReportReasonDialog(context);
+    if (reason == null || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await service.reportUser(widget.userId, reason);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo reportar: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _load() async {
@@ -98,6 +118,13 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
         showBottomButton: false,
         onSettings: null,
         onEdit: null,
+        extraActions: [
+          IconButton(
+            icon: const Icon(Icons.flag_outlined),
+            tooltip: 'Reportar',
+            onPressed: _busy ? null : _report,
+          ),
+        ],
       ),
     );
   }
