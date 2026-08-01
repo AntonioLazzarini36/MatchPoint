@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:match_point/app/routes.dart';
@@ -44,6 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController scroll = ScrollController();
 
   bool _busy = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -55,6 +58,25 @@ class _ChatScreenState extends State<ChatScreen> {
     matchesService = MatchesService(Api.client);
     profileService = ProfileService(Api.client);
     controller.init().then((_) => _scrollToBottom());
+
+    // No websocket/push here — short-interval polling is enough for this
+    // app's scale, and far less machinery than standing up a socket.
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      final before = controller.messages.length;
+      final wasNearBottom = _isNearBottom();
+      await controller.pollNewMessages();
+      if (!mounted) return;
+      if (controller.messages.length > before && wasNearBottom) {
+        _scrollToBottom();
+      }
+    });
+  }
+
+  bool _isNearBottom() {
+    if (!scroll.hasClients) return true;
+    const threshold = 120.0;
+    return scroll.position.maxScrollExtent - scroll.position.pixels <
+        threshold;
   }
 
   /// A diferencia de [_report], unmatch sí cierra el chat, devolviendo
@@ -107,6 +129,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     controller.dispose();
     input.dispose();
     scroll.dispose();
