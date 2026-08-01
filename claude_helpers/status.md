@@ -71,10 +71,12 @@ Branches ya creadas, sin empezar:
   propios tests (backend tiene prácticamente cero cobertura hoy — 1 solo
   test en todo `api-rust`).
 
-Del análisis inicial completo del repo (por prioridad, de más a menos
-importante) — **trabajado sin supervisión el 2026-08-01** mientras te ibas
-3 horas; cada uno en su propia rama, pusheada, SIN mergear a
-`feature/rust-backend` a propósito para que los repases:
+Del análisis inicial completo del repo — **trabajado sin supervisión el
+2026-08-01** mientras te ibas 3 horas. Los 9 puntos originales están
+resueltos (uno de ellos reveló un bug de seguridad más serio, que se separó
+en su propia rama). Cada uno en su propia rama, pusheada,
+**SIN mergear a `feature/rust-backend`** a propósito para que los repases
+y decidas el orden/forma de integrarlos:
 
 1. ✅ **`fix/jwt-secret-required`** (commit `abb823c`) — Secretos JWT ya no
    tienen fallback hardcodeado; `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`
@@ -95,20 +97,67 @@ importante) — **trabajado sin supervisión el 2026-08-01** mientras te ibas
    en `Profile`, así que no hay con qué filtrar; eso es una feature más
    grande (migración + UI de onboarding), no la inventé. Verificado con
    datos reales del seed.
-5. **No hay refresh token en el móvil** — el backend lo soporta pero el
-   cliente nunca lo guarda ni lo usa, así que cada sesión muere a los 15
-   minutos sin recuperación.
-6. **Crash de Discovery** si un swipe falla por red (`Dismissible` se
-   reinserta con la misma key tras haberse disparado ya).
-7. **Chat sin tiempo real** — solo carga mensajes una vez al entrar,
-   sin polling ni websocket.
-8. **Matches list con datos falsos** — "Nuevo match" y `unread: false`
-   fijos para todo, no reflejan el estado real del chat.
-9. Varios TODOs sueltos menores (filtros de discovery, super-like, buscador
-   de matches).
+5. ✅ **`feat/mobile-refresh-token`** (commit `3d569fc`) — El móvil ya
+   guarda y usa el refresh token. `ApiClient` intercepta cualquier 401 en
+   una request autenticada, refresca en silencio vía `POST /auth/refresh`
+   y reintenta una vez; los 401 concurrentes comparten el mismo refresh en
+   vuelo (el backend rota el refresh token en cada uso, así que refrescos
+   concurrentes sin coordinar se pisarían). Si el refresh token termina
+   siendo rechazado, se limpian los tokens locales y el `redirect` de
+   `router.dart` te manda solo a login en la siguiente navegación.
+   **Bonus/hallazgo mientras probaba esto** → ver punto 5b.
+5b. ✅ **`fix/refresh-token-rotation-bcrypt-truncation`** (commit `dad9f78`)
+   — **Bug de seguridad real, no estaba en la lista original.** Probando
+   5 descubrí que un refresh token "rotado" seguía funcionando después de
+   rotar. Causa: bcrypt solo mira los primeros 72 bytes, y dos JWTs de
+   refresh del mismo usuario comparten un prefijo idéntico bien más allá
+   de eso (header + sub + email iguales; solo `exp`, cerca del final del
+   payload, cambia) — bcrypt los trataba como el mismo token. En la
+   práctica, la rotación no invalidaba nada. Fix: hashear con SHA-256 antes
+   de pasarlo a bcrypt. **Nota:** esto invalida los `RefreshToken` ya
+   guardados (hasheados con el esquema viejo) — cualquier sesión activa
+   tendrá que volver a loguearse cuando su access token expire. Aceptable
+   para una app en fase de desarrollo, no monté una migración para esto.
+   Verificado end-to-end contra el backend real (login → rota → token
+   viejo ahora 401, token nuevo 200, logout revoca correctamente).
+6. ✅ **`fix/discovery-swipe-crash`** (commit `e5ce855`) — Dos bugs
+   juntos: (a) al fallar un swipe por red, el rollback reinsertaba la
+   carta con el mismo `Key(user.userId)` que el `Dismissible` que ya se
+   había disparado — Flutter no tolera eso. (b) el `rethrow` del rollback
+   nunca se capturaba (los callbacks de `onDismissed`/`onTap` no son
+   `async`, así que la excepción quedaba sin manejar). Fix: un contador
+   `generation` en el controller que cambia la key en cada rollback, +
+   try/catch con SnackBar en los 3 puntos que disparan swipe (Dismissible,
+   botón like, botón pass).
+7. ✅ **`feat/chat-polling`** (commit `94fa09c`) — Sin montar un
+   websocket (de más para la escala actual): el chat pollea cada 4s
+   mientras está abierto, añade mensajes nuevos por id (sin duplicar),
+   vuelve a marcar leído si llegó algo nuevo, y solo hace auto-scroll si
+   ya estabas cerca del final.
+8. ✅ **`fix/matches-real-unread-state`** (commit `191b483`) — `GET
+   /matches` ahora devuelve `lastMessage` (texto desencriptado + emisor +
+   fecha del último mensaje, `null` si no hay ninguno) y `unreadCount` real
+   por match. También arreglé que `MatchesScreen` solo recargaba al volver
+   del chat si hubo un unmatch — como entrar al chat marca leído
+   (`ChatController.init` ya llamaba a `markRead`, pero la lista nunca se
+   refrescaba), el badge de no-leído no se limpiaba nunca en el flujo
+   normal. Verificado end-to-end entre dos cuentas del seed.
+9. ✅ **TODOs sueltos** — de los 3 (`filtros discovery`, `super-like`,
+   `buscador de matches`), solo hice el buscador
+   (**`feat/matches-search`**, commit `f3bb6c3`): filtra la lista de
+   conversaciones por nombre, client-side, sin tocar el backend. Los otros
+   dos los dejé explícitamente sin tocar:
+   - **Filtros de discovery**: no existe ninguna UI en el móvil para
+     preferencias (ni el modelo siquiera) — construir esa pantalla a
+     ciegas es el mismo riesgo que `redesign/ui-overhaul`.
+   - **Super-like**: el propio comentario en el código dice que depende de
+     una feature de backend que no existe (`SwipeType` solo tiene
+     LIKE/PASS).
 
-(5-9 en progreso o pendientes — ver el resto de este documento para el
-estado exacto en el momento en que lo dejé.)
+**10 ramas en total esta sesión**, todas pusheadas y verificadas
+(fmt/clippy/build/test backend, analyze/test mobile, y pruebas manuales
+contra el backend real donde aplicaba), ninguna mergeada a
+`feature/rust-backend` todavía.
 
 ## Notas del entorno local
 
