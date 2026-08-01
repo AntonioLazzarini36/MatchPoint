@@ -19,13 +19,13 @@ Ramas vivas ahora mismo, aparte del trunk:
   persona que lea esto escriba sus propios tests (cobertura hoy: 1 test de
   crypto en el backend, 1 widget test boilerplate en mobile — prácticamente
   cero).
-- **`feat/manual-location`** — pusheada, **sin mergear** (a propósito, para
-  que la revises). Ver "Hecho" abajo.
-- **`fix/discovery-header-cleanup`** — pusheada, **sin mergear**. Ver
-  "Hecho" abajo.
-- **`feat/tennis-court-map`** — pusheada, **sin mergear**. Ver "Hecho"
-  abajo — **esta es la única de las tres que no verifiqué visualmente en
-  el navegador** (la extensión de Claude en Chrome no estaba conectada),
+- **`feat/manual-location`** — ✅ mergeada en `feature/rust-backend`
+  (2026-08-01). Ver "Hecho" abajo.
+- **`fix/discovery-header-cleanup`** — ✅ mergeada en `feature/rust-backend`
+  (2026-08-01). Ver "Hecho" abajo.
+- **`feat/tennis-court-map`** — pusheada, **sin mergear todavía**. Ver
+  "Hecho" abajo — **esta es la única que no verifiqué visualmente en el
+  navegador** (la extensión de Claude en Chrome no estaba conectada),
   ábrela vos antes de confiar en que el mapa/marcadores/bottom-sheet
   rendericen bien.
 
