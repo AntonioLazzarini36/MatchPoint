@@ -44,9 +44,9 @@ class DiscoveryController extends ChangeNotifier {
     }
   }
 
-  DiscoverProfile? get top => _stack.isNotEmpty ? _stack.last : null;
-
-  // ✅ NUEVO: swipe del user concreto
+  /// Swipea un perfil concreto — cualquiera de las tarjetas visibles en la
+  /// fila horizontal, no solo "la de arriba" (ya no existe ese concepto,
+  /// ver discovery_screen.dart).
   Future<({bool matched, String? matchId, DiscoverProfile user})> swipeUser({
     required DiscoverProfile user,
     required SwipeType type,
@@ -75,20 +75,5 @@ class DiscoveryController extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
-  }
-
-  // ✅ botones pueden seguir usando top
-  Future<({bool matched, String? matchId, DiscoverProfile? user})>
-  likeTop() async {
-    final u = top;
-    if (u == null) return (matched: false, matchId: null, user: null);
-    final r = await swipeUser(user: u, type: SwipeType.like);
-    return (matched: r.matched, matchId: r.matchId, user: r.user);
-  }
-
-  Future<void> passTop() async {
-    final u = top;
-    if (u == null) return;
-    await swipeUser(user: u, type: SwipeType.pass);
   }
 }
