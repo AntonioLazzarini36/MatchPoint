@@ -5,12 +5,16 @@ class MatchItem {
   final DateTime createdAt;
   final MatchUser otherUser;
   final MatchUser me;
+  final LastMessagePreview? lastMessage;
+  final int unreadCount;
 
   const MatchItem({
     required this.matchId,
     required this.createdAt,
     required this.otherUser,
     required this.me,
+    required this.lastMessage,
+    required this.unreadCount,
   });
 
   factory MatchItem.fromJson(Map<String, dynamic> json) => MatchItem(
@@ -18,7 +22,32 @@ class MatchItem {
     createdAt: DateTime.parse(json['createdAt'] as String),
     otherUser: MatchUser.fromJson(json['otherUser'] as Map<String, dynamic>),
     me: MatchUser.fromJson(json['me'] as Map<String, dynamic>),
+    lastMessage: json['lastMessage'] == null
+        ? null
+        : LastMessagePreview.fromJson(
+            json['lastMessage'] as Map<String, dynamic>,
+          ),
+    unreadCount: json['unreadCount'] as int,
   );
+}
+
+class LastMessagePreview {
+  final String senderId;
+  final String text;
+  final DateTime createdAt;
+
+  const LastMessagePreview({
+    required this.senderId,
+    required this.text,
+    required this.createdAt,
+  });
+
+  factory LastMessagePreview.fromJson(Map<String, dynamic> json) =>
+      LastMessagePreview(
+        senderId: json['senderId'] as String,
+        text: json['text'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
 }
 
 class MatchUser {

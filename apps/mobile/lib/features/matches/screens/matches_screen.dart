@@ -34,11 +34,12 @@ class _MatchesScreenState extends State<MatchesScreen> {
     super.dispose();
   }
 
-  /// El chat puede deshacer el match / bloquear / reportar y volver con
-  /// `true` — en ese caso la lista de matches quedó desactualizada.
+  /// Siempre recarga al volver del chat: entrar marca los mensajes como
+  /// leídos (best-effort, ver ChatController.init), así que el preview/
+  /// unread de la lista queda desactualizado incluso si no hubo unmatch.
   Future<void> _openChat(MatchItem m) async {
-    final changed = await context.push<bool>('/chat/${m.matchId}', extra: m);
-    if (changed == true) controller.reload();
+    await context.push<bool>('/chat/${m.matchId}', extra: m);
+    controller.reload();
   }
 
   Future<void> _confirmUnmatch(MatchItem m) async {
@@ -171,12 +172,12 @@ class _MatchesScreenState extends State<MatchesScreen> {
         for (final m in matches)
           MatchChatItem(
             name: m.otherUser.profile?.displayName ?? 'Sin nombre',
-            message: 'Nuevo match',
-            time: _formatTime(m.createdAt),
+            message: m.lastMessage?.text ?? 'Nuevo match',
+            time: _formatTime(m.lastMessage?.createdAt ?? m.createdAt),
             imageUrl: (m.otherUser.profile?.photos.isNotEmpty ?? false)
                 ? m.otherUser.profile!.photos.first
                 : null,
-            unread: false,
+            unread: m.unreadCount > 0,
             isGroup: false,
             onTap: () => _openChat(m),
             onLongPress: () => _confirmUnmatch(m),
