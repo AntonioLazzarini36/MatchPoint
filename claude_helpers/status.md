@@ -19,20 +19,20 @@ Ramas vivas ahora mismo, aparte del trunk:
   persona que lea esto escriba sus propios tests (cobertura hoy: 1 test de
   crypto en el backend, 1 widget test boilerplate en mobile — prácticamente
   cero).
-- **`feat/manual-location`** — ✅ mergeada en `feature/rust-backend`
-  (2026-08-01). Ver "Hecho" abajo.
-- **`fix/discovery-header-cleanup`** — ✅ mergeada en `feature/rust-backend`
-  (2026-08-01). Ver "Hecho" abajo.
 - **`feat/tennis-court-map`** — ✅ mergeada en `feature/rust-backend`
   (2026-08-01), **probada por vos en el navegador y ajustada varias veces**
   en base a tu feedback en vivo (ver "Hecho" abajo para el detalle de cada
-  ajuste).
+  ajuste). **Rama dejada viva a propósito** (no borrada como las demás) —
+  dijiste que es probable que pidas más cambios sobre el mapa a futuro, así
+  que sigue existiendo en local y remoto para seguir iterando ahí en vez de
+  abrir una rama nueva.
 
 Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
-`feat/logout-and-settings`, `feat/unmatch-block-report`, y las 10 de la
-pasada de seguridad/fiabilidad del 2026-08-01) ya está **mergeado en
-`feature/rust-backend` y las ramas borradas** (local y remoto) — el detalle
-de cada una vive en el historial de git (`git log feature/rust-backend`),
+`feat/logout-and-settings`, `feat/unmatch-block-report`, `feat/manual-location`,
+`fix/discovery-header-cleanup`, y las 10 de la pasada de seguridad/fiabilidad
+del 2026-08-01) ya está **mergeado en `feature/rust-backend` y las ramas
+borradas** (local y remoto) — el detalle de cada una vive en el historial de
+git (`git log feature/rust-backend`),
 no hace falta duplicarlo aquí.
 
 ### Issues de GitHub — correlación con lo de arriba
