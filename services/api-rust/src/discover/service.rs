@@ -8,15 +8,16 @@
 //! which gives the same end result as the `.filter((u) => u.profile)` in
 //! the TS version.
 
-use chrono::Datelike;
+use chrono::{DateTime, Datelike, Utc};
 use diesel::prelude::*;
+use diesel::result::OptionalExtension;
 use diesel::PgArrayExpressionMethods;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::models::Sport;
-use crate::schema::{profiles, swipes};
+use crate::schema::{preferences, profiles, swipes};
 use crate::state::AppState;
 
 /// Shape sent back to the client. Field names are camelCase on purpose —
@@ -65,6 +66,20 @@ pub fn age_from_birth_date(birth_date: chrono::DateTime<chrono::Utc>) -> i32 {
     age
 }
 
+/// `now` shifted back `years` years, clamping Feb 29 to Feb 28 on
+/// non-leap target years. Used to turn an age bound into a `birth_date`
+/// bound the DB can filter on directly.
+fn years_ago(now: DateTime<Utc>, years: i32) -> DateTime<Utc> {
+    let year = now.year() - years;
+    let mut day = now.day();
+    loop {
+        if let Some(date) = chrono::NaiveDate::from_ymd_opt(year, now.month(), day) {
+            return date.and_time(now.time()).and_utc();
+        }
+        day -= 1;
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DiscoverError {
     #[error("Database error: {0}")]
@@ -98,11 +113,31 @@ pub async fn discover(
         .load(&mut conn)
         .await?;
 
+    // `distance_km`/`gender_preference` aren't applied: profiles have no
+    // stored coordinates and no gender field to filter against yet
+    // (tracked separately — see status.md), so only age is enforceable
+    // today.
+    let age_range = preferences::table
+        .filter(preferences::user_id.eq(current_user_id))
+        .select((preferences::age_min, preferences::age_max))
+        .first::<(i32, i32)>(&mut conn)
+        .await
+        .optional()?;
+    let (age_min, age_max) = age_range.unwrap_or((18, 60));
+
+    let now = Utc::now();
+    // birth_date <= this means "at least age_min years old".
+    let max_birth_date = years_ago(now, age_min);
+    // birth_date > this means "at most age_max years old".
+    let min_birth_date = years_ago(now, age_max + 1);
+
     // Base query: everyone except me. `.into_boxed()` lets us conditionally
     // add the sport filter below without duplicating the whole query.
     let mut query = profiles::table
         .filter(profiles::user_id.ne(current_user_id))
         .filter(profiles::user_id.ne_all(excluded_ids))
+        .filter(profiles::birth_date.le(max_birth_date))
+        .filter(profiles::birth_date.gt(min_birth_date))
         .into_boxed();
 
     if let Some(sport) = sport {
