@@ -26,12 +26,6 @@ Ramas vivas ahora mismo, aparte del trunk:
   dijiste que es probable que pidas más cambios sobre el mapa a futuro, así
   que sigue existiendo en local y remoto para seguir iterando ahí en vez de
   abrir una rama nueva.
-- **`redesign/discovery-cards`** — ✅ construida entera (2026-08-01),
-  **pusheada sin mergear, esperando que la pruebes vos** ("una vez
-  terminada hago los checks necesarios"). `flutter analyze`/`flutter test`
-  en verde. Ver el punto 3 en "Pedidas el 2026-08-01" más abajo para el
-  detalle completo de qué se construyó y qué decisiones tomé donde dejaste
-  el diseño abierto.
 - **Rama de login social (Google/Apple) + verificación de identidad** —
   pedida el 2026-08-01, **sin empezar, sin crear todavía** (solo
   documentada, ver "Pendiente" abajo) — necesita que decidas/consigas
@@ -43,10 +37,10 @@ Ramas vivas ahora mismo, aparte del trunk:
 
 Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
 `feat/logout-and-settings`, `feat/unmatch-block-report`, `feat/manual-location`,
-`fix/discovery-header-cleanup`, y las 10 de la pasada de seguridad/fiabilidad
-del 2026-08-01) ya está **mergeado en `feature/rust-backend` y las ramas
-borradas** (local y remoto) — el detalle de cada una vive en el historial de
-git (`git log feature/rust-backend`),
+`fix/discovery-header-cleanup`, `redesign/discovery-cards`, y las 10 de la
+pasada de seguridad/fiabilidad del 2026-08-01) ya está **mergeado en
+`feature/rust-backend` y las ramas borradas** (local y remoto) — el detalle
+de cada una vive en el historial de git (`git log feature/rust-backend`),
 no hace falta duplicarlo aquí.
 
 ### Issues de GitHub — correlación con lo de arriba
@@ -261,59 +255,64 @@ fila "Deportes" en Settings (mismo patrón que Ubicación/Radio) para poder
 cambiarlos. Backend no necesita cambios — `PATCH /me/profile` ya acepta
 `sports`.
 
-**3. Rediseño de Discovery a tarjetas horizontales — ✅ construida entera en
-`redesign/discovery-cards` (2026-08-01), pendiente de que la pruebes vos.**
+**3. Rediseño de Discovery a tarjetas horizontales — ✅ construida, probada
+en vivo por vos en Chrome, ajustada, y ya mergeada en `feature/rust-backend`
+(2026-08-01). `redesign/discovery-cards` borrada (local y remoto).**
 
-Qué se pidió: cambiar el deck de una tarjeta a la vez por una fila
-horizontal de tarjetas chicas (4 por defecto, menos si la pantalla es
-angosta), cada una arrastrable a los lados para dar like/pass, con preview
-al tocar, sin botones de like/pass, y con un overlay difuminado direccional
-mientras arrastrás.
+Qué se pidió: cambiar el deck de una tarjeta a la vez por hasta 4 tarjetas
+chicas de forma horizontal (rectángulo ancho, no cuadrado), cada una
+arrastrable a los lados para dar like/pass, con preview al tocar, sin
+botones de like/pass, y con un overlay difuminado direccional mientras
+arrastrás.
+
+El diseño pasó por 3 vueltas en vivo contigo antes de mergear — la primera
+interpretación ("horizontal" = fila lado a lado) y luego un deck superpuesto
+no eran lo que querías; el diseño final es:
+- Columna vertical de hasta 4 tarjetas, **sin superponerse**, con margen a
+  los lados/arriba/abajo (no tocan el borde de la pantalla ni el nav de
+  abajo).
+- Cada tarjeta tiene **altura fija** (`LayoutBuilder` calcula 1/4 del alto
+  disponible una sola vez, dividiendo por el máximo de 4) — el tamaño no
+  cambia según cuántas tarjetas queden; solo cambia cuántas filas hay
+  (posición), nunca el tamaño de cada una.
+- Al swipear una, las de abajo simplemente se recalculan solas (menos
+  filas) — no hizo falta lógica de "pop-in" explícita, sale gratis de usar
+  el `stack` plano del controller tal cual estaba.
 
 Qué se construyó, archivo por archivo:
 - `discovery_controller.dart` — se sacó `top` (ya no existe "la de arriba",
   cualquier tarjeta visible es swipeable) y `likeTop()`/`passTop()` (código
   muerto sin los botones). `swipeUser()` no cambió — ya operaba por
-  `userId`, no por posición, así que sirve igual para la fila.
+  `userId`, no por posición, así que sirve igual para la columna.
 - `discovery_mini_card.dart` (nuevo) — tarjeta compacta: foto, gradiente
   oscuro abajo, nombre + edad. Sin más info (para eso está el preview).
 - `discovery_preview_sheet.dart` (nuevo) — bottom sheet
   (`DraggableScrollableSheet`) con foto grande, nombre, edad, ciudad,
   chips de deportes y bio. Se abre al tocar una tarjeta. Deliberadamente
   un modal y no una navegación a otra pantalla — así no perdés tu lugar en
-  la fila de debajo. Reemplaza el viejo comportamiento de `onOpenProfile`
-  que navegaba a `AppRoutes.userProfileName`.
-- `discovery_screen.dart` — reescrita. El `Stack` de una tarjeta pasó a un
-  `Row` dentro de `LayoutBuilder`, mostrando las últimas N tarjetas de
-  `controller.stack` (N = `_visibleCount(width)`, empieza en 4 y baja hasta
-  1 si no entran con un ancho mínimo de 76px por tarjeta). Cada tarjeta es
-  un `Dismissible` individual (mismo patrón `generation`-keyed que ya
+  la columna de debajo. Reemplaza el viejo comportamiento de
+  `onOpenProfile` que navegaba a `AppRoutes.userProfileName`.
+- `discovery_screen.dart` — reescrita. `_buildBody` arma un `Column` con
+  `LayoutBuilder` (altura fija por tarjeta, ver arriba) donde cada tarjeta
+  es un `Dismissible` individual (mismo patrón `generation`-keyed que ya
   existía para evitar el crash de Flutter al hacer rollback de un swipe
-  fallido). Al desaparecer una tarjeta, la fila se recalcula sola — no
-  hizo falta lógica de "pop-in" explícita: al sacar un elemento de
-  `stack`, `LayoutBuilder` simplemente vuelve a tomar las últimas N, así
-  que la tarjeta nueva aparece a la izquierda de las que quedan (opción
-  "subir los demás y poner el nuevo al inicio" de las dos que ofreciste,
-  la más simple de implementar reusando el `stack` plano tal cual estaba).
-  Se sacaron los botones de like/pass (`_buildActions`) y el
+  fallido). Se sacaron los botones de like/pass (`_buildActions`) y el
   `DiscoveryActionButton` que solo ellos usaban.
 - `discovery_action_button.dart` y `discovery_swipe_card.dart` — borrados
   (código muerto tras sacar los botones y la tarjeta grande).
 
 Decisiones que tomé porque las dejaste abiertas ("ya sea A o B", "corazón
 o pulgar o raqueta"):
-- Reemplazo de tarjeta: opción "sube el resto y el nuevo entra al
-  principio" (ver arriba, sale gratis del diseño con `stack` plano).
 - Iconos del overlay: mantuve corazón (like, derecha, verde) y X (pass,
   izquierda, roja) — son los que ya usaba el resto de la app, no metí la
   raqueta para no introducir un ícono nuevo sin necesidad.
 - El overlay es un color wash traslúcido sobre toda la tarjeta (no un
   badge chico) porque a este tamaño de tarjeta un badge no se lee bien.
 
-Verificado en esta sesión: `flutter analyze` limpio, `flutter test` verde
-(el único test que hay, `widget_test.dart`, es boilerplate y no toca
-Discovery — no hay tests de Discovery para actualizar). No lo probé en
-Chrome/emulador — eso queda para tu review, como pediste.
+Verificado: `flutter analyze`/`flutter test` en verde en cada vuelta, y
+probado en vivo por vos corriendo `flutter run -d chrome` contra el backend
+real (con la DB y `cargo run` ya levantados). Mergeado con `--no-ff` en
+`feature/rust-backend` (commit `62f9bdb`), sin conflictos.
 
 ### Del análisis fresco de hoy (2026-08-01), sin rama todavía
 
