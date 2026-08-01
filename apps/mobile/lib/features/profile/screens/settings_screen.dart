@@ -25,8 +25,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   String? _email;
   Profile? _profile;
+  Preferences? _preferences;
   bool _loggingOut = false;
   bool _savingLocation = false;
+  bool _savingRadius = false;
 
   @override
   void initState() {
@@ -43,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _email = me.email;
         _profile = me.profile;
+        _preferences = me.preferences;
         _loading = false;
       });
     } catch (_) {
@@ -71,6 +74,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingLocation = false);
+    }
+  }
+
+  /// El radio solo se podía setear una vez, en el onboarding — mismo
+  /// endpoint (`PATCH /me/preferences`) que ya existía, ahora también
+  /// editable desde acá en cualquier momento.
+  Future<void> _changeRadius() async {
+    final current = _preferences?.distanceKm ?? 25;
+    final chosen = await showModalBottomSheet<int>(
+      context: context,
+      builder: (sheetContext) => _RadiusSheet(initialKm: current),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _savingRadius = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateDiscoveryRadius(chosen);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar el radio: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingRadius = false);
     }
   }
 
@@ -162,6 +191,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingLocation ? null : _changeLocation,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.social_distance_outlined,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Radio de búsqueda',
+                      subtitle: '${_preferences?.distanceKm ?? 25} km',
+                      trailing: _savingRadius
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingRadius ? null : _changeRadius,
                     ),
                   ],
                 ),
@@ -332,6 +381,65 @@ class _SettingsRow extends StatelessWidget {
               ),
             ),
       trailing: trailing,
+    );
+  }
+}
+
+class _RadiusSheet extends StatefulWidget {
+  final int initialKm;
+
+  const _RadiusSheet({required this.initialKm});
+
+  @override
+  State<_RadiusSheet> createState() => _RadiusSheetState();
+}
+
+class _RadiusSheetState extends State<_RadiusSheet> {
+  late double _km;
+
+  @override
+  void initState() {
+    super.initState();
+    _km = widget.initialKm.toDouble().clamp(1, 100);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Radio de búsqueda', style: context.textStyles.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Hasta dónde mostramos gente en Discovery, desde tu ubicación.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('${_km.round()} km', style: context.textStyles.titleLarge),
+            Slider(
+              value: _km,
+              min: 1,
+              max: 100,
+              divisions: 99,
+              onChanged: (v) => setState(() => _km = v),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(_km.round()),
+                child: const Text('Guardar'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
