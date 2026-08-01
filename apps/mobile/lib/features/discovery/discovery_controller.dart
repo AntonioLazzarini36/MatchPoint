@@ -17,6 +17,13 @@ class DiscoveryController extends ChangeNotifier {
   final List<DiscoverProfile> _stack = [];
   List<DiscoverProfile> get stack => List.unmodifiable(_stack);
 
+  /// Bumped whenever a card is rolled back into the stack after a failed
+  /// swipe. The UI folds this into the card's `Key` so a rolled-back card
+  /// is treated as a brand-new widget instead of resurrecting the
+  /// `Dismissible` that was just dismissed — reusing that key crashes,
+  /// since a dismissed `Dismissible` can't reappear under the same key.
+  int generation = 0;
+
   Future<void> init() async => reload();
 
   Future<void> reload() async {
@@ -74,6 +81,7 @@ class DiscoveryController extends ChangeNotifier {
     } catch (e) {
       // rollback
       _stack.insert(idx, removed);
+      generation++;
       notifyListeners();
       rethrow;
     }

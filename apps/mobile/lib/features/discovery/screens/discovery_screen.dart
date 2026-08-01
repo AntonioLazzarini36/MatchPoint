@@ -177,22 +177,37 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           }
 
           return Dismissible(
-            key: Key(user.userId),
+            // Includes `generation` so a card rolled back after a failed
+            // swipe gets a fresh key instead of resurrecting the
+            // Dismissible that was just dismissed under the old one.
+            key: ValueKey('${user.userId}_${controller.generation}'),
             direction: DismissDirection.horizontal,
             onDismissed: (direction) async {
               final type = (direction == DismissDirection.startToEnd)
                   ? SwipeType.like
                   : SwipeType.pass;
 
-              final res = await controller.swipeUser(user: user, type: type);
+              try {
+                final res = await controller.swipeUser(
+                  user: user,
+                  type: type,
+                );
 
-              if (!context.mounted) return;
+                if (!context.mounted) return;
 
-              if (type == SwipeType.like && res.matched) {
-                await showDiscoveryMatchDialog(
-                  context,
-                  user: res.user,
-                  matchId: res.matchId,
+                if (type == SwipeType.like && res.matched) {
+                  await showDiscoveryMatchDialog(
+                    context,
+                    user: res.user,
+                    matchId: res.matchId,
+                  );
+                }
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No se pudo registrar el swipe, reintenta'),
+                  ),
                 );
               }
             },
@@ -233,7 +248,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           DiscoveryActionButton(
             icon: Icons.close,
             color: Colors.red,
-            onTap: () => controller.passTop(),
+            onTap: () async {
+              try {
+                await controller.passTop();
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No se pudo registrar el swipe, reintenta'),
+                  ),
+                );
+              }
+            },
           ),
           DiscoveryActionButton(
             icon: Icons.star,
@@ -246,20 +272,31 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             icon: Icons.favorite,
             color: context.colors.primary,
             onTap: () async {
-              final res = await controller.likeTop();
-              if (!context.mounted) return;
-              if (res.matched && res.user != null) {
-                await showDiscoveryMatchDialog(
-                  context,
-                  user: res.user!,
-                  matchId: res.matchId,
-                );
-              } else if (res.user != null) {
+              try {
+                final res = await controller.likeTop();
+                if (!context.mounted) return;
+                if (res.matched && res.user != null) {
+                  await showDiscoveryMatchDialog(
+                    context,
+                    user: res.user!,
+                    matchId: res.matchId,
+                  );
+                } else if (res.user != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Has dado like a ${res.user!.displayName}!',
+                      ),
+                      duration: const Duration(milliseconds: 600),
+                      backgroundColor: context.colors.tertiary,
+                    ),
+                  );
+                }
+              } catch (_) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Has dado like a ${res.user!.displayName}!'),
-                    duration: const Duration(milliseconds: 600),
-                    backgroundColor: context.colors.tertiary,
+                  const SnackBar(
+                    content: Text('No se pudo registrar el swipe, reintenta'),
                   ),
                 );
               }
