@@ -71,6 +71,7 @@ pub async fn run() {
     let state = AppState {
         db: pool,
         config: Arc::new(cfg),
+        rate_limiter: auth::rate_limit::RateLimiter::new(),
     };
 
     let cors = CorsLayer::new()
@@ -91,7 +92,10 @@ pub async fn run() {
 
     tracing::info!("listening on {addr}");
 
-    axum::serve(listener, router.into_make_service())
-        .await
-        .expect("server crashed");
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .expect("server crashed");
 }
