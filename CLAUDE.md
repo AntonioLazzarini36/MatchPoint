@@ -71,33 +71,36 @@ Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D
 - `src/main.rs` — thin entrypoint, just calls `matchpoint_api::run()`.
 - `src/lib.rs` — real startup logic (tracing init, config load, DB pool + connectivity check, CORS, router bind/serve). Everything is `pub mod`-ed here rather than in `main.rs` so app types count as "used" library surface for `cargo clippy --all-targets` (a bin-only crate would false-flag model types as dead code).
 - `src/app.rs` — equivalent of `app.module.ts`: builds the root `Router` by `.merge()`-ing every feature module's router, then `.with_state(AppState)`.
-- `src/state.rs` — `AppState { db: DbPool, config: Arc<AppConfig> }`, cloned into every handler (Axum's answer to Nest's constructor DI).
+- `src/state.rs` — `AppState { db: DbPool, config: Arc<AppConfig>, rate_limiter: RateLimiter }`, cloned into every handler (Axum's answer to Nest's constructor DI).
 - `src/config.rs` — equivalent of `ConfigModule`: reads all env vars once at startup into `AppConfig`, panics fast if something required is missing.
 - `src/db.rs` — Diesel-async connection pool (bb8).
-- Each feature module (`auth/`, `discover/`, `me/`, `swipes/`, `matches/`, `chats/`, `users/`, `app/`) follows the same three-file shape as its Nest ancestor: `controller.rs` (Axum router + handlers, maps errors to `StatusCode`), `service.rs` (business logic, DB queries), and `dto.rs` where request/response shapes need their own types. `auth/` additionally has `jwt.rs`; `chats/` additionally has `crypto.rs` (AES-256-GCM message encryption — ciphertext at rest, plaintext over the API).
+- Each feature module (`auth/`, `discover/`, `me/`, `swipes/`, `matches/`, `chats/`, `users/`, `app/`) follows the same three-file shape as its Nest ancestor: `controller.rs` (Axum router + handlers, maps errors to `StatusCode`), `service.rs` (business logic, DB queries), and `dto.rs` where request/response shapes need their own types. `auth/` additionally has `jwt.rs` (sign/verify) and `rate_limit.rs` (in-memory per-IP sliding-window limiter, applied only to `/auth/login|register|email-available`); `chats/` additionally has `crypto.rs` (AES-256-GCM message encryption — ciphertext at rest, plaintext over the API).
 - `src/models.rs` / `src/schema.rs` — Diesel models and schema, hand-maintained (see migrations note above; do not expect `schema.rs` to auto-regenerate).
 - `src/bin/datagen.rs` — extra binary in the same crate (auto-discovered by Cargo, no `Cargo.toml` change needed) for seeding test data; see Commands above.
 - `src/openapi.rs` — OpenAPI spec aggregator (`utoipa`), served as Swagger UI + JSON via `app.rs`. See "OpenAPI docs" below.
 
 ### Auth & data model
 
-- JWT access/refresh: access token lives 15 min, refresh 30 days. Authenticated routes take `Authorization: Bearer <accessToken>`.
+- JWT access/refresh: access token lives 15 min, refresh 30 days. Authenticated routes take `Authorization: Bearer <accessToken>`. Refresh tokens rotate on every use (old one deleted, new one issued) — the mobile client stores both tokens and `ApiClient` transparently refreshes-and-retries on a 401.
+- **Gotcha:** `auth/service.rs` SHA-256-digests a refresh token before bcrypt-hashing it for storage (`refresh_token_digest`) — do not bcrypt-hash a raw token directly. bcrypt only looks at the first 72 bytes of its input, and two refresh JWTs for the same user share an identical prefix well past that (header + `sub` + `email` claims are byte-identical; only `exp`, near the end of the payload, differs), so bcrypt would treat every token ever issued to a user as equal to the current one — silently defeating rotation.
 - DB table/column names are PascalCase/camelCase, inherited from the original Prisma schema — intentionally not renamed when porting to Diesel, so expect `#[sql_name]` annotations in `models.rs` rather than idiomatic snake_case.
 - Core tables: `User`, `Profile` (1:1 via `userId`), `Preferences` (1:1 via `userId`), `RefreshToken`, `Swipe` (unique per `fromUserId,toUserId,sport`), `Match` (unique per `userAId,userBId,sport`), `Message` (ciphertext in DB, decrypted plaintext in API responses).
 - Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS).
 
 ### API surface
 
-- Auth: `POST /auth/register|login|refresh|logout`
-- Me: `GET /me`, `PATCH /me/profile`, `PATCH /me/preferences`
-- Discover: `GET /discover?sport=TENNIS|RUNNING`
+- Auth: `POST /auth/register|login|refresh|logout`, `GET /auth/email-available?email=`. `login`/`register`/`email-available` are rate-limited (10 req/60s per IP, 429 past that).
+- Me: `GET /me`, `PATCH /me/profile` (does **not** accept `photos` — that field only exists on the dedicated photo endpoints below), `PATCH /me/preferences`, `POST /me/photos` (multipart, enforces `MAX_PHOTOS`=6 + type/size validation), `DELETE /me/photos` (can't delete the last photo)
+- Discover: `GET /discover?sport=TENNIS|RUNNING` — excludes already-swiped users and filters by the caller's `ageMin`/`ageMax` preferences (falls back to 18-60 if no preferences row yet). Does **not** filter by `distanceKm`/`genderPreference` — no stored coordinates or gender field to filter with yet.
 - Swipes: `POST /swipes { toUserId, sport, type: LIKE|PASS }` → `{ match, matchId?, swipeId }`
-- Matches: `GET /matches`
+- Matches: `GET /matches` (includes `lastMessage` decrypted preview + `unreadCount` per match), `DELETE /matches/:matchId` (unmatch — deletes the match + its chat; only a match member can call it)
 - Chats: `GET/POST /chats/:matchId/messages`, `PATCH /chats/:matchId/read` (403 if not a match member)
-- Users: `GET /users/:userId/profile` (public profile, still requires auth; 404 if missing)
+- Users: `GET /users/:userId/profile` (public profile, still requires auth; 404 if missing), `POST /users/:userId/report { reason }` (logs a report for review only — does not touch any match/chat)
 - Misc: `GET /`, `GET /health`
 
 There's no rating/skill-level system yet (Elo vs Glicko-2 undecided) — `discover` currently has nothing to rank matches by skill.
+
+There's no Block feature — deliberately removed (see git history on `feature/rust-backend`); unmatch (cuts contact) + report (flags for review) were judged to cover what block would have.
 
 ### OpenAPI docs
 
@@ -111,5 +114,5 @@ Swagger UI at `http://localhost:3000/docs`, raw spec at `/api-docs/openapi.json`
 
 `apps/mobile/lib/` is feature-organized:
 - `app/` — app shell, routing (`router.dart`, `routes.dart`).
-- `core/` — cross-feature: `network/` (`api_client.dart`, `api.dart` — HTTP client for the Rust backend), `auth/` (`auth_gate.dart`), `storage/`, `theme/`, `ui/` (shared widgets, including per-feature widget subfolders like `ui/widgets/chat`, `ui/widgets/discovery`, `ui/widgets/matches`, `ui/widgets/onboarding`).
+- `core/` — cross-feature: `network/` (`api_client.dart` — HTTP client with transparent 401-refresh-and-retry, `api.dart` — backend base URL/singleton), `auth/` (`auth_gate.dart`), `storage/` (`token_storage.dart` — access + refresh tokens, secure storage), `theme/`, `ui/` (shared widgets: `ui/widgets/` has per-feature subfolders like `chat`, `discovery`, `matches`, `onboarding`; `ui/dialogs/` has generic confirm/report dialogs; `ui/profile/` has profile-display widgets shared between own/other profile screens).
 - `features/` — one folder per feature (`auth`, `discovery`, `matches`, `onboarding`, `profile`, `welcome`), each with its own `models/`, `screens/`, `services/`.

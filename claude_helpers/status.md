@@ -9,166 +9,120 @@
 `dev` y `main` están muy desactualizados (siguen en el backend NestJS viejo,
 sin el rewrite a Rust). La rama activa de verdad es **`feature/rust-backend`**
 — trátala como el trunk real hasta que se decida cuándo/cómo mergear todo
-esto en `dev`/`main`. Las branches de feature parten de ahí.
+esto en `dev`/`main`.
 
-## Hecho
+Ramas vivas ahora mismo, aparte del trunk:
+- **`redesign/ui-overhaul`** — creada, sin empezar. Rediseño general de la
+  UI. Falta definir alcance/estilo (¿pantalla por pantalla con mockups como
+  hicimos con Settings, o carta blanca?).
+- **`test/full-app-suite`** — creada, sin empezar. Reservada para que la
+  persona que lea esto escriba sus propios tests (cobertura hoy: 1 test de
+  crypto en el backend, 1 widget test boilerplate en mobile — prácticamente
+  cero).
 
-- **`fix/expose-age-not-birthdate`** — mergeada en `feature/rust-backend`.
-  `/discover`, `/users/:userId/profile` y el lado `otherUser` de `/matches`
-  devuelven `age` calculada en vez de `birthDate` exacto (PII innecesaria).
-  `/me` y el lado `me` de `/matches` siguen con `birthDate` completo (tu
-  propio dato).
+Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
+`feat/logout-and-settings`, `feat/unmatch-block-report`, y las 10 de la
+pasada de seguridad/fiabilidad del 2026-08-01) ya está **mergeado en
+`feature/rust-backend` y las ramas borradas** (local y remoto) — el detalle
+de cada una vive en el historial de git (`git log feature/rust-backend`),
+no hace falta duplicarlo aquí.
 
-- **`feat/logout-and-settings`** — mergeada en `feature/rust-backend`
-  (2026-08-01) y pusheada. Logout real (borra token local + intenta revocar
-  refresh token en backend, best-effort). Pantalla de Settings rediseñada
-  siguiendo las mockups que pasaste (card de cabecera + fila de email +
-  botón de cerrar sesión). Botones de "ajustes" y "ver mi perfil público" en
-  `ProfileScreen` ahora funcionan. Trae además una regla nueva en
-  `.gitignore` (`claude_helpers/*`) que ya cubre este documento y las
-  mockups sin necesidad de gestionarlas a mano.
+## Hecho (resumen)
 
-- **`feat/unmatch-block-report`** — mergeada en `feature/rust-backend`
-  (commit `b115e88`, 2026-08-01) y pusheada. Checks en verde sobre el árbol
-  mergeado (fmt/clippy/build/test backend, analyze/test mobile). Decisiones
-  tomadas:
-  - **Deshacer match** (`DELETE /matches/:matchId`): pide confirmación,
-    borra el match y su chat. Además, esa persona **ya no vuelve a
-    aparecer en Discovery** (se arregló que `/discover` no excluía a nadie
-    ya swipeado — ahora excluye a quien ya diste LIKE o PASS, por deporte).
-  - **Reportar** (`POST /users/:userId/report`): solo dice registro para
-    revisión. **No borra el match ni corta el contacto** — si quieres
-    cortar contacto, usas deshacer match, que es la única acción que hace
-    eso.
-  - **Bloquear se eliminó por completo** (backend, DB, UI) — se decidió que
-    no aporta nada que deshacer-match + reportar no cubran ya en esta app.
-
-- **`CLAUDE.md`** actualizado con una sección de autonomía: Claude no debe
-  parar a pedir permiso a mitad de tarea (checks, Docker, decisiones de
-  alcance/implementación) — solo se detiene justo antes de `git commit` /
-  `git push` para que se revise el resultado.
-
-- **`.claude/settings.json`** (commiteado, para todo el equipo) — allowlist
-  de permisos para que `cargo fmt/clippy/build/test/run`, `flutter
-  analyze/test/run/pub get`, `docker compose`, `diesel migration`, `curl` a
-  localhost y los comandos git de solo lectura/locales (`status`, `diff`,
-  `log`, `branch`, `checkout`, `merge`, `fetch`, `add`, `stash`, etc.) no
-  interrumpan pidiendo aprobación, en línea con la sección de autonomía de
-  `CLAUDE.md`. `git commit`, `git push` y las operaciones destructivas
-  (`reset --hard`, `push --force`, `branch -D`, `clean -f`) están en la
-  lista `ask`, no en `allow` ni en `deny` — siguen pidiendo confirmación
-  siempre (nunca se auto-aprueban), pero sí se pueden aprobar cuando hace
-  falta (a diferencia de `deny`, que las bloquearía sin remedio).
+- Migración completa NestJS → Rust (`services/api-rust`), Swagger/OpenAPI,
+  generador de datos de prueba (`datagen`).
+- Privacidad: `/discover`, `/users/:userId/profile` y el lado `otherUser`
+  de `/matches` devuelven `age` calculada, nunca `birthDate` exacto.
+- Logout real + pantalla de Settings (con botón de volver, arreglado
+  2026-08-01 — no tenía `AppBar`).
+- Deshacer match (`DELETE /matches/:matchId`) + Reportar
+  (`POST /users/:userId/report`, no corta contacto) — Bloquear se eliminó
+  por completo (backend+DB+UI), se decidió que unmatch+report ya cubre lo
+  que haría.
+- **Pasada de seguridad/fiabilidad completa (2026-08-01)**, 10 ramas, todas
+  verificadas (fmt/clippy/build/test backend, analyze/test mobile, y
+  pruebas manuales contra el backend real) y ya mergeadas:
+  - JWT: secretos obligatorios al arrancar, sin fallback hardcodeado.
+  - Rate limiting (10 req/60s por IP) en `/auth/login|register|email-available`.
+  - `PATCH /me/profile` ya no acepta `photos` (bypaseaba validación/límite).
+  - `/discover` filtra por `ageMin`/`ageMax` reales de `preferences`
+    (`distanceKm`/`genderPreference` siguen sin aplicarse — no hay
+    coordenadas ni campo de género guardados).
+  - Refresh token real en el móvil (guardado, auto-refresh en 401,
+    reintento, manejo de refrescos concurrentes).
+  - 🔴 **Bug de seguridad no listado, encontrado al probar lo anterior:**
+    bcrypt trunca a 72 bytes y dos refresh tokens del mismo usuario
+    comparten prefijo más allá de eso → la rotación de refresh token no
+    invalidaba nada en la práctica. Arreglado (SHA-256 antes de bcrypt).
+    Invalida sesiones viejas (hash de formato distinto) — toca re-loguearse
+    una vez.
+  - Fix de crash real en Discovery (swipe fallido por red + reinserción de
+    `Dismissible` con key repetida).
+  - Chat con polling (4s) en vez de solo cargar una vez.
+  - Matches: `unreadCount`/`lastMessage` reales (antes "Nuevo match" y
+    `unread: false` fijos para todo); recarga real al volver del chat.
+  - Buscador de matches por nombre (client-side).
+- Documentación: `CLAUDE.md`, `README.md`, `services/api-rust/NOTES.md`
+  puestos al día (endpoints que faltaban desde antes: unmatch, report;
+  `services/api` viejo ya no existe, etc.) el 2026-08-01.
+- `.claude/settings.json` (commiteado, equipo entero): allowlist de
+  permisos para que builds/tests/docker/git-local no interrumpan pidiendo
+  aprobación — solo `git commit`/`push`/ops destructivas piden confirmación
+  siempre (nunca se auto-aprueban, pero se pueden aprobar).
 
 ## Pendiente / próximos pasos
 
-Branches ya creadas, sin empezar:
+### Sin empezar, esperando tu decisión
+- **`redesign/ui-overhaul`** — falta definir alcance/estilo.
+- **`test/full-app-suite`** — para que la escribas vos.
+- **UI de preferencias de Discovery** (filtros de edad/distancia/deporte):
+  no existe ninguna pantalla ni modelo en el móvil para esto. El backend ya
+  filtra por edad (`/discover`), pero no hay forma de cambiarla desde la
+  app fuera del registro. Necesita diseño, no lo inventé.
+- **Sistema de rating/nivel** (Elo vs Glicko-2): pieza central del
+  producto para emparejar por nivel, sin diseñar todavía — ni tabla, ni
+  cómo lo usaría `discover`.
+- **Distancia real**: necesita guardar coordenadas (migración de schema) +
+  UI de ubicación en onboarding. Sin eso, `distanceKm` en preferencias no
+  tiene con qué compararse.
+- **Campo de género**: `Preferences.genderPreference` existe pero
+  `Profile` no tiene ningún campo de género que filtrar — mismo problema
+  que distancia, necesita schema + UI.
+- **Super-like**: el propio TODO en el código dice que depende de una
+  feature de backend que no existe (`SwipeType` solo tiene LIKE/PASS).
 
-- **`redesign/ui-overhaul`** — rediseño general de la UI. Falta definir
-  alcance/estilo (¿pantalla por pantalla con mockups como hicimos con
-  Settings, o carta blanca?).
-- **`test/full-app-suite`** — para que la persona que lea esto escriba sus
-  propios tests (backend tiene prácticamente cero cobertura hoy — 1 solo
-  test en todo `api-rust`).
+### Del análisis fresco de hoy (2026-08-01), sin rama todavía
 
-Del análisis inicial completo del repo — **trabajado sin supervisión el
-2026-08-01** mientras te ibas 3 horas. Los 9 puntos originales están
-resueltos (uno de ellos reveló un bug de seguridad más serio, que se separó
-en su propia rama). **Las 10 ramas ya están mergeadas en
-`feature/rust-backend`** (mergeadas todas justo después, a tu pedido, para
-que las revisaras cambiando de rama en la app corriendo — checks en verde
-sobre el árbol completo mergeado: fmt/clippy/build/test backend,
-analyze/test mobile). Único conflicto real, en `matches_screen.dart` entre
-`fix/matches-real-unread-state` y `feat/matches-search` (las dos tocaban la
-zona de `_openChat`) — resuelto a mano, sin pérdida de ninguno de los dos
-cambios.
+Seguridad/fiabilidad, por prioridad:
 
-**Importante para probar en local:** como `fix/refresh-token-rotation-bcrypt-truncation`
-cambia el formato del hash del refresh token guardado, cualquier sesión que
-tuvieras abierta de antes de este merge quedará invalidada — toca volver a
-loguearse la próxima vez que el access token expire (o simplemente cerrar
-sesión y volver a entrar).
+1. **Validación de fotos por content-type del cliente, no por contenido
+   real** (`me/photos.rs::extension_for`) — confía en el header
+   `Content-Type` que manda el cliente para decidir la extensión
+   (`jpg`/`png`/`webp`), nunca mira los bytes reales del archivo. Alguien
+   puede subir cualquier cosa etiquetada como imagen. Fix: sniffear los
+   magic bytes reales (crate tipo `infer`) y rechazar si no coincide con
+   lo declarado.
+2. **Sin rate limit en endpoints autenticados de por sí "caros" o
+   abusables**: `/swipes`, `POST /me/photos`, `POST /users/:userId/report`,
+   `POST /chats/:matchId/messages`. Un usuario autenticado normal podría
+   spammear cualquiera de estos sin límite (a diferencia de los endpoints
+   de auth, que sí están cubiertos desde hoy).
+3. **`GET /health` no comprueba la DB** — solo devuelve `{ok:true}` fijo;
+   la conectividad a Postgres solo se chequea una vez, al arrancar. Un
+   liveness probe (k8s/load balancer) contra `/health` no detectaría una
+   caída de la base de datos en caliente.
+4. **CORS totalmente abierto** (`allow_origin/methods/headers(Any)`) —-
+   razonable en dev, y el riesgo real es bajo porque la auth es Bearer
+   token (no cookies, así que CORS abierto no expone el token a otros
+   orígenes), pero vale la pena cerrarlo antes de cualquier despliegue
+   real.
+5. El rate limiter de auth usa `ConnectInfo` (IP de la conexión TCP
+   directa) — si esto algún día corre detrás de un proxy/load balancer,
+   vería la IP del proxy para todo el mundo y el límite dejaría de ser
+   por-cliente. Ya está anotado en el código (`rate_limit.rs`), pero
+   recordatorio para cuando se hable de despliegue real.
 
-1. ✅ **`fix/jwt-secret-required`** (commit `abb823c`) — Secretos JWT ya no
-   tienen fallback hardcodeado; `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`
-   ahora son obligatorios al arrancar (igual que `DATABASE_URL`). `.env`,
-   `.env.example` y CI ya los definían, así que no rompe nada.
-2. ✅ **`feat/auth-rate-limiting`** (commit `552a79d`) — Rate limiter en
-   memoria por IP (10 req/60s, sin dependencia nueva) en
-   `/auth/login|register|email-available`. Verificado a mano: request 11
-   en adelante devuelve 429.
-3. ✅ **`fix/profile-photos-validation`** (commit `da3b189`) — Se eliminó
-   `photos` de `PATCH /me/profile` (backend y móvil) en vez de parchear con
-   un límite: el móvil solo mandaba `[]` ahí de todos modos, las fotos de
-   verdad siempre pasaron por `POST /me/photos`, que sí valida.
-4. ✅ **`feat/discover-preferences-filter`** (commit `f67632d`) — `/discover`
-   ahora filtra por `ageMin`/`ageMax` de `preferences` (traducido a rango de
-   `birth_date` en la query SQL). **`distanceKm` y `genderPreference`
-   siguen sin aplicarse** — no hay coordenadas guardadas ni campo de género
-   en `Profile`, así que no hay con qué filtrar; eso es una feature más
-   grande (migración + UI de onboarding), no la inventé. Verificado con
-   datos reales del seed.
-5. ✅ **`feat/mobile-refresh-token`** (commit `3d569fc`) — El móvil ya
-   guarda y usa el refresh token. `ApiClient` intercepta cualquier 401 en
-   una request autenticada, refresca en silencio vía `POST /auth/refresh`
-   y reintenta una vez; los 401 concurrentes comparten el mismo refresh en
-   vuelo (el backend rota el refresh token en cada uso, así que refrescos
-   concurrentes sin coordinar se pisarían). Si el refresh token termina
-   siendo rechazado, se limpian los tokens locales y el `redirect` de
-   `router.dart` te manda solo a login en la siguiente navegación.
-   **Bonus/hallazgo mientras probaba esto** → ver punto 5b.
-5b. ✅ **`fix/refresh-token-rotation-bcrypt-truncation`** (commit `dad9f78`)
-   — **Bug de seguridad real, no estaba en la lista original.** Probando
-   5 descubrí que un refresh token "rotado" seguía funcionando después de
-   rotar. Causa: bcrypt solo mira los primeros 72 bytes, y dos JWTs de
-   refresh del mismo usuario comparten un prefijo idéntico bien más allá
-   de eso (header + sub + email iguales; solo `exp`, cerca del final del
-   payload, cambia) — bcrypt los trataba como el mismo token. En la
-   práctica, la rotación no invalidaba nada. Fix: hashear con SHA-256 antes
-   de pasarlo a bcrypt. **Nota:** esto invalida los `RefreshToken` ya
-   guardados (hasheados con el esquema viejo) — cualquier sesión activa
-   tendrá que volver a loguearse cuando su access token expire. Aceptable
-   para una app en fase de desarrollo, no monté una migración para esto.
-   Verificado end-to-end contra el backend real (login → rota → token
-   viejo ahora 401, token nuevo 200, logout revoca correctamente).
-6. ✅ **`fix/discovery-swipe-crash`** (commit `e5ce855`) — Dos bugs
-   juntos: (a) al fallar un swipe por red, el rollback reinsertaba la
-   carta con el mismo `Key(user.userId)` que el `Dismissible` que ya se
-   había disparado — Flutter no tolera eso. (b) el `rethrow` del rollback
-   nunca se capturaba (los callbacks de `onDismissed`/`onTap` no son
-   `async`, así que la excepción quedaba sin manejar). Fix: un contador
-   `generation` en el controller que cambia la key en cada rollback, +
-   try/catch con SnackBar en los 3 puntos que disparan swipe (Dismissible,
-   botón like, botón pass).
-7. ✅ **`feat/chat-polling`** (commit `94fa09c`) — Sin montar un
-   websocket (de más para la escala actual): el chat pollea cada 4s
-   mientras está abierto, añade mensajes nuevos por id (sin duplicar),
-   vuelve a marcar leído si llegó algo nuevo, y solo hace auto-scroll si
-   ya estabas cerca del final.
-8. ✅ **`fix/matches-real-unread-state`** (commit `191b483`) — `GET
-   /matches` ahora devuelve `lastMessage` (texto desencriptado + emisor +
-   fecha del último mensaje, `null` si no hay ninguno) y `unreadCount` real
-   por match. También arreglé que `MatchesScreen` solo recargaba al volver
-   del chat si hubo un unmatch — como entrar al chat marca leído
-   (`ChatController.init` ya llamaba a `markRead`, pero la lista nunca se
-   refrescaba), el badge de no-leído no se limpiaba nunca en el flujo
-   normal. Verificado end-to-end entre dos cuentas del seed.
-9. ✅ **TODOs sueltos** — de los 3 (`filtros discovery`, `super-like`,
-   `buscador de matches`), solo hice el buscador
-   (**`feat/matches-search`**, commit `f3bb6c3`): filtra la lista de
-   conversaciones por nombre, client-side, sin tocar el backend. Los otros
-   dos los dejé explícitamente sin tocar:
-   - **Filtros de discovery**: no existe ninguna UI en el móvil para
-     preferencias (ni el modelo siquiera) — construir esa pantalla a
-     ciegas es el mismo riesgo que `redesign/ui-overhaul`.
-   - **Super-like**: el propio comentario en el código dice que depende de
-     una feature de backend que no existe (`SwipeType` solo tiene
-     LIKE/PASS).
-
-**10 ramas en total esta sesión**, todas pusheadas, verificadas
-individualmente (fmt/clippy/build/test backend, analyze/test mobile, y
-pruebas manuales contra el backend real donde aplicaba) y ahora mergeadas
-en `feature/rust-backend`.
+Nada de esto lo toqué sin preguntar — son hallazgos, no cambios.
 
 ## Notas del entorno local
 

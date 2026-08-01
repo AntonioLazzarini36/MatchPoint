@@ -2,7 +2,7 @@
 
 ## Estado del backend
 
-⚠️ **El backend se ha migrado de NestJS a Rust (Axum + Diesel + diesel-async).** La migración está completa y verificada. `services/api` (NestJS + Prisma) queda como legacy pendiente de borrar — no lo uses para desarrollo nuevo, usa `services/api-rust`.
+✅ **El backend se ha migrado de NestJS a Rust (Axum + Diesel + diesel-async).** La migración está completa y verificada. `services/api` (NestJS + Prisma) ya se borró del todo — si ves referencias a él en comentarios o docs viejos, son históricas.
 
 ## Cómo levantar todo
 
@@ -63,7 +63,7 @@ Después, actualizar `src/schema.rs` y `src/models.rs` a mano (con su `#[sql_nam
 
 ## Endpoints (API)
 
-Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refresh dura 30 días).
+Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refresh dura 30 días, rota en cada uso). Ver también Swagger UI en `/docs` para la spec completa siempre al día.
 
 #### Base / misc
 - GET /
@@ -73,16 +73,22 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 - POST /auth/login
 - POST /auth/refresh
 - POST /auth/logout
+- GET /auth/email-available?email=
+  (`login`/`register`/`email-available` tienen rate limit: 10 req/60s por IP, 429 a partir de ahí)
 #### Me (perfil + preferencias, autenticado)
 - GET /me
-- PATCH /me/profile
+- PATCH /me/profile (ya no acepta `photos` — eso solo se gestiona por los endpoints de abajo)
 - PATCH /me/preferences
+- POST /me/photos (multipart, máx. 6 fotos, valida tipo/tamaño)
+- DELETE /me/photos (no deja borrar la última foto)
 #### Discover
 - GET /discover?sport=TENNIS|RUNNING
+  (excluye a quien ya swipeaste y filtra por `ageMin`/`ageMax` de tus preferencias; `distanceKm`/`genderPreference` todavía no se aplican — no hay coordenadas ni campo de género guardados)
 #### Swipes + match
 - POST /swipes { toUserId, sport, type: LIKE|PASS } → { match, matchId?, swipeId }
 #### Matches
-- GET /matches → array de matches con info del otro usuario
+- GET /matches → array de matches con info del otro usuario, último mensaje (desencriptado) y contador real de no-leídos
+- DELETE /matches/:matchId → deshace el match (borra match + chat; solo un miembro del match puede hacerlo)
 #### Chats
 - GET /chats/:matchId/messages
 - POST /chats/:matchId/messages
@@ -90,6 +96,7 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
   (mensajes cifrados AES-256-GCM en DB, texto plano en la API; 403 si no eres miembro del match)
 #### Users / Profiles
 - GET /users/:userId/profile → perfil público (requiere auth), 404 si no existe
+- POST /users/:userId/report { reason } → registra un reporte para revisión; no borra el match ni corta contacto (para eso, unmatch)
 ## Base de datos
 
 Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al migrar a Diesel).
@@ -109,6 +116,8 @@ Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al
 2. ✅ **Generador de datos de prueba** (`cargo run --bin datagen`), ver sección de arriba.
 3. **Sistema de rating/nivel** (Elo vs Glicko-2): nueva tabla de partidos, cómo lo usa `discover`. Pieza central del producto, aún sin diseñar.
 4. ✅ **Swagger / OpenAPI** (`utoipa` + `utoipa-swagger-ui`), ver `http://localhost:3000/docs` arriba y "Documentar un endpoint nuevo" abajo.
+5. ✅ **Pasada de seguridad/fiabilidad (2026-08-01)**: secretos JWT obligatorios, rate limiting en auth, refresh token real en el móvil (+ arreglado un bug de bcrypt que dejaba la rotación sin efecto), fix de un par de crashes/bugs de UI, unread real en Matches, polling en el chat, buscador de matches. Detalle completo en `claude_helpers/status.md`.
+6. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, cobertura del backend hoy es prácticamente cero), UI de preferencias/filtros de discovery (no existe ninguna pantalla para editarlas), distancia real (necesita guardar coordenadas + UI de ubicación), campo de género en el perfil, super-like.
 
 ## Documentar un endpoint nuevo (OpenAPI)
 

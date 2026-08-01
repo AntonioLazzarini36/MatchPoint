@@ -1,10 +1,24 @@
 # matchpoint-api-rust
 
-Rust port of `services/api` (NestJS) using Axum + Diesel + diesel-async.
+Rust port of the old `services/api` (NestJS), using Axum + Diesel + diesel-async.
 
-## Status: root module only
+## Status: port complete, superseded by CLAUDE.md
 
-Ported so far (maps 1:1 to the NestJS src/ root files):
+This file was written at the very start of the NestJS→Rust port, when only
+the root module existed and the table below was a live todo list. The port
+finished a long time ago — `auth`, `discover`, `me`, `swipes`, `matches`,
+`chats`, `users` are all implemented, plus features that never existed in
+the NestJS version at all (unmatch, report, rate limiting, refresh-token
+rotation, real-time-ish chat polling support, etc.). `services/api` itself
+is gone from the repo entirely.
+
+For the current, maintained architecture reference, see `CLAUDE.md` at the
+repo root ("Backend architecture" section) — that's kept in sync with the
+code; this file is being left as-is below purely as a historical record of
+where the port started.
+
+Original root-module mapping (still accurate, just no longer the whole
+picture):
 
 | NestJS file            | Rust file              |
 |-------------------------|-------------------------|
@@ -14,10 +28,6 @@ Ported so far (maps 1:1 to the NestJS src/ root files):
 | app.service.ts           | src/app/service.rs       |
 | (ConfigModule)           | src/config.rs            |
 | (PrismaModule/Service)   | src/db.rs, src/state.rs |
-
-Not ported yet: auth, discover, me, swipes, matches, chats, users.
-Each will get its own `src/<module>/{controller,service,dto}.rs`, merged
-into `src/app.rs` the same way `app.module.ts` lists them in `imports`.
 
 ## Build
 
