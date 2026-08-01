@@ -55,7 +55,7 @@ class ProfileView extends StatelessWidget {
                 icon: const Icon(Icons.settings),
                 onPressed: onSettings,
               ),
-            if (extraActions != null) ...extraActions!,
+            ...?extraActions,
           ],
         ),
         SliverToBoxAdapter(
