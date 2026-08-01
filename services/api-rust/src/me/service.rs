@@ -127,9 +127,10 @@ pub async fn update_profile(
     let bio = dto
         .bio
         .or_else(|| existing.as_ref().and_then(|p| p.bio.clone()));
-    let photos = dto
-        .photos
-        .or_else(|| existing.as_ref().map(|p| p.photos.clone()))
+    // Not settable via this DTO — see the comment on UpdateProfileDto.
+    let photos = existing
+        .as_ref()
+        .map(|p| p.photos.clone())
         .unwrap_or_default();
     let sports: Vec<Sport> = dto
         .sports
