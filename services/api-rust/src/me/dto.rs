@@ -14,7 +14,10 @@ pub struct UpdateProfileDto {
     pub birth_date: Option<String>, // "YYYY-MM-DD" o ISO, igual que en TS
     pub city: Option<String>,
     pub bio: Option<String>,
-    pub photos: Option<Vec<String>>,
+    // Deliberately no `photos` here — photos are only ever managed through
+    // POST/DELETE /me/photos, which enforce the MAX_PHOTOS cap and validate
+    // the uploaded file. A `photos` field here would let a client overwrite
+    // the array with arbitrary strings/URLs, bypassing both.
     pub sports: Option<Vec<Sport>>,
 }
 

@@ -185,7 +185,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         birthDate: _formatDate(birthDate!),
         city: 'Madrid',
         bio: _goal,
-        photos: const [],
         sports: _sportsForBackend(), // ✅ solo Tenis/Correr
       );
       await controller.service.updateProfile(req);
