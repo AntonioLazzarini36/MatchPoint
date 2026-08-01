@@ -104,18 +104,19 @@
       "Bash(taskkill*)",
       "Bash(netstat*)",
       "Bash(lsof*)",
-      "Bash(disown)"
-    ],
-    "ask": [
+      "Bash(disown)",
+
       "Bash(git commit*)",
       "Bash(git push*)",
+      "PowerShell(git commit*)",
+      "PowerShell(git push*)"
+    ],
+    "ask": [
       "Bash(git reset --hard*)",
       "Bash(git push --force*)",
       "Bash(git branch -D*)",
       "Bash(git branch --delete --force*)",
       "Bash(git clean -f*)",
-      "PowerShell(git commit*)",
-      "PowerShell(git push*)",
       "PowerShell(git reset --hard*)",
       "PowerShell(git push --force*)",
       "PowerShell(git branch -D*)",
