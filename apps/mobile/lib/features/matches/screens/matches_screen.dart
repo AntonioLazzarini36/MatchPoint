@@ -21,17 +21,35 @@ class MatchesScreen extends StatefulWidget {
 class _MatchesScreenState extends State<MatchesScreen> {
   late final MatchesController controller;
 
+  bool _searching = false;
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
   @override
   void initState() {
     super.initState();
     controller = MatchesController(MatchesService(Api.client));
     controller.init();
+    _searchCtrl.addListener(() {
+      setState(() => _query = _searchCtrl.text.trim().toLowerCase());
+    });
   }
 
   @override
   void dispose() {
     controller.dispose();
+    _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) {
+        _searchCtrl.clear();
+        _query = '';
+      }
+    });
   }
 
   /// El chat puede deshacer el match / bloquear / reportar y volver con
@@ -72,11 +90,20 @@ class _MatchesScreenState extends State<MatchesScreen> {
       builder: (_, _) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Mensajes'),
+            title: _searching
+                ? TextField(
+                    controller: _searchCtrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar por nombre...',
+                      border: InputBorder.none,
+                    ),
+                  )
+                : const Text('Mensajes'),
             actions: [
               IconButton(
-                icon: const Icon(Icons.search),
-                onPressed: () {}, // TODO
+                icon: Icon(_searching ? Icons.close : Icons.search),
+                onPressed: _toggleSearch,
               ),
             ],
           ),
@@ -139,6 +166,19 @@ class _MatchesScreenState extends State<MatchesScreen> {
     // “Nuevos matches” (horizontal): los 12 mas recientes
     final newMatches = matches.take(12).toList();
 
+    // El buscador solo filtra la lista de conversaciones, no "Nuevos
+    // Matches" — buscar es para encontrar un chat existente, no para
+    // esa fila.
+    final filteredMatches = _query.isEmpty
+        ? matches
+        : matches
+              .where(
+                (m) => (m.otherUser.profile?.displayName ?? '')
+                    .toLowerCase()
+                    .contains(_query),
+              )
+              .toList();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -168,7 +208,18 @@ class _MatchesScreenState extends State<MatchesScreen> {
         const MatchesSectionTitle('Mensajes'),
         const SizedBox(height: 12),
 
-        for (final m in matches)
+        if (filteredMatches.isEmpty && _query.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'Sin resultados para "$_query"',
+              style: context.textStyles.bodyMedium?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+
+        for (final m in filteredMatches)
           MatchChatItem(
             name: m.otherUser.profile?.displayName ?? 'Sin nombre',
             message: 'Nuevo match',
