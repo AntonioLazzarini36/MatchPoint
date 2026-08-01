@@ -8,8 +8,9 @@ class DiscoveryController extends ChangeNotifier {
   final DiscoveryService service;
   DiscoveryController(this.service);
 
-  Sport selectedSport = Sport.tennis;
-  bool isPartnerMode = true;
+  // Sin selector de deporte en la UI por ahora (ver discovery_screen.dart)
+  // — de momento el feed siempre es de tenis.
+  final Sport selectedSport = Sport.tennis;
 
   bool loading = false;
   String? error;
@@ -41,17 +42,6 @@ class DiscoveryController extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
-  }
-
-  void setSport(Sport sport) {
-    if (selectedSport == sport) return;
-    selectedSport = sport;
-    reload();
-  }
-
-  void setMode(bool partnerMode) {
-    isPartnerMode = partnerMode;
-    notifyListeners();
   }
 
   DiscoverProfile? get top => _stack.isNotEmpty ? _stack.last : null;

@@ -7,8 +7,6 @@ import '../../../core/network/api.dart';
 import '../discovery_controller.dart';
 import '../services/discovery_service.dart';
 import 'package:match_point/features/discovery/models/swipe_type.dart';
-import '../../../core/ui/widgets/discovery/discovery_sport_toggle.dart';
-import '../../../core/ui/widgets/discovery/discovery_mode_toggle.dart';
 import '../../../core/ui/widgets/discovery/discovery_action_button.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
 import '../../../core/ui/widgets/discovery/discovery_swipe_card.dart';
@@ -45,7 +43,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                // Top bar
+                // Top bar: solo el título y el acceso a filtros (deshabilitado
+                // hasta que haya una UI de preferencias que editar, ver
+                // status.md) — sin selector de deporte ni el toggle
+                // "Partner"/"Match" que no hacía nada.
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
@@ -54,10 +55,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      DiscoverySportToggle(
-                        selected: controller.selectedSport,
-                        onChanged: controller.setSport,
-                      ),
+                      Text('Descubrir', style: context.textStyles.titleLarge),
                       IconButton(
                         onPressed: () {
                           // TODO filtros (prefs)
@@ -68,13 +66,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                   ),
                 ),
 
-                // Mode toggle
-                DiscoveryModeToggle(
-                  isPartnerMode: controller.isPartnerMode,
-                  onChanged: controller.setMode,
-                ),
-
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
                 Expanded(child: _buildBody(context)),
 
