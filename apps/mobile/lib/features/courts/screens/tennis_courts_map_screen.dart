@@ -153,25 +153,113 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
   }
 
   Future<void> _proposeClub(TennisClub club) async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 30)),
-      helpText: '¿Qué día?',
-    );
-    if (date == null || !mounted) return;
+    final day = await _pickWeekDay();
+    if (day == null || !mounted) return;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(now),
-      helpText: '¿A qué hora?',
-    );
+    final time = await _pickTimeSlot();
     if (time == null || !mounted) return;
 
-    final proposedAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final proposedAt = DateTime(day.year, day.month, day.day, time.hour, time.minute);
     await _pickMatchAndSend(club, proposedAt);
+  }
+
+  /// Semana en curso, no un calendario de mes entero — no tiene sentido
+  /// proponer un partido con semanas de antelación.
+  Future<DateTime?> _pickWeekDay() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final days = List.generate(7, (i) => today.add(Duration(days: i)));
+
+    return showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Qué día?', style: Theme.of(sheetContext).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final day in days)
+                  _DayChip(
+                    label: _dayChipLabel(day, today),
+                    onTap: () => Navigator.of(sheetContext).pop(day),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _dayChipLabel(DateTime day, DateTime today) {
+    final diff = day.difference(today).inDays;
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Mañana';
+    return '${_weekdaysShort[day.weekday - 1]} ${day.day}';
+  }
+
+  static const _weekdaysShort = [
+    'lun',
+    'mar',
+    'mié',
+    'jue',
+    'vie',
+    'sáb',
+    'dom',
+  ];
+
+  /// 8:00 a 22:00 en franjas de 15 min — un slider/reloj completo es
+  /// overkill para "propón una hora orientativa", esto se elige de un
+  /// vistazo.
+  Future<TimeOfDay?> _pickTimeSlot() async {
+    final slots = <TimeOfDay>[
+      for (var m = 8 * 60; m <= 22 * 60; m += 15)
+        TimeOfDay(hour: m ~/ 60, minute: m % 60),
+    ];
+
+    return showModalBottomSheet<TimeOfDay>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.of(sheetContext).size.height * 0.6,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('¿A qué hora?', style: Theme.of(sheetContext).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 2.2,
+                  ),
+                  itemCount: slots.length,
+                  itemBuilder: (context, i) {
+                    final slot = slots[i];
+                    final label =
+                        '${slot.hour.toString().padLeft(2, '0')}:${slot.minute.toString().padLeft(2, '0')}';
+                    return OutlinedButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(slot),
+                      child: Text(label),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _pickMatchAndSend(TennisClub club, DateTime proposedAt) async {
@@ -230,11 +318,19 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
 
     final chatService = ChatService(Api.client);
     try {
+      // Google Maps always works (built straight from lat/lng); the
+      // court's own website is a bonus when OSM happens to have one
+      // (rare in practice — checked, 0/40 near Madrid) so it's appended,
+      // not relied on as the only link.
+      final mapsLink =
+          'https://www.google.com/maps/search/?api=1&query=${club.latitude},${club.longitude}';
+      final websiteLine = club.website == null ? '' : '\n🌐 ${club.website}';
+
       await chatService.sendMessage(
         matchId: chosen.matchId,
         text:
-            '¿Jugamos en ${club.name} el ${_formatDateTime(proposedAt)}? 📍 '
-            'https://www.openstreetmap.org/?mlat=${club.latitude}&mlon=${club.longitude}#map=17/${club.latitude}/${club.longitude}',
+            '¿Jugamos en ${club.name} el ${_formatDateTime(proposedAt)}? '
+            '📍 $mapsLink$websiteLine',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -449,6 +545,24 @@ class _ClubSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _DayChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      child: Text(label),
     );
   }
 }

@@ -11,11 +11,18 @@ class TennisClub {
   final double latitude;
   final double longitude;
 
+  /// From OSM's `website` tag, if any court in the cluster has one — in
+  /// practice almost never present (0/40 checked near Madrid), so this is
+  /// an opportunistic extra, not something to rely on. The Google Maps
+  /// link built from lat/lng is the reliable one.
+  final String? website;
+
   const TennisClub({
     required this.id,
     required this.name,
     required this.courtCount,
     required this.latitude,
     required this.longitude,
+    this.website,
   });
 }

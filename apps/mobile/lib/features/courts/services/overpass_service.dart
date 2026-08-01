@@ -7,12 +7,14 @@ import '../models/tennis_club.dart';
 class _RawCourt {
   final String id;
   final String? name;
+  final String? website;
   final double lat;
   final double lon;
 
   const _RawCourt({
     required this.id,
     required this.name,
+    required this.website,
     required this.lat,
     required this.lon,
   });
@@ -93,10 +95,12 @@ class OverpassService {
 
           final tags = m['tags'] as Map<String, dynamic>? ?? const {};
           final name = (tags['name'] as String?)?.trim();
+          final website = (tags['website'] as String?)?.trim();
 
           return _RawCourt(
             id: '${m['type']}/${m['id']}',
             name: (name == null || name.isEmpty) ? null : name,
+            website: (website == null || website.isEmpty) ? null : website,
             lat: lat,
             lon: lon,
           );
@@ -134,6 +138,10 @@ class OverpassService {
         (c) => c.name != null,
         orElse: () => cluster.first,
       );
+      final withWebsite = cluster.firstWhere(
+        (c) => c.website != null,
+        orElse: () => cluster.first,
+      );
       final avgLat =
           cluster.map((c) => c.lat).reduce((a, b) => a + b) / cluster.length;
       final avgLon =
@@ -145,6 +153,7 @@ class OverpassService {
         courtCount: cluster.length,
         latitude: avgLat,
         longitude: avgLon,
+        website: withWebsite.website,
       );
     }).toList();
   }
