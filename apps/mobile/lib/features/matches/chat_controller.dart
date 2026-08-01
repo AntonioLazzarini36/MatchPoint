@@ -41,6 +41,31 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  /// Polled periodically by ChatScreen while it's open. Fetches the most
+  /// recent messages and appends any not already in `_messages` — no
+  /// websocket/push, just short-interval polling. Silent on failure
+  /// (transient network hiccups shouldn't interrupt an open chat), and
+  /// marks the match read again if new messages came in, so unread state
+  /// in the matches list stays accurate for messages that arrive while
+  /// the chat is already open.
+  Future<void> pollNewMessages() async {
+    try {
+      final latest = await service.fetchMessages(matchId: matchId);
+      final existingIds = _messages.map((m) => m.id).toSet();
+      final newOnes = latest.where((m) => !existingIds.contains(m.id));
+      if (newOnes.isEmpty) return;
+
+      _messages
+        ..addAll(newOnes)
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      notifyListeners();
+
+      try {
+        await service.markRead(matchId: matchId);
+      } catch (_) {}
+    } catch (_) {}
+  }
+
   Future<void> send(String text) async {
     final t = text.trim();
     if (t.isEmpty) return;
