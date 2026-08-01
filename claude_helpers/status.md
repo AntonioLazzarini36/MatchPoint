@@ -23,11 +23,10 @@ Ramas vivas ahora mismo, aparte del trunk:
   (2026-08-01). Ver "Hecho" abajo.
 - **`fix/discovery-header-cleanup`** — ✅ mergeada en `feature/rust-backend`
   (2026-08-01). Ver "Hecho" abajo.
-- **`feat/tennis-court-map`** — pusheada, **sin mergear todavía**. Ver
-  "Hecho" abajo — **esta es la única que no verifiqué visualmente en el
-  navegador** (la extensión de Claude en Chrome no estaba conectada),
-  ábrela vos antes de confiar en que el mapa/marcadores/bottom-sheet
-  rendericen bien.
+- **`feat/tennis-court-map`** — ✅ mergeada en `feature/rust-backend`
+  (2026-08-01), **probada por vos en el navegador y ajustada varias veces**
+  en base a tu feedback en vivo (ver "Hecho" abajo para el detalle de cada
+  ajuste).
 
 Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
 `feat/logout-and-settings`, `feat/unmatch-block-report`, y las 10 de la
@@ -94,7 +93,7 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
 - Documentación: `CLAUDE.md`, `README.md`, `services/api-rust/NOTES.md`
   puestos al día (endpoints que faltaban desde antes: unmatch, report;
   `services/api` viejo ya no existe, etc.) el 2026-08-01.
-- **Ubicación estilo Hinge (`feat/manual-location`, sin mergear)** — nada
+- **Ubicación estilo Hinge (`feat/manual-location`, ✅ mergeada)** — nada
   de GPS: escribes un sitio (ciudad, barrio, pueblo — "Málaga",
   "Benalmádena", "Innsbruck") y eliges de sugerencias reales (Nominatim,
   geocoding gratis de OSM, sin API key), igual que Hinge. Esa elección es
@@ -113,24 +112,50 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   curl contra el backend real (radio de 10km desde Málaga excluye
   Fuengirola/Mijas, 50km los incluye) + `flutter build web --release`
   limpio.
-- **Limpieza del header de Discovery (`fix/discovery-header-cleanup`, sin
-  mergear)** — se quitó el toggle "Tenis"/"Correr" y una fila
+- **Limpieza del header de Discovery (`fix/discovery-header-cleanup`, ✅
+  mergeada)** — se quitó el toggle "Tenis"/"Correr" y una fila
   "Partner"/"Match" que no hacía nada (`isPartnerMode` se guardaba pero
   nunca se leía en ningún lado). Discovery ahora es un único feed
   implícito (tenis por defecto, igual que antes) con solo un título y el
   ícono de filtros (todavía inerte, pendiente de la UI de preferencias de
   arriba). Se borraron los dos widgets ya sin uso.
-- **Mapa de pistas de tenis, MVP (`feat/tennis-court-map`, sin mergear)** —
-  a propósito acotado ("poco a poco"): `flutter_map` + tiles de OSM (sin
-  API key), pistas reales cerca vía Overpass API (datos reales de
-  OpenStreetMap, `leisure=pitch`+`sport=tennis`), tocás una pista →
-  "Proponer partido" → elegís a cuál de tus matches → se manda un mensaje
-  al chat de ese match con el nombre de la pista + link a OSM. Reutiliza
-  `MatchesService`/`ChatService` tal cual, sin endpoint ni modelo de datos
-  nuevo para "propuestas" — esa es la frontera del MVP. Entrada: ícono
-  nuevo en la AppBar de Matches, no una 5ª pestaña del bottom nav. Sin
-  reservas/disponibilidad — eso es el issue #18 completo, mucho más
-  grande.
+- **Mapa de clubes de tenis, MVP (`feat/tennis-court-map`, ✅ mergeada,
+  probada en vivo por vos y ajustada en varias vueltas)** — a propósito
+  acotado ("poco a poco"): `flutter_map` + tiles de OSM (sin API key),
+  clubes reales cerca vía Overpass API. Reutiliza `MatchesService`/
+  `ChatService` tal cual, sin endpoint ni modelo de datos nuevo para
+  "propuestas" — esa es la frontera del MVP. Entrada: ícono en la AppBar
+  de Matches, no una 5ª pestaña del bottom nav. Sin reservas/
+  disponibilidad real — eso es el issue #18 completo, mucho más grande.
+  Ajustes hechos tras probarlo en el navegador:
+  - El mapa arranca en tu ubicación de perfil (`feat/manual-location`), no
+    en Madrid fijo — Madrid solo como fallback si tu cuenta no tiene
+    ubicación seteada todavía.
+  - OSM casi no tiene datos con la etiqueta real de "club"
+    (`leisure=sports_centre`+`sport=tennis` → 0 resultados cerca de
+    Madrid, comprobado). Las pistas sueltas (`leisure=pitch`) sí están
+    bien mapeadas y las de un mismo club quedan físicamente juntas, así
+    que ahora se agrupan por cercanía (150m) en clusters mostrados como
+    "club" con conteo de pistas.
+  - `overpass-api.de` (la instancia pública principal) devolvió 504
+    Gateway Timeout probándolo en vivo — se agregó fallback a un segundo
+    espejo confirmado (`maps.mail.ru`) + botón de "Reintentar" visible.
+    Se descartó a propósito `overpass.osm.ch` pese a responder rápido:
+    devuelve 0 resultados para queries con datos reales, peor que un
+    timeout honesto.
+  - El link que se manda es de Google Maps (búsqueda por coordenadas,
+    siempre funciona), no de OpenStreetMap (que "no mostraba nada" según
+    feedback en vivo) — si el club tiene `website` en OSM se agrega como
+    extra (raro: 0/40 cerca de Madrid lo tenían).
+  - Selector de día: calendario semanal navegable de verdad
+    (lunes-domingo en fila, `<`/`>` para cambiar de semana), no una lista
+    plana de "próximos 7 días" sin poder avanzar — no se puede ir a
+    semanas anteriores a la actual.
+  - Selector de hora: franjas de 15 min de 8:00 a 22:00 en grilla, con
+    columnas que se recalculan según el ancho de pantalla disponible
+    (`SliverGridDelegateWithMaxCrossAxisExtent`) en vez de un número fijo
+    que en pantalla chica achicaba los botones hasta que la hora dejaba
+    de verse.
 - `.claude/settings.json` (commiteado, equipo entero): allowlist de
   permisos para que builds/tests/docker/git-local no interrumpan pidiendo
   aprobación — solo `git commit`/`push`/ops destructivas piden confirmación
