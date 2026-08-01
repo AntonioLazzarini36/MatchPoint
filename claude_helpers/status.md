@@ -71,18 +71,30 @@ Branches ya creadas, sin empezar:
   propios tests (backend tiene prácticamente cero cobertura hoy — 1 solo
   test en todo `api-rust`).
 
-Del análisis inicial completo del repo, sin branch todavía (por prioridad,
-de más a menos importante):
+Del análisis inicial completo del repo (por prioridad, de más a menos
+importante) — **trabajado sin supervisión el 2026-08-01** mientras te ibas
+3 horas; cada uno en su propia rama, pusheada, SIN mergear a
+`feature/rust-backend` a propósito para que los repases:
 
-1. **Secretos JWT con fallback silencioso** a valores hardcodeados de dev si
-   falta la env var en producción — riesgo de account takeover total.
-2. **Rate limiting** en `/auth/login`, `/auth/register`,
-   `/auth/email-available` (este último es oráculo de enumeración de
-   emails).
-3. **`PATCH /me/profile` deja sobrescribir `photos`** sin el límite de 6 ni
-   validación que sí tiene `POST /me/photos`.
-4. **`/discover` no usa `preferences`** — se guardan `ageMin`/`ageMax`/
-   `distanceKm`/etc. pero nunca se filtran resultados con ellas.
+1. ✅ **`fix/jwt-secret-required`** (commit `abb823c`) — Secretos JWT ya no
+   tienen fallback hardcodeado; `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`
+   ahora son obligatorios al arrancar (igual que `DATABASE_URL`). `.env`,
+   `.env.example` y CI ya los definían, así que no rompe nada.
+2. ✅ **`feat/auth-rate-limiting`** (commit `552a79d`) — Rate limiter en
+   memoria por IP (10 req/60s, sin dependencia nueva) en
+   `/auth/login|register|email-available`. Verificado a mano: request 11
+   en adelante devuelve 429.
+3. ✅ **`fix/profile-photos-validation`** (commit `da3b189`) — Se eliminó
+   `photos` de `PATCH /me/profile` (backend y móvil) en vez de parchear con
+   un límite: el móvil solo mandaba `[]` ahí de todos modos, las fotos de
+   verdad siempre pasaron por `POST /me/photos`, que sí valida.
+4. ✅ **`feat/discover-preferences-filter`** (commit `f67632d`) — `/discover`
+   ahora filtra por `ageMin`/`ageMax` de `preferences` (traducido a rango de
+   `birth_date` en la query SQL). **`distanceKm` y `genderPreference`
+   siguen sin aplicarse** — no hay coordenadas guardadas ni campo de género
+   en `Profile`, así que no hay con qué filtrar; eso es una feature más
+   grande (migración + UI de onboarding), no la inventé. Verificado con
+   datos reales del seed.
 5. **No hay refresh token en el móvil** — el backend lo soporta pero el
    cliente nunca lo guarda ni lo usa, así que cada sesión muere a los 15
    minutos sin recuperación.
@@ -94,6 +106,9 @@ de más a menos importante):
    fijos para todo, no reflejan el estado real del chat.
 9. Varios TODOs sueltos menores (filtros de discovery, super-like, buscador
    de matches).
+
+(5-9 en progreso o pendientes — ver el resto de este documento para el
+estado exacto en el momento en que lo dejé.)
 
 ## Notas del entorno local
 
