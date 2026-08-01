@@ -1,6 +1,7 @@
 use axum::{
     extract::{Query, State},
     http::StatusCode,
+    middleware,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -9,6 +10,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::dto::{LoginDto, LogoutDto, RefreshDto, RegisterDto};
+use crate::auth::rate_limit;
 use crate::auth::service::{self, AuthError};
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
 use crate::auth::service::{AuthTokens, EmailAvailability};
@@ -16,11 +18,20 @@ use crate::auth::service::{AuthTokens, EmailAvailability};
 use crate::openapi::{ErrorResponse, OkResponse};
 use crate::state::AppState;
 
-pub fn router() -> Router<AppState> {
-    Router::new()
+pub fn router(state: AppState) -> Router<AppState> {
+    // Only the brute-force/enumeration-prone endpoints are rate-limited;
+    // refresh/logout are called routinely by legitimate clients.
+    let rate_limited = Router::new()
         .route("/auth/email-available", get(email_available))
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
+        .route_layer(middleware::from_fn_with_state(
+            state,
+            rate_limit::rate_limit,
+        ));
+
+    Router::new()
+        .merge(rate_limited)
         .route("/auth/refresh", post(refresh))
         .route("/auth/logout", post(logout))
 }
@@ -37,6 +48,7 @@ struct EmailAvailableQuery {
     params(EmailAvailableQuery),
     responses(
         (status = 200, description = "Si el email ya está registrado o no", body = EmailAvailability),
+        (status = 429, description = "Demasiadas peticiones desde esta IP, reintentar más tarde", body = ErrorResponse),
     )
 )]
 async fn email_available(
@@ -57,6 +69,7 @@ async fn email_available(
     responses(
         (status = 200, description = "Cuenta creada, tokens emitidos", body = AuthTokens),
         (status = 400, description = "El email ya está en uso", body = ErrorResponse),
+        (status = 429, description = "Demasiadas peticiones desde esta IP, reintentar más tarde", body = ErrorResponse),
     )
 )]
 async fn register(
@@ -77,6 +90,7 @@ async fn register(
     responses(
         (status = 200, description = "Login correcto, tokens emitidos", body = AuthTokens),
         (status = 401, description = "Credenciales inválidas", body = ErrorResponse),
+        (status = 429, description = "Demasiadas peticiones desde esta IP, reintentar más tarde", body = ErrorResponse),
     )
 )]
 async fn login(State(state): State<AppState>, Json(dto): Json<LoginDto>) -> impl IntoResponse {

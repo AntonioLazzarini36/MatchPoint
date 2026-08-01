@@ -30,7 +30,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(app::controller::router())
         .merge(discover::controller::router()) // next: DiscoverModule
         .merge(me::controller::router()) // next: MeModule
-        .merge(auth::controller::router()) // next: AuthModule
+        .merge(auth::controller::router(state.clone())) // next: AuthModule
         .merge(swipes::controller::router()) // next: SwipesModule
         .merge(matches::controller::router()) // next: MatchesModule
         .merge(chats::controller::router()) // next: ChatsModule
