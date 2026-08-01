@@ -83,13 +83,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text('Ajustes')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: AppSpacing.paddingLg,
               children: [
-                Text('Ajustes', style: context.textStyles.displaySmall),
-                const SizedBox(height: AppSpacing.lg),
                 _ProfileHeaderCard(
                   displayName: _profile?.displayName ?? 'Sin nombre',
                   photoUrl: _profile?.mainPhoto,
