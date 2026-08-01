@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel::result::OptionalExtension;
@@ -5,6 +6,7 @@ use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::AsyncConnection;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use utoipa::ToSchema;
 
 use crate::auth::dto::{LoginDto, RegisterDto};
@@ -48,6 +50,19 @@ pub enum AuthError {
     Pool(String),
 }
 
+/// bcrypt only looks at the first 72 bytes of its input. Two refresh JWTs
+/// for the same user share an identical prefix (header + `sub` + `email`
+/// claims) well past that limit — only `exp`, positioned near the end of
+/// the payload, differs — so bcrypt-hashing the raw token would make
+/// every refresh token ever issued to a user verify as equal, silently
+/// defeating rotation (an old, supposedly-replaced token would keep
+/// working). Pre-hashing with SHA-256 collapses each distinct token to a
+/// fixed 64-char hex digest before bcrypt ever sees it, so the 72-byte
+/// window covers the whole thing and different tokens can't collide.
+fn refresh_token_digest(refresh_token: &str) -> String {
+    STANDARD.encode(Sha256::digest(refresh_token.as_bytes()))
+}
+
 async fn issue_tokens(
     state: &AppState,
     user_id: &str,
@@ -70,8 +85,8 @@ async fn issue_tokens(
     let access_token = jwt::sign(&access_claims, &cfg.jwt_access_secret);
     let refresh_token = jwt::sign(&refresh_claims, &cfg.jwt_refresh_secret);
 
-    let token_hash =
-        bcrypt::hash(&refresh_token, bcrypt::DEFAULT_COST).expect("bcrypt should not fail");
+    let token_hash = bcrypt::hash(refresh_token_digest(&refresh_token), bcrypt::DEFAULT_COST)
+        .expect("bcrypt should not fail");
 
     let mut conn = state
         .db
@@ -263,7 +278,7 @@ pub async fn refresh(state: &AppState, refresh_token: &str) -> Result<AuthTokens
         .optional()?
         .ok_or(AuthError::RefreshTokenRevoked)?;
 
-    if !bcrypt::verify(refresh_token, &stored).unwrap_or(false) {
+    if !bcrypt::verify(refresh_token_digest(refresh_token), &stored).unwrap_or(false) {
         return Err(AuthError::RefreshTokenMismatch);
     }
 
