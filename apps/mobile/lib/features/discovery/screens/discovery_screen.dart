@@ -10,11 +10,12 @@ import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
 import '../../../core/ui/widgets/discovery/discovery_mini_card.dart';
 import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
 
-/// Row of small horizontal cards (up to 4, fewer on a narrow screen) shown
-/// side by side instead of the old one-at-a-time full-screen swipe deck.
-/// Each card is independently draggable — drag it away to like/pass, tap
-/// it for a bigger preview. No separate like/pass buttons: the drag *is*
-/// the action now, buttons would be redundant.
+/// Column of small horizontal-rectangle cards (up to 4, each an equal,
+/// non-overlapping share of the available height) shown stacked instead of
+/// the old one-at-a-time full-screen swipe deck. Each card is independently
+/// draggable — drag it away to like/pass, tap it for a bigger preview. No
+/// separate like/pass buttons: the drag *is* the action now, buttons would
+/// be redundant.
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
 
@@ -24,9 +25,7 @@ class DiscoveryScreen extends StatefulWidget {
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
   static const _maxVisible = 4;
-  static const _minCardWidth = 76.0;
-  static const _cardSpacing = 8.0;
-  static const _cardHeight = 220.0;
+  static const _cardSpacing = 10.0;
 
   late final DiscoveryController controller;
 
@@ -41,16 +40,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   void dispose() {
     controller.dispose();
     super.dispose();
-  }
-
-  /// 4 by default; drops to however many actually fit (down to 1) on a
-  /// narrow screen rather than squeezing 4 cards until they're unusable.
-  int _visibleCount(double availableWidth) {
-    for (var n = _maxVisible; n > 1; n--) {
-      final cardWidth = (availableWidth - _cardSpacing * (n - 1)) / n;
-      if (cardWidth >= _minCardWidth) return n;
-    }
-    return 1;
   }
 
   Future<void> _handleSwipe(DiscoverProfile user, SwipeType type) async {
@@ -177,31 +166,36 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
 
     final stack = controller.stack;
+    final visible = stack.length <= _maxVisible
+        ? stack
+        : stack.sublist(stack.length - _maxVisible);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final count = _visibleCount(constraints.maxWidth);
-            final visible = stack.length <= count
-                ? stack
-                : stack.sublist(stack.length - count);
-
-            return SizedBox(
-              height: _cardHeight,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < visible.length; i++) ...[
-                    if (i > 0) const SizedBox(width: _cardSpacing),
-                    Expanded(child: _buildCard(context, visible[i])),
-                  ],
-                ],
-              ),
-            );
-          },
-        ),
+    // Non-overlapping, stacked in a Column with margin on every side — none
+    // of them touch the screen edges or reach into the bottom nav below
+    // Discovery, since this all lives inside the Expanded body area handed
+    // to us by build(). Card height is fixed at "1/4 of the available
+    // space" regardless of how many cards are actually left — so a card
+    // never grows just because there are fewer of them; only how many rows
+    // are stacked (and their position) changes as the deck empties out.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardHeight =
+              (constraints.maxHeight - _cardSpacing * (_maxVisible - 1)) /
+              _maxVisible;
+          return Column(
+            children: [
+              for (var i = 0; i < visible.length; i++) ...[
+                if (i > 0) const SizedBox(height: _cardSpacing),
+                SizedBox(
+                  height: cardHeight,
+                  child: _buildCard(context, visible[i]),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
