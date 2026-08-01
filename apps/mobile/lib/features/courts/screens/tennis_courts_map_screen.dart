@@ -10,15 +10,19 @@ import '../../../core/theme/app_theme.dart';
 import '../../matches/models/match_item.dart';
 import '../../matches/services/chat_service.dart';
 import '../../matches/services/matches_service.dart';
-import '../models/tennis_court.dart';
+import '../../onboarding/services/profile_service.dart';
+import '../models/tennis_club.dart';
 import '../services/overpass_service.dart';
 
-/// Tennis courts near a point, real OpenStreetMap data — see one on the
-/// map, tap it, and propose it to whichever match you want by sending a
-/// message into that match's chat. Deliberately not more than that yet:
-/// no booking/availability system, no dedicated "proposal" backend concept
-/// — just a starting point per the "poco a poco" ask, built on
-/// infrastructure that already exists (chat messages).
+/// Tennis clubs near a point, real OpenStreetMap data — see one on the
+/// map, tap it, and propose it (with a date/time) to whichever match you
+/// want by sending a message into that match's chat. Deliberately not
+/// more than that yet: no booking/availability system, no dedicated
+/// "proposal" backend concept — just a starting point per the "poco a
+/// poco" ask, built on infrastructure that already exists (chat messages).
+/// "Se lo propones sin saber si hay pista libre a esa hora" is the
+/// explicit, current scope — checking real availability is a separate,
+/// bigger feature (issue #18).
 class TennisCourtsMapScreen extends StatefulWidget {
   const TennisCourtsMapScreen({super.key});
 
@@ -27,25 +31,26 @@ class TennisCourtsMapScreen extends StatefulWidget {
 }
 
 class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
-  // Madrid as a neutral default center — this screen doesn't read the
-  // profile location from feat/manual-location (separate, unmerged
-  // branch); the search box below is how you get to your actual area.
-  static const _defaultCenter = LatLng(40.4168, -3.7038);
+  // Fallback only for accounts that haven't set a location yet (see
+  // feat/manual-location) — the real default is the user's own profile
+  // location, loaded in initState.
+  static const _fallbackCenter = LatLng(40.4168, -3.7038);
 
   final _mapController = MapController();
   final _overpass = OverpassService();
+  final _profileService = ProfileService(Api.client);
   final _searchCtrl = TextEditingController();
 
-  LatLng _center = _defaultCenter;
-  List<TennisCourt> _courts = [];
-  bool _loadingCourts = false;
+  LatLng _center = _fallbackCenter;
+  List<TennisClub> _clubs = [];
+  bool _loadingClubs = false;
   bool _searching = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadCourts(_center);
+    _initCenter();
   }
 
   @override
@@ -54,26 +59,42 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCourts(LatLng center) async {
+  Future<void> _initCenter() async {
+    try {
+      final me = await _profileService.getMe();
+      final profile = me.profile;
+      if (profile != null && profile.hasLocation) {
+        _center = LatLng(profile.latitude!, profile.longitude!);
+      }
+    } catch (_) {
+      // Sin perfil/ubicación todavía -> se queda con el fallback, sin
+      // bloquear la pantalla por esto.
+    }
+    if (!mounted) return;
+    _mapController.move(_center, 13);
+    await _loadClubs(_center);
+  }
+
+  Future<void> _loadClubs(LatLng center) async {
     setState(() {
-      _loadingCourts = true;
+      _loadingClubs = true;
       _error = null;
     });
     try {
-      final courts = await _overpass.nearby(
+      final clubs = await _overpass.nearbyClubs(
         latitude: center.latitude,
         longitude: center.longitude,
       );
       if (!mounted) return;
       setState(() {
-        _courts = courts;
-        _loadingCourts = false;
+        _clubs = clubs;
+        _loadingClubs = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'No se pudieron cargar las pistas: $e';
-        _loadingCourts = false;
+        _error = 'No se pudieron cargar los clubes: $e';
+        _loadingClubs = false;
       });
     }
   }
@@ -85,13 +106,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     setState(() => _searching = true);
     try {
       final uri = Uri.parse('https://nominatim.openstreetmap.org/search')
-          .replace(
-            queryParameters: {
-              'q': trimmed,
-              'format': 'jsonv2',
-              'limit': '1',
-            },
-          );
+          .replace(queryParameters: {'q': trimmed, 'format': 'jsonv2', 'limit': '1'});
       final res = await http.get(
         uri,
         headers: {'User-Agent': 'MatchPointApp/1.0 (dev)'},
@@ -113,7 +128,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       if (!mounted) return;
       setState(() => _center = newCenter);
       _mapController.move(newCenter, 13);
-      await _loadCourts(newCenter);
+      await _loadClubs(newCenter);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -124,20 +139,42 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     }
   }
 
-  void _openCourtSheet(TennisCourt court) {
+  void _openClubSheet(TennisClub club) {
     showModalBottomSheet(
       context: context,
-      builder: (sheetContext) => _CourtSheet(
-        court: court,
+      builder: (sheetContext) => _ClubSheet(
+        club: club,
         onProposeMatch: () {
           Navigator.of(sheetContext).pop();
-          _pickMatchAndPropose(court);
+          _proposeClub(club);
         },
       ),
     );
   }
 
-  Future<void> _pickMatchAndPropose(TennisCourt court) async {
+  Future<void> _proposeClub(TennisClub club) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 30)),
+      helpText: '¿Qué día?',
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+      helpText: '¿A qué hora?',
+    );
+    if (time == null || !mounted) return;
+
+    final proposedAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    await _pickMatchAndSend(club, proposedAt);
+  }
+
+  Future<void> _pickMatchAndSend(TennisClub club, DateTime proposedAt) async {
     final matchesService = MatchesService(Api.client);
     List<MatchItem> matches;
     try {
@@ -167,7 +204,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              '¿A quién le proponés ${court.name}?',
+              '¿A quién le proponés ${club.name}?',
               style: Theme.of(sheetContext).textTheme.titleMedium,
             ),
           ),
@@ -196,8 +233,8 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       await chatService.sendMessage(
         matchId: chosen.matchId,
         text:
-            '¿Jugamos en ${court.name}? 📍 '
-            'https://www.openstreetmap.org/?mlat=${court.latitude}&mlon=${court.longitude}#map=17/${court.latitude}/${court.longitude}',
+            '¿Jugamos en ${club.name} el ${_formatDateTime(proposedAt)}? 📍 '
+            'https://www.openstreetmap.org/?mlat=${club.latitude}&mlon=${club.longitude}#map=17/${club.latitude}/${club.longitude}',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -215,10 +252,42 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     }
   }
 
+  static const _weekdays = [
+    'lunes',
+    'martes',
+    'miércoles',
+    'jueves',
+    'viernes',
+    'sábado',
+    'domingo',
+  ];
+  static const _months = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+
+  String _formatDateTime(DateTime dt) {
+    final weekday = _weekdays[dt.weekday - 1];
+    final month = _months[dt.month - 1];
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$weekday ${dt.day} de $month a las $hh:$mm';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pistas de tenis cerca')),
+      appBar: AppBar(title: const Text('Clubes de tenis cerca')),
       body: Stack(
         children: [
           FlutterMap(
@@ -231,13 +300,13 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
               ),
               MarkerLayer(
                 markers: [
-                  for (final court in _courts)
+                  for (final club in _clubs)
                     Marker(
-                      point: LatLng(court.latitude, court.longitude),
+                      point: LatLng(club.latitude, club.longitude),
                       width: 40,
                       height: 40,
                       child: GestureDetector(
-                        onTap: () => _openCourtSheet(court),
+                        onTap: () => _openClubSheet(club),
                         child: Icon(
                           Icons.sports_tennis,
                           color: context.colors.primary,
@@ -283,7 +352,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
               ),
             ),
           ),
-          if (_loadingCourts)
+          if (_loadingClubs)
             const Positioned(
               bottom: 24,
               left: 0,
@@ -300,9 +369,19 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(color: context.colors.onErrorContainer),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: context.colors.onErrorContainer),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _loadClubs(_center),
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -313,11 +392,11 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
   }
 }
 
-class _CourtSheet extends StatelessWidget {
-  final TennisCourt court;
+class _ClubSheet extends StatelessWidget {
+  final TennisClub club;
   final VoidCallback onProposeMatch;
 
-  const _CourtSheet({required this.court, required this.onProposeMatch});
+  const _ClubSheet({required this.club, required this.onProposeMatch});
 
   @override
   Widget build(BuildContext context) {
@@ -333,12 +412,30 @@ class _CourtSheet extends StatelessWidget {
                 Icon(Icons.sports_tennis, color: context.colors.primary),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    court.name,
-                    style: context.textStyles.titleLarge,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(club.name, style: context.textStyles.titleLarge),
+                      Text(
+                        club.courtCount == 1
+                            ? '1 pista mapeada'
+                            : '${club.courtCount} pistas mapeadas',
+                        style: context.textStyles.bodySmall?.copyWith(
+                          color: context.colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No comprobamos si hay pista libre a esa hora — le propones '
+              'el club y el horario a tu match, y ya lo confirmáis vosotros.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
