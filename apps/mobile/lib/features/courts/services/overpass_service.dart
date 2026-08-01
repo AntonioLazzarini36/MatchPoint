@@ -8,7 +8,16 @@ import '../models/tennis_court.dart';
 /// anyone who's mapped a court on OSM. Third-party API, not our backend, so
 /// this is a plain `http` call rather than going through `ApiClient`.
 class OverpassService {
-  static const _endpoint = 'https://overpass-api.de/api/interpreter';
+  // The main public instance (overpass-api.de) is free and shared by every
+  // app that uses Overpass worldwide, so it regularly gets overloaded and
+  // 504s — observed firsthand while testing this. Falls through a couple of
+  // other public mirrors before giving up, rather than being a hard
+  // single-point-of-failure on the flakiest one.
+  static const _endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ];
 
   Future<List<TennisCourt>> nearby({
     required double latitude,
@@ -23,16 +32,32 @@ class OverpassService {
         ');'
         'out center 40;';
 
-    final res = await http.post(
-      Uri.parse(_endpoint),
-      body: {'data': query},
-    );
+    Object? lastError;
+    for (final endpoint in _endpoints) {
+      try {
+        final res = await http
+            .post(Uri.parse(endpoint), body: {'data': query})
+            .timeout(const Duration(seconds: 15));
 
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Overpass query failed: ${res.statusCode}');
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          lastError = Exception(
+            '$endpoint failed: ${res.statusCode}',
+          );
+          continue;
+        }
+
+        return _parse(res.body);
+      } catch (e) {
+        lastError = e;
+        continue;
+      }
     }
 
-    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    throw Exception('Todos los servidores de Overpass fallaron: $lastError');
+  }
+
+  List<TennisCourt> _parse(String body) {
+    final decoded = jsonDecode(body) as Map<String, dynamic>;
     final elements = decoded['elements'] as List<dynamic>? ?? const [];
 
     return elements
@@ -41,8 +66,10 @@ class OverpassService {
           // Nodes have lat/lon directly; ways/relations only get one via
           // `out center`, under a nested `center` object.
           final center = m['center'] as Map<String, dynamic>?;
-          final lat = (m['lat'] as num?)?.toDouble() ?? (center?['lat'] as num?)?.toDouble();
-          final lon = (m['lon'] as num?)?.toDouble() ?? (center?['lon'] as num?)?.toDouble();
+          final lat =
+              (m['lat'] as num?)?.toDouble() ?? (center?['lat'] as num?)?.toDouble();
+          final lon =
+              (m['lon'] as num?)?.toDouble() ?? (center?['lon'] as num?)?.toDouble();
           if (lat == null || lon == null) return null;
 
           final tags = m['tags'] as Map<String, dynamic>? ?? const {};
