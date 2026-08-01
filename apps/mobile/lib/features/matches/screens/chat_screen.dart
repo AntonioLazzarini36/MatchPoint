@@ -6,9 +6,15 @@ import 'package:match_point/core/theme/app_theme.dart';
 
 import '../chat_controller.dart';
 import '../services/chat_service.dart';
+import '../services/matches_service.dart';
+import '../../onboarding/services/profile_service.dart';
 
+import '../../../core/ui/dialogs/confirm_dialog.dart';
+import '../../../core/ui/dialogs/report_reason_dialog.dart';
 import '../../../core/ui/widgets/chat/chat_message_bubble.dart';
 import '../../../core/ui/widgets/chat/chat_input_bar.dart';
+
+enum _ChatMenuAction { unmatch, report }
 
 class ChatScreen extends StatefulWidget {
   final String matchId;
@@ -32,8 +38,12 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   late final ChatController controller;
+  late final MatchesService matchesService;
+  late final ProfileService profileService;
   final TextEditingController input = TextEditingController();
   final ScrollController scroll = ScrollController();
+
+  bool _busy = false;
 
   @override
   void initState() {
@@ -42,7 +52,57 @@ class _ChatScreenState extends State<ChatScreen> {
       service: ChatService(Api.client),
       matchId: widget.matchId,
     );
+    matchesService = MatchesService(Api.client);
+    profileService = ProfileService(Api.client);
     controller.init().then((_) => _scrollToBottom());
+  }
+
+  /// A diferencia de [_report], unmatch sí cierra el chat, devolviendo
+  /// `true` para que `MatchesScreen` sepa que tiene que recargar la lista.
+  Future<void> _unmatch() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Deshacer match',
+      content:
+          '¿Seguro que quieres deshacer este match? Se borrará también la '
+          'conversación, y no se puede deshacer.',
+      confirmLabel: 'Deshacer match',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      await matchesService.unmatch(widget.matchId);
+      if (!mounted) return;
+      router.pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      setState(() => _busy = false);
+    }
+  }
+
+  /// Reportar no borra el match — a diferencia de unmatch, se queda en el
+  /// chat en vez de cerrarlo.
+  Future<void> _report() async {
+    final reason = await showReportReasonDialog(context);
+    if (reason == null || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await profileService.reportUser(widget.otherUserId, reason);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -87,6 +147,29 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           centerTitle: true,
+          actions: [
+            PopupMenuButton<_ChatMenuAction>(
+              enabled: !_busy,
+              onSelected: (action) {
+                switch (action) {
+                  case _ChatMenuAction.unmatch:
+                    _unmatch();
+                  case _ChatMenuAction.report:
+                    _report();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: _ChatMenuAction.unmatch,
+                  child: Text('Deshacer match'),
+                ),
+                PopupMenuItem(
+                  value: _ChatMenuAction.report,
+                  child: Text('Reportar'),
+                ),
+              ],
+            ),
+          ],
           ),
           body: Column(
             children: [

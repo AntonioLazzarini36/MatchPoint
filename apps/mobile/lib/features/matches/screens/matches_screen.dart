@@ -4,7 +4,9 @@ import 'package:match_point/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 
 import '../matches_controller.dart';
+import '../models/match_item.dart';
 import '../services/matches_service.dart';
+import '../../../core/ui/dialogs/confirm_dialog.dart';
 import '../../../core/ui/widgets/matches/matches_section_title.dart';
 import '../../../core/ui/widgets/matches/new_match_avatar_item.dart';
 import '../../../core/ui/widgets/matches/match_chat_item.dart';
@@ -30,6 +32,37 @@ class _MatchesScreenState extends State<MatchesScreen> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  /// El chat puede deshacer el match / bloquear / reportar y volver con
+  /// `true` — en ese caso la lista de matches quedó desactualizada.
+  Future<void> _openChat(MatchItem m) async {
+    final changed = await context.push<bool>('/chat/${m.matchId}', extra: m);
+    if (changed == true) controller.reload();
+  }
+
+  Future<void> _confirmUnmatch(MatchItem m) async {
+    final name = m.otherUser.profile?.displayName ?? 'esta persona';
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Deshacer match',
+      content:
+          '¿Seguro que quieres deshacer el match con $name? Se borrará '
+          'también la conversación, y no se puede deshacer.',
+      confirmLabel: 'Deshacer match',
+      destructive: true,
+    );
+    if (!confirmed) return;
+
+    try {
+      await controller.service.unmatch(m.matchId);
+      controller.reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo deshacer: $e')));
+    }
   }
 
   @override
@@ -124,9 +157,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     imageUrl: (m.otherUser.profile?.photos.isNotEmpty ?? false)
                         ? m.otherUser.profile!.photos.first
                         : null,
-                    onTap: () {
-                      context.push('/chat/${m.matchId}', extra: m);
-                    },
+                    onTap: () => _openChat(m),
                   ),
                 ),
             ],
@@ -147,9 +178,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 : null,
             unread: false,
             isGroup: false,
-            onTap: () {
-              context.push('/chat/${m.matchId}', extra: m);
-            },
+            onTap: () => _openChat(m),
+            onLongPress: () => _confirmUnmatch(m),
           ),
       ],
     );

@@ -22,6 +22,10 @@ use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MatchesError {
+    #[error("Match not found")]
+    NotFound,
+    #[error("Not allowed")]
+    Forbidden,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -116,4 +120,33 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
     }
 
     Ok(result)
+}
+
+/// Deshace un match — borra la fila (los mensajes se van con ella, la FK
+/// de `Message.matchId` tiene `ON DELETE CASCADE`). Solo un miembro del
+/// match puede deshacerlo.
+pub async fn unmatch(state: &AppState, match_id: &str, user_id: &str) -> Result<(), MatchesError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MatchesError::Pool(e.to_string()))?;
+
+    let found = matches::table
+        .filter(matches::id.eq(match_id))
+        .select((matches::user_a_id, matches::user_b_id))
+        .first::<(String, String)>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(MatchesError::NotFound)?;
+
+    if found.0 != user_id && found.1 != user_id {
+        return Err(MatchesError::Forbidden);
+    }
+
+    diesel::delete(matches::table.filter(matches::id.eq(match_id)))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
 }

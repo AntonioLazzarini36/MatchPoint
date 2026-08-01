@@ -9,13 +9,16 @@ use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 
 use crate::discover::service::{age_from_birth_date, DiscoverProfile};
-use crate::schema::profiles;
+use crate::models::NewReport;
+use crate::schema::{profiles, reports};
 use crate::state::AppState;
 
 #[derive(thiserror::Error, Debug)]
 pub enum UsersError {
     #[error("Profile not found")]
     ProfileNotFound,
+    #[error("Cannot report yourself")]
+    CannotTargetSelf,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -64,4 +67,36 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         photos,
         sports,
     })
+}
+
+/// A propósito NO borra el match — reportar es solo dejar constancia para
+/// revisión. Si además quieres cortar todo contacto, eso es un unmatch
+/// aparte (`DELETE /matches/:matchId`), acción explícita del usuario.
+pub async fn report_user(
+    state: &AppState,
+    reporter_id: &str,
+    reported_id: &str,
+    reason: &str,
+) -> Result<(), UsersError> {
+    if reporter_id == reported_id {
+        return Err(UsersError::CannotTargetSelf);
+    }
+
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| UsersError::Pool(e.to_string()))?;
+
+    diesel::insert_into(reports::table)
+        .values(NewReport {
+            id: uuid::Uuid::new_v4().to_string(),
+            reporter_user_id: reporter_id.to_string(),
+            reported_user_id: reported_id.to_string(),
+            reason: reason.to_string(),
+        })
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
 }

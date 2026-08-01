@@ -16,7 +16,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::models::Sport;
-use crate::schema::profiles;
+use crate::schema::{profiles, swipes};
 use crate::state::AppState;
 
 /// Shape sent back to the client. Field names are camelCase on purpose —
@@ -84,10 +84,25 @@ pub async fn discover(
         .await
         .map_err(|e| DiscoverError::Pool(e.to_string()))?;
 
+    // Gente a la que ya di LIKE o PASS (para el deporte pedido, si se
+    // pidió uno) no debe volver a aparecer — ni siquiera tras un unmatch,
+    // que solo borra el Match, no el Swipe que lo originó.
+    let mut swiped_query = swipes::table
+        .filter(swipes::from_user_id.eq(current_user_id))
+        .into_boxed();
+    if let Some(sport) = sport {
+        swiped_query = swiped_query.filter(swipes::sport.eq(sport));
+    }
+    let excluded_ids: Vec<String> = swiped_query
+        .select(swipes::to_user_id)
+        .load(&mut conn)
+        .await?;
+
     // Base query: everyone except me. `.into_boxed()` lets us conditionally
     // add the sport filter below without duplicating the whole query.
     let mut query = profiles::table
         .filter(profiles::user_id.ne(current_user_id))
+        .filter(profiles::user_id.ne_all(excluded_ids))
         .into_boxed();
 
     if let Some(sport) = sport {

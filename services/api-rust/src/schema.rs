@@ -149,6 +149,20 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    #[sql_name = "Report"]
+    reports (id) {
+        id -> Text,
+        #[sql_name = "reporterUserId"]
+        reporter_user_id -> Text,
+        #[sql_name = "reportedUserId"]
+        reported_user_id -> Text,
+        reason -> Text,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     users,
     profiles,
@@ -157,4 +171,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     swipes,
     matches,
     messages,
+    reports,
 );

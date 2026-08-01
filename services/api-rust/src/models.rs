@@ -9,7 +9,9 @@ use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::schema::{matches, messages, preferences, profiles, refresh_tokens, swipes, users};
+use crate::schema::{
+    matches, messages, preferences, profiles, refresh_tokens, reports, swipes, users,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
 #[ExistingTypePath = "crate::schema::sql_types::Sport"]
@@ -198,4 +200,25 @@ pub struct NewMessage {
     pub match_id: String,
     pub sender_id: String,
     pub ciphertext: String,
+}
+
+#[derive(Debug, Queryable, Selectable, Serialize)]
+#[diesel(table_name = reports)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[serde(rename_all = "camelCase")]
+pub struct Report {
+    pub id: String,
+    pub reporter_user_id: String,
+    pub reported_user_id: String,
+    pub reason: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = reports)]
+pub struct NewReport {
+    pub id: String,
+    pub reporter_user_id: String,
+    pub reported_user_id: String,
+    pub reason: String,
 }

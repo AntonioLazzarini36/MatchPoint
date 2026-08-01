@@ -18,6 +18,11 @@ class ProfileView extends StatelessWidget {
   final VoidCallback? onBottomButton;
   final String bottomButtonText;
 
+  /// Acciones adicionales al final del AppBar (p.ej. el menú de
+  /// bloquear/reportar en el perfil público de otro usuario) — se
+  /// renderizan después del icono de settings, si lo hay.
+  final List<Widget>? extraActions;
+
   const ProfileView({
     super.key,
     required this.data,
@@ -29,6 +34,7 @@ class ProfileView extends StatelessWidget {
     this.onBottomButton,
     this.onSettings,
     this.onEdit,
+    this.extraActions,
   });
 
   @override
@@ -49,6 +55,7 @@ class ProfileView extends StatelessWidget {
                 icon: const Icon(Icons.settings),
                 onPressed: onSettings,
               ),
+            if (extraActions != null) ...extraActions!,
           ],
         ),
         SliverToBoxAdapter(

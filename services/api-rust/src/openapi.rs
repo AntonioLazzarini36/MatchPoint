@@ -44,10 +44,12 @@ pub struct OkResponse {
         crate::discover::controller::discover,
         crate::swipes::controller::create_swipe,
         crate::matches::controller::list,
+        crate::matches::controller::unmatch,
         crate::chats::controller::list_messages,
         crate::chats::controller::send_message,
         crate::chats::controller::mark_read,
         crate::users::controller::get_profile,
+        crate::users::controller::report_user,
     ),
     components(schemas(
         ErrorResponse,
@@ -76,6 +78,7 @@ pub struct OkResponse {
         crate::chats::dto::SendMessageDto,
         crate::chats::service::MessageResponse,
         crate::chats::service::MarkReadResponse,
+        crate::users::dto::ReportUserDto,
     )),
     tags(
         (name = "misc", description = "Endpoints de estado"),
