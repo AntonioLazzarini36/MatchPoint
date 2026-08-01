@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:match_point/app/routes.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
@@ -102,6 +103,12 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   )
                 : const Text('Mensajes'),
             actions: [
+              if (!_searching)
+                IconButton(
+                  icon: const Icon(Icons.sports_tennis),
+                  tooltip: 'Pistas cerca',
+                  onPressed: () => context.push(AppRoutes.courtsMap),
+                ),
               IconButton(
                 icon: Icon(_searching ? Icons.close : Icons.search),
                 onPressed: _toggleSearch,

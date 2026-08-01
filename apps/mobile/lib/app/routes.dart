@@ -12,6 +12,7 @@ class AppRoutes {
   // Matches / chat
   static const matches = '/matches';
   static const chat = '/chat/:matchId';
+  static const courtsMap = '/courts-map';
 
   // Profile / settings
   static const profile = '/profile';

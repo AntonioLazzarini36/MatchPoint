@@ -14,6 +14,7 @@ import 'package:match_point/features/discovery/screens/partner_detail_screen.dar
 import 'package:match_point/features/matches/models/match_item.dart';
 import 'package:match_point/features/matches/screens/matches_screen.dart';
 import 'package:match_point/features/matches/screens/chat_screen.dart';
+import 'package:match_point/features/courts/screens/tennis_courts_map_screen.dart';
 import 'package:match_point/features/profile/screens/other_profile_screen.dart';
 import 'package:match_point/features/profile/screens/profile_screen.dart';
 import 'package:match_point/features/profile/screens/settings_screen.dart';
@@ -84,6 +85,10 @@ class AppRouter {
             otherPhotoUrl: otherPhotos.isNotEmpty ? otherPhotos.first : null,
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.courtsMap,
+        builder: (context, state) => const TennisCourtsMapScreen(),
       ),
 
       // --- PROFILE ---
