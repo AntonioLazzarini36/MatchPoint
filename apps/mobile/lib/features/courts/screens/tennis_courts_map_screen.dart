@@ -194,12 +194,17 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
               Text('¿A qué hora?', style: Theme.of(sheetContext).textTheme.titleMedium),
               const SizedBox(height: 16),
               Expanded(
+                // Max extent (not a fixed count) so the number of columns
+                // adapts to how much width is actually available — on a
+                // narrow screen that means fewer, bigger buttons instead
+                // of the same 4 columns squeezed down until the time
+                // stops fitting.
                 child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 88,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    childAspectRatio: 2.2,
+                    childAspectRatio: 2.0,
                   ),
                   itemCount: slots.length,
                   itemBuilder: (context, i) {
@@ -208,7 +213,13 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                         '${slot.hour.toString().padLeft(2, '0')}:${slot.minute.toString().padLeft(2, '0')}';
                     return OutlinedButton(
                       onPressed: () => Navigator.of(sheetContext).pop(slot),
-                      child: Text(label),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label, maxLines: 1),
+                      ),
                     );
                   },
                 ),
