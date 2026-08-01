@@ -74,9 +74,20 @@ Branches ya creadas, sin empezar:
 Del análisis inicial completo del repo — **trabajado sin supervisión el
 2026-08-01** mientras te ibas 3 horas. Los 9 puntos originales están
 resueltos (uno de ellos reveló un bug de seguridad más serio, que se separó
-en su propia rama). Cada uno en su propia rama, pusheada,
-**SIN mergear a `feature/rust-backend`** a propósito para que los repases
-y decidas el orden/forma de integrarlos:
+en su propia rama). **Las 10 ramas ya están mergeadas en
+`feature/rust-backend`** (mergeadas todas justo después, a tu pedido, para
+que las revisaras cambiando de rama en la app corriendo — checks en verde
+sobre el árbol completo mergeado: fmt/clippy/build/test backend,
+analyze/test mobile). Único conflicto real, en `matches_screen.dart` entre
+`fix/matches-real-unread-state` y `feat/matches-search` (las dos tocaban la
+zona de `_openChat`) — resuelto a mano, sin pérdida de ninguno de los dos
+cambios.
+
+**Importante para probar en local:** como `fix/refresh-token-rotation-bcrypt-truncation`
+cambia el formato del hash del refresh token guardado, cualquier sesión que
+tuvieras abierta de antes de este merge quedará invalidada — toca volver a
+loguearse la próxima vez que el access token expire (o simplemente cerrar
+sesión y volver a entrar).
 
 1. ✅ **`fix/jwt-secret-required`** (commit `abb823c`) — Secretos JWT ya no
    tienen fallback hardcodeado; `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`
@@ -154,10 +165,10 @@ y decidas el orden/forma de integrarlos:
      una feature de backend que no existe (`SwipeType` solo tiene
      LIKE/PASS).
 
-**10 ramas en total esta sesión**, todas pusheadas y verificadas
-(fmt/clippy/build/test backend, analyze/test mobile, y pruebas manuales
-contra el backend real donde aplicaba), ninguna mergeada a
-`feature/rust-backend` todavía.
+**10 ramas en total esta sesión**, todas pusheadas, verificadas
+individualmente (fmt/clippy/build/test backend, analyze/test mobile, y
+pruebas manuales contra el backend real donde aplicaba) y ahora mergeadas
+en `feature/rust-backend`.
 
 ## Notas del entorno local
 
