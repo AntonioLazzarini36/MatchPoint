@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
-import 'package:go_router/go_router.dart';
-import 'package:match_point/app/routes.dart';
 
 import '../../../core/network/api.dart';
 import '../discovery_controller.dart';
+import '../models/discover_profile.dart';
 import '../services/discovery_service.dart';
 import 'package:match_point/features/discovery/models/swipe_type.dart';
-import '../../../core/ui/widgets/discovery/discovery_action_button.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
-import '../../../core/ui/widgets/discovery/discovery_swipe_card.dart';
+import '../../../core/ui/widgets/discovery/discovery_mini_card.dart';
+import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
 
+/// Row of small horizontal cards (up to 4, fewer on a narrow screen) shown
+/// side by side instead of the old one-at-a-time full-screen swipe deck.
+/// Each card is independently draggable — drag it away to like/pass, tap
+/// it for a bigger preview. No separate like/pass buttons: the drag *is*
+/// the action now, buttons would be redundant.
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
 
@@ -19,6 +23,11 @@ class DiscoveryScreen extends StatefulWidget {
 }
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
+  static const _maxVisible = 4;
+  static const _minCardWidth = 76.0;
+  static const _cardSpacing = 8.0;
+  static const _cardHeight = 220.0;
+
   late final DiscoveryController controller;
 
   @override
@@ -32,6 +41,37 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  /// 4 by default; drops to however many actually fit (down to 1) on a
+  /// narrow screen rather than squeezing 4 cards until they're unusable.
+  int _visibleCount(double availableWidth) {
+    for (var n = _maxVisible; n > 1; n--) {
+      final cardWidth = (availableWidth - _cardSpacing * (n - 1)) / n;
+      if (cardWidth >= _minCardWidth) return n;
+    }
+    return 1;
+  }
+
+  Future<void> _handleSwipe(DiscoverProfile user, SwipeType type) async {
+    try {
+      final res = await controller.swipeUser(user: user, type: type);
+
+      if (!mounted) return;
+
+      if (type == SwipeType.like && res.matched) {
+        await showDiscoveryMatchDialog(
+          context,
+          user: res.user,
+          matchId: res.matchId,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo registrar el swipe, reintenta')),
+      );
+    }
   }
 
   @override
@@ -69,10 +109,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 const SizedBox(height: 8),
 
                 Expanded(child: _buildBody(context)),
-
-                if (controller.stack.isNotEmpty) _buildActions(context),
-
-                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -140,166 +176,62 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
     }
 
-    // Deck
     final stack = controller.stack;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Stack(
-        children: stack.asMap().entries.map((entry) {
-          final index = entry.key;
-          final user = entry.value;
-          final isTop = index == stack.length - 1;
 
-          if (!isTop) {
-            return Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: 20.0 * (stack.length - 1 - index),
-                  bottom: 20,
-                ),
-                child: Transform.scale(
-                  scale: 0.95,
-                  child: Opacity(
-                    opacity: 0.5,
-                    child: DiscoverySwipeCard(user: user, isFront: false),
-                  ),
-                ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final count = _visibleCount(constraints.maxWidth);
+            final visible = stack.length <= count
+                ? stack
+                : stack.sublist(stack.length - count);
+
+            return SizedBox(
+              height: _cardHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < visible.length; i++) ...[
+                    if (i > 0) const SizedBox(width: _cardSpacing),
+                    Expanded(child: _buildCard(context, visible[i])),
+                  ],
+                ],
               ),
             );
-          }
-
-          return Dismissible(
-            // Includes `generation` so a card rolled back after a failed
-            // swipe gets a fresh key instead of resurrecting the
-            // Dismissible that was just dismissed under the old one.
-            key: ValueKey('${user.userId}_${controller.generation}'),
-            direction: DismissDirection.horizontal,
-            onDismissed: (direction) async {
-              final type = (direction == DismissDirection.startToEnd)
-                  ? SwipeType.like
-                  : SwipeType.pass;
-
-              try {
-                final res = await controller.swipeUser(
-                  user: user,
-                  type: type,
-                );
-
-                if (!context.mounted) return;
-
-                if (type == SwipeType.like && res.matched) {
-                  await showDiscoveryMatchDialog(
-                    context,
-                    user: res.user,
-                    matchId: res.matchId,
-                  );
-                }
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No se pudo registrar el swipe, reintenta'),
-                  ),
-                );
-              }
-            },
-            background: _swipeBg(
-              context,
-              Alignment.centerLeft,
-              Icons.favorite,
-              Colors.green,
-            ),
-            secondaryBackground: _swipeBg(
-              context,
-              Alignment.centerRight,
-              Icons.close,
-              Colors.red,
-            ),
-            child: DiscoverySwipeCard(
-              user: user, 
-              isFront: true, 
-              onOpenProfile: () {
-                context.pushNamed(
-                  AppRoutes.userProfileName,
-                  pathParameters: {'userId': user.userId},
-                );
-              },
-            ),
-          );
-        }).toList(),
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildActions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          DiscoveryActionButton(
-            icon: Icons.close,
-            color: Colors.red,
-            onTap: () async {
-              try {
-                await controller.passTop();
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No se pudo registrar el swipe, reintenta'),
-                  ),
-                );
-              }
-            },
-          ),
-          DiscoveryActionButton(
-            icon: Icons.star,
-            color: Colors.amber,
-            onTap: () {
-              // TODO super-like si lo anades en backend
-            },
-          ),
-          DiscoveryActionButton(
-            icon: Icons.favorite,
-            color: context.colors.primary,
-            onTap: () async {
-              try {
-                final res = await controller.likeTop();
-                if (!context.mounted) return;
-                if (res.matched && res.user != null) {
-                  await showDiscoveryMatchDialog(
-                    context,
-                    user: res.user!,
-                    matchId: res.matchId,
-                  );
-                } else if (res.user != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Has dado like a ${res.user!.displayName}!',
-                      ),
-                      duration: const Duration(milliseconds: 600),
-                      backgroundColor: context.colors.tertiary,
-                    ),
-                  );
-                }
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No se pudo registrar el swipe, reintenta'),
-                  ),
-                );
-              }
-            },
-          ),
-        ],
+  Widget _buildCard(BuildContext context, DiscoverProfile user) {
+    return Dismissible(
+      // Includes `generation` so a card rolled back after a failed swipe
+      // gets a fresh key instead of resurrecting the Dismissible that was
+      // just dismissed — reusing that key crashes.
+      key: ValueKey('${user.userId}_${controller.generation}'),
+      direction: DismissDirection.horizontal,
+      onDismissed: (direction) {
+        final type = direction == DismissDirection.startToEnd
+            ? SwipeType.like
+            : SwipeType.pass;
+        _handleSwipe(user, type);
+      },
+      background: _swipeOverlay(context, Alignment.centerLeft, Icons.favorite, Colors.green),
+      secondaryBackground: _swipeOverlay(context, Alignment.centerRight, Icons.close, Colors.red),
+      child: DiscoveryMiniCard(
+        user: user,
+        onTap: () => showDiscoveryPreviewSheet(context, user),
       ),
     );
   }
 
-  Widget _swipeBg(
+  /// "Difuminado" directional hint shown as the card is dragged — a
+  /// translucent color wash across the whole card rather than a small
+  /// badge, since these cards are too small for a badge to read clearly.
+  Widget _swipeOverlay(
     BuildContext context,
     Alignment alignment,
     IconData icon,
@@ -307,16 +239,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   ) {
     return Container(
       alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(24),
+        color: color.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        child: Icon(icon, color: Colors.white, size: 32),
-      ),
+      child: Icon(icon, color: Colors.white, size: 28),
     );
   }
 }
