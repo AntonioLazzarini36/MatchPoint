@@ -8,6 +8,7 @@ import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/ui/profile/photo_grid_editor.dart';
+import '../../auth/models/auth_response.dart';
 import '../../auth/models/login_request.dart';
 import '../../auth/models/register_request.dart';
 import '../../auth/services/auth_service.dart';
@@ -160,24 +161,23 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       final password = widget.password;
 
       if (email != null && password != null) {
-        String accessToken;
+        AuthResponse tokens;
         try {
-          final tokens = await authService.register(
+          tokens = await authService.register(
             RegisterRequest(email: email, password: password),
           );
-          accessToken = tokens.accessToken;
         } catch (_) {
           // Recuperación: si un intento anterior ya llegó a crear el
           // usuario (p.ej. se cortó la conexión justo después del
           // register) o hay una carrera rara con el check de
           // disponibilidad, intentar login con las mismas credenciales
           // es la forma segura de continuar en vez de quedar atascado.
-          final tokens = await authService.login(
+          tokens = await authService.login(
             LoginRequest(email: email, password: password),
           );
-          accessToken = tokens.accessToken;
         }
-        await TokenStorage.saveToken(accessToken);
+        await TokenStorage.saveToken(tokens.accessToken);
+        await TokenStorage.saveRefreshToken(tokens.refreshToken);
       }
 
       final req = UpdateProfileRequest(

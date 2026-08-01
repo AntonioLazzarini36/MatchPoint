@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../../../core/network/api_client.dart';
+import '../../../core/storage/token_storage.dart';
 import '../models/auth_response.dart';
 import '../models/login_request.dart';
 import '../models/register_request.dart';
@@ -41,17 +42,20 @@ class AuthService {
     return AuthResponse.fromJson(jsonDecode(res.body));
   }
 
-  /// Revoca el refresh token en el backend. Best-effort a propósito (igual
-  /// que `auth::service::logout` en el backend): el cliente hoy no guarda
-  /// refresh token (solo access token, ver `TokenStorage`), así que esto
-  /// manda uno vacío — el backend lo trata como no-op — y nunca bloquea el
-  /// logout local aunque la llamada falle por red.
+  /// Revoca el refresh token guardado en el backend. Best-effort a
+  /// propósito (igual que `auth::service::logout` en el backend): si no
+  /// hay refresh token guardado o la llamada falla por red, el logout
+  /// local (borrar los tokens guardados, ver `TokenStorage`) debe
+  /// completarse igual.
   Future<void> logout() async {
     try {
-      await api.post('/auth/logout', body: const {'refreshToken': ''});
+      final refreshToken = await TokenStorage.getRefreshToken();
+      await api.post(
+        '/auth/logout',
+        body: {'refreshToken': refreshToken ?? ''},
+      );
     } catch (_) {
-      // Ignorado a propósito: el logout local (borrar el token guardado)
-      // debe completarse igual aunque el backend sea inalcanzable.
+      // Ignorado a propósito, ver comentario arriba.
     }
   }
 }

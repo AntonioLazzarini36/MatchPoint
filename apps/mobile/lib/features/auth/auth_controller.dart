@@ -22,6 +22,7 @@ class AuthController extends ChangeNotifier {
         LoginRequest(email: email, password: password),
       );
       await TokenStorage.saveToken(res.accessToken);
+      await TokenStorage.saveRefreshToken(res.refreshToken);
 
       return true;
     } catch (e) {
@@ -43,6 +44,7 @@ class AuthController extends ChangeNotifier {
         RegisterRequest(email: email, password: password),
       );
       await TokenStorage.saveToken(res.accessToken);
+      await TokenStorage.saveRefreshToken(res.refreshToken);
 
       return true;
     } catch (e) {
