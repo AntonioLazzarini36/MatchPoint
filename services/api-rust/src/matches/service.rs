@@ -15,9 +15,10 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use crate::chats::crypto;
 use crate::discover::service::DiscoverProfile;
 use crate::models::Profile;
-use crate::schema::{matches, profiles};
+use crate::schema::{matches, messages, profiles};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -30,6 +31,8 @@ pub enum MatchesError {
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
     Pool(String),
+    #[error("Crypto error: {0}")]
+    Crypto(#[from] crypto::CryptoError),
 }
 
 /// The authenticated user's own side of a match — full `Profile`
@@ -50,6 +53,17 @@ pub struct OtherUserWithProfile {
     pub profile: Option<DiscoverProfile>,
 }
 
+/// Decrypted preview of the most recent message in a match, for the
+/// matches list — same shape as `chats::service::MessageResponse` minus
+/// the fields the list screen doesn't need.
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LastMessagePreview {
+    pub sender_id: String,
+    pub text: String,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchListItem {
@@ -57,6 +71,11 @@ pub struct MatchListItem {
     pub created_at: DateTime<Utc>,
     pub other_user: OtherUserWithProfile,
     pub me: UserWithProfile,
+    /// `None` when nobody has sent a message in this match yet.
+    pub last_message: Option<LastMessagePreview>,
+    /// Messages sent by the other side that `me` hasn't read yet (via
+    /// `PATCH /chats/:matchId/read`).
+    pub unread_count: i64,
 }
 
 pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>, MatchesError> {
@@ -105,6 +124,34 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
             .await
             .optional()?;
 
+        let last_message_row = messages::table
+            .filter(messages::match_id.eq(&match_id))
+            .order(messages::created_at.desc())
+            .select((
+                messages::sender_id,
+                messages::ciphertext,
+                messages::created_at,
+            ))
+            .first::<(String, String, DateTime<Utc>)>(&mut conn)
+            .await
+            .optional()?;
+        let last_message = match last_message_row {
+            Some((sender_id, ciphertext, created_at)) => Some(LastMessagePreview {
+                sender_id,
+                text: crypto::decrypt_text(&ciphertext, &state.config.message_key_base64)?,
+                created_at,
+            }),
+            None => None,
+        };
+
+        let unread_count: i64 = messages::table
+            .filter(messages::match_id.eq(&match_id))
+            .filter(messages::sender_id.ne(&me_id))
+            .filter(messages::read_at.is_null())
+            .count()
+            .get_result(&mut conn)
+            .await?;
+
         result.push(MatchListItem {
             match_id,
             created_at,
@@ -116,6 +163,8 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
                 user_id: me_id,
                 profile: me_profile,
             },
+            last_message,
+            unread_count,
         });
     }
 

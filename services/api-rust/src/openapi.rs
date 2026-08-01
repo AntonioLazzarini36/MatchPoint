@@ -74,6 +74,7 @@ pub struct OkResponse {
         crate::swipes::service::SwipeResult,
         crate::matches::service::UserWithProfile,
         crate::matches::service::OtherUserWithProfile,
+        crate::matches::service::LastMessagePreview,
         crate::matches::service::MatchListItem,
         crate::chats::dto::SendMessageDto,
         crate::chats::service::MessageResponse,

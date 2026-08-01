@@ -68,7 +68,7 @@ fn matches_error_response(err: MatchesError) -> axum::response::Response {
     let status = match &err {
         MatchesError::NotFound => StatusCode::NOT_FOUND,
         MatchesError::Forbidden => StatusCode::FORBIDDEN,
-        MatchesError::Db(_) | MatchesError::Pool(_) => {
+        MatchesError::Db(_) | MatchesError::Pool(_) | MatchesError::Crypto(_) => {
             tracing::error!("matches error: {err}");
             StatusCode::INTERNAL_SERVER_ERROR
         }
