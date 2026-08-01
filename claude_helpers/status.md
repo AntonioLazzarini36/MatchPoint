@@ -26,6 +26,18 @@ Ramas vivas ahora mismo, aparte del trunk:
   dijiste que es probable que pidas más cambios sobre el mapa a futuro, así
   que sigue existiendo en local y remoto para seguir iterando ahí en vez de
   abrir una rama nueva.
+- **`redesign/discovery-cards`** — pedida el 2026-08-01, **la única de las
+  3 de abajo que se está construyendo entera ahora mismo** (las otras dos
+  quedan documentadas, sin empezar, hasta que digas). Ver "Pendiente" abajo
+  para el detalle completo de qué tiene que hacer.
+- **Rama de login social (Google/Apple) + verificación de identidad** —
+  pedida el 2026-08-01, **sin empezar, sin crear todavía** (solo
+  documentada, ver "Pendiente" abajo) — necesita que decidas/consigas
+  credenciales externas antes de que tenga sentido escribir código real.
+- **Rama de fix de deportes + editar deporte en perfil** — pedida el
+  2026-08-01, **sin empezar, sin crear todavía** (solo documentada, ver
+  "Pendiente" abajo) — encontré un bug real relacionado al investigar esto,
+  detalle abajo.
 
 Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
 `feat/logout-and-settings`, `feat/unmatch-block-report`, `feat/manual-location`,
@@ -180,6 +192,75 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   que distancia, necesita schema + UI.
 - **Super-like**: el propio TODO en el código dice que depende de una
   feature de backend que no existe (`SwipeType` solo tiene LIKE/PASS).
+
+### Pedidas el 2026-08-01, todavía sin empezar (documentadas para no perderlas)
+
+**1. Login con Google/Apple + verificación de identidad (email u otra)**
+
+Objetivo: poder registrarte/loguearte con Google o Apple y que el perfil se
+cree directo con esos datos, más algún tipo de confirmación de que el
+usuario es quien dice ser (verificación de email como mínimo).
+
+Por qué no arranqué esta directamente:
+- **OAuth real necesita credenciales externas que no tengo**: un Client ID
+  de Google Cloud Console (OAuth consent screen configurado) y, para Apple,
+  un Apple Developer account con el "Sign in with Apple" capability
+  habilitado + las claves de firma. Sin eso no hay nada real que probar —
+  puedo dejar el código armado (paquetes `google_sign_in` /
+  `sign_in_with_apple`, endpoint de backend que verifica el ID token
+  contra Google/Apple y crea o loguea al `User`), pero hace falta que
+  crees esas credenciales vos (son cuentas/proyectos tuyos) antes de que
+  esto funcione de verdad en vez de ser un mock.
+- **Verificación de email tampoco existe hoy en absoluto** — ahora mismo
+  cualquiera se registra con cualquier email sin confirmar que le
+  pertenece. Implementarla de verdad necesita un servicio de envío de
+  email (SendGrid, SES, Resend, lo que prefieras) con sus propias
+  credenciales — mismo problema de "necesito que decidas/consigas algo
+  externo" antes de escribir el código real.
+
+Qué implicaría en el modelo de datos: `User.password_hash` tendría que
+pasar a ser opcional (cuentas 100% OAuth no tienen password), agregar algo
+tipo `authProvider`/`providerId` para trackear con qué te registraste, y
+`emailVerifiedAt` (o similar) para el estado de verificación.
+
+Cuando quieras arrancar esto en serio, decime qué proveedor de email
+preferís (o si ya tenés cuenta en alguno) y si ya tenés (o vas a crear) el
+proyecto de Google Cloud / cuenta de Apple Developer — así no invento
+credenciales que después hay que tirar.
+
+**2. Bug de deportes en Discovery + poder editar tu(s) deporte(s) desde el perfil**
+
+Me pediste comprobar si hay un problema al seleccionar Tenis y Correr a la
+vez en el onboarding. **La selección en sí no tiene bug** — es un
+`FilterChip` normal, ambos se pueden marcar juntos, y el backend guarda
+bien un array con los dos (`Profile.sports: Vec<Sport>`).
+
+**Pero sí encontré un bug real, más grave de lo que preguntaste, en
+`fix/discovery-header-cleanup`** (ya mergeada): al sacar el selector de
+deporte de arriba de Discovery, `DiscoveryController.selectedSport` quedó
+**fijo en `Sport.tennis`** (`discovery_controller.dart`). Consecuencia:
+- Si elegiste **solo "Correr"** en el onboarding, Discovery nunca te
+  muestra a nadie — siempre pide `sport=TENNIS` al backend, nunca
+  `RUNNING`.
+- Si elegiste **ambos**, da igual: nunca vas a ver a nadie marcado solo
+  como "Correr", ni vas a aparecerle a nadie que busque solo running —
+  Discovery ignora completamente tu propia selección de deportes y la
+  de cualquier otro, siempre opera en modo "solo tenis".
+- No hay forma de cambiar tu(s) deporte(s) después del onboarding — ni en
+  Settings ni en ningún otro lado. Esto no es "puede que exista", **no
+  existe**, confirmado.
+
+Cuando se arranque esta rama, el fix real no es "volver a poner el
+toggle arriba de Discovery" (eso es justo lo que se sacó a propósito por
+no tener sentido visualmente) — hay que decidir algo tipo: Discovery
+respeta los deportes que el usuario tiene marcados en su perfil (podría
+buscar en varios deportes a la vez, no solo uno), y separado, agregar una
+fila "Deportes" en Settings (mismo patrón que Ubicación/Radio) para poder
+cambiarlos. Backend no necesita cambios — `PATCH /me/profile` ya acepta
+`sports`.
+
+**3. Rediseño de Discovery a tarjetas horizontales — ver más abajo, esta sí
+se está construyendo ahora.**
 
 ### Del análisis fresco de hoy (2026-08-01), sin rama todavía
 
