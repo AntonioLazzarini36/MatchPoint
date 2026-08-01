@@ -187,6 +187,11 @@ pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, 
                         bio: dto.bio.clone(),
                         photos: vec![],
                         sports: dto.sports.clone().unwrap_or_default(),
+                        // Not part of RegisterDto — set afterwards via the
+                        // same PATCH /me/profile call the mobile onboarding
+                        // flow already makes right after registering.
+                        latitude: None,
+                        longitude: None,
                         updated_at: Utc::now(),
                     })
                     .execute(conn)

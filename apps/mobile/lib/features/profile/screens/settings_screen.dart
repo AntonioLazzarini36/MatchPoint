@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/location/location_result.dart';
 import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/ui/location/location_search_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../onboarding/models/profile.dart';
 import '../../onboarding/services/profile_service.dart';
@@ -24,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _email;
   Profile? _profile;
   bool _loggingOut = false;
+  bool _savingLocation = false;
 
   @override
   void initState() {
@@ -45,6 +48,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
+    }
+  }
+
+  /// Cambiar la ubicación es posible en cualquier momento, no solo en el
+  /// onboarding — mismo buscador (Nominatim), nunca GPS del dispositivo.
+  Future<void> _changeLocation() async {
+    final result = await Navigator.of(context).push<LocationResult>(
+      MaterialPageRoute(builder: (_) => const LocationSearchScreen()),
+    );
+    if (result == null || !mounted) return;
+
+    setState(() => _savingLocation = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateLocation(result);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar la ubicación: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingLocation = false);
     }
   }
 
@@ -108,6 +134,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
                 ],
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.xs,
+                    bottom: AppSpacing.sm,
+                  ),
+                  child: Text('Perfil', style: context.textStyles.titleMedium),
+                ),
+                _SettingsGroup(
+                  children: [
+                    _SettingsRow(
+                      icon: Icons.location_on_outlined,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Ubicación',
+                      subtitle: _profile?.city ?? 'Sin definir',
+                      trailing: _savingLocation
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingLocation ? null : _changeLocation,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
                 Padding(
                   padding: const EdgeInsets.only(
                     left: AppSpacing.xs,

@@ -49,6 +49,8 @@ diesel::table! {
         bio -> Nullable<Text>,
         photos -> Array<Text>,
         sports -> Array<Sport>,
+        latitude -> Nullable<Double>,
+        longitude -> Nullable<Double>,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
         #[sql_name = "updatedAt"]
