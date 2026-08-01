@@ -163,56 +163,14 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     await _pickMatchAndSend(club, proposedAt);
   }
 
-  /// Semana en curso, no un calendario de mes entero — no tiene sentido
-  /// proponer un partido con semanas de antelación.
-  Future<DateTime?> _pickWeekDay() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final days = List.generate(7, (i) => today.add(Duration(days: i)));
-
+  /// Calendario semanal navegable (no un mes entero) — se puede pasar a
+  /// semanas siguientes, pero no a semanas anteriores a la actual.
+  Future<DateTime?> _pickWeekDay() {
     return showModalBottomSheet<DateTime>(
       context: context,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('¿Qué día?', style: Theme.of(sheetContext).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final day in days)
-                  _DayChip(
-                    label: _dayChipLabel(day, today),
-                    onTap: () => Navigator.of(sheetContext).pop(day),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _WeekCalendarPicker(),
     );
   }
-
-  String _dayChipLabel(DateTime day, DateTime today) {
-    final diff = day.difference(today).inDays;
-    if (diff == 0) return 'Hoy';
-    if (diff == 1) return 'Mañana';
-    return '${_weekdaysShort[day.weekday - 1]} ${day.day}';
-  }
-
-  static const _weekdaysShort = [
-    'lun',
-    'mar',
-    'mié',
-    'jue',
-    'vie',
-    'sáb',
-    'dom',
-  ];
 
   /// 8:00 a 22:00 en franjas de 15 min — un slider/reloj completo es
   /// overkill para "propón una hora orientativa", esto se elige de un
@@ -549,20 +507,143 @@ class _ClubSheet extends StatelessWidget {
   }
 }
 
-class _DayChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
+/// Week-view date picker: 7 days in a row, Monday-first, with prev/next
+/// week navigation. Can't go to a week entirely before the current one
+/// (can't propose a match in the past); individual past days within the
+/// current week are shown but disabled. Forward navigation is unbounded —
+/// no real reason to cap how far ahead you can propose a match.
+class _WeekCalendarPicker extends StatefulWidget {
+  const _WeekCalendarPicker();
 
-  const _DayChip({required this.label, required this.onTap});
+  @override
+  State<_WeekCalendarPicker> createState() => _WeekCalendarPickerState();
+}
+
+class _WeekCalendarPickerState extends State<_WeekCalendarPicker> {
+  static const _weekdaysShort = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+  static const _months = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+
+  late final DateTime _today;
+  late final DateTime _currentWeekStart;
+  late DateTime _weekStart;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _today = DateTime(now.year, now.month, now.day);
+    _currentWeekStart = _mondayOf(_today);
+    _weekStart = _currentWeekStart;
+  }
+
+  DateTime _mondayOf(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
+
+  bool get _isCurrentWeek => _weekStart == _currentWeekStart;
+
+  void _goToPreviousWeek() {
+    if (_isCurrentWeek) return;
+    setState(() => _weekStart = _weekStart.subtract(const Duration(days: 7)));
+  }
+
+  void _goToNextWeek() {
+    setState(() => _weekStart = _weekStart.add(const Duration(days: 7)));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    final days = List.generate(7, (i) => _weekStart.add(Duration(days: i)));
+    final weekEnd = days.last;
+    final sameMonth = _weekStart.month == weekEnd.month;
+    final rangeLabel = sameMonth
+        ? '${_weekStart.day}-${weekEnd.day} de ${_months[_weekStart.month - 1]}'
+        : '${_weekStart.day} ${_months[_weekStart.month - 1]} - '
+              '${weekEnd.day} ${_months[weekEnd.month - 1]}';
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Qué día?', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _isCurrentWeek ? null : _goToPreviousWeek,
+                ),
+                Text(rangeLabel, style: Theme.of(context).textTheme.bodyMedium),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _goToNextWeek,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(children: [for (final day in days) _buildDayCell(day)]),
+          ],
+        ),
       ),
-      child: Text(label),
+    );
+  }
+
+  Widget _buildDayCell(DateTime day) {
+    final isPast = day.isBefore(_today);
+    final isToday = day == _today;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Material(
+          color: isToday ? scheme.primaryContainer : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: isPast ? null : () => Navigator.of(context).pop(day),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Column(
+                children: [
+                  Text(
+                    _weekdaysShort[day.weekday - 1],
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isPast ? scheme.outline : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                      color: isPast
+                          ? scheme.outline
+                          : (isToday ? scheme.onPrimaryContainer : scheme.onSurface),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
