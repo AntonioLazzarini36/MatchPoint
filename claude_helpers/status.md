@@ -19,12 +19,14 @@ esto en `dev`/`main`. Las branches de feature parten de ahí.
   `/me` y el lado `me` de `/matches` siguen con `birthDate` completo (tu
   propio dato).
 
-- **`feat/logout-and-settings`** — comiteada y pusheada, sin mergear todavía.
-  Logout real (borra token local + intenta revocar refresh token en
-  backend, best-effort). Pantalla de Settings rediseñada siguiendo las
-  mockups que pasaste (card de cabecera + fila de email + botón de cerrar
-  sesión). Botones de "ajustes" y "ver mi perfil público" en `ProfileScreen`
-  ahora funcionan.
+- **`feat/logout-and-settings`** — mergeada en `feature/rust-backend`
+  (2026-08-01) y pusheada. Logout real (borra token local + intenta revocar
+  refresh token en backend, best-effort). Pantalla de Settings rediseñada
+  siguiendo las mockups que pasaste (card de cabecera + fila de email +
+  botón de cerrar sesión). Botones de "ajustes" y "ver mi perfil público" en
+  `ProfileScreen` ahora funcionan. Trae además una regla nueva en
+  `.gitignore` (`claude_helpers/*`) que ya cubre este documento y las
+  mockups sin necesidad de gestionarlas a mano.
 
 - **`feat/unmatch-block-report`** — mergeada en `feature/rust-backend`
   (commit `b115e88`, 2026-08-01) y pusheada. Checks en verde sobre el árbol

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
 import '../../onboarding/models/profile.dart' as onboarding_profile;
 import '../../onboarding/services/profile_service.dart';
@@ -21,6 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Object? error;
   ProfileHeaderData? data;
   onboarding_profile.Profile? profile;
+  String? myUserId;
 
   @override
   void initState() {
@@ -40,6 +43,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final p = me.profile;
 
       if (!mounted) return;
+
+      myUserId = me.id;
 
       if (p == null) {
         // No hay perfil todavia: renderizamos algo “vacio”
@@ -74,6 +79,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         loading = false;
       });
     }
+  }
+
+  void _openSettings() => context.push(AppRoutes.settings);
+
+  void _viewPublicProfile() {
+    final userId = myUserId;
+    if (userId == null) return;
+    context.pushNamed(
+      AppRoutes.userProfileName,
+      pathParameters: {'userId': userId},
+    );
   }
 
   void _openPhotoManager() {
@@ -143,8 +159,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         showStats: true,
         showBottomButton: true,
         bottomButtonText: 'Ver mi perfil publico',
-        onBottomButton: () {},
-        onSettings: () {},
+        onBottomButton: myUserId == null ? null : _viewPublicProfile,
+        onSettings: _openSettings,
         onEdit: _openPhotoManager,
       ),
     );

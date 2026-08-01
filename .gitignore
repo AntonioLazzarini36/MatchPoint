@@ -33,3 +33,6 @@ apps/mobile/macos/Flutter/GeneratedPluginRegistrant.swift
 
 # Markdowns
 services/api/markdown-src/*
+
+# Claude
+claude_helpers/*
