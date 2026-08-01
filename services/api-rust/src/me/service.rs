@@ -127,6 +127,12 @@ pub async fn update_profile(
     let bio = dto
         .bio
         .or_else(|| existing.as_ref().and_then(|p| p.bio.clone()));
+    let latitude = dto
+        .latitude
+        .or_else(|| existing.as_ref().and_then(|p| p.latitude));
+    let longitude = dto
+        .longitude
+        .or_else(|| existing.as_ref().and_then(|p| p.longitude));
     // Not settable via this DTO — see the comment on UpdateProfileDto.
     let photos = existing
         .as_ref()
@@ -147,6 +153,8 @@ pub async fn update_profile(
             bio: bio.clone(),
             photos: photos.clone(),
             sports: sports.clone(),
+            latitude,
+            longitude,
             updated_at: Utc::now(),
         })
         .on_conflict(profiles::user_id)
@@ -158,6 +166,8 @@ pub async fn update_profile(
             profiles::bio.eq(bio),
             profiles::photos.eq(photos),
             profiles::sports.eq(sports),
+            profiles::latitude.eq(latitude),
+            profiles::longitude.eq(longitude),
             profiles::updated_at.eq(Utc::now()),
         ))
         .get_result::<Profile>(&mut conn)

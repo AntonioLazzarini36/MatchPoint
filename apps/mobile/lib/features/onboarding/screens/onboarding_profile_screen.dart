@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/location/location_result.dart';
 import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/ui/profile/photo_grid_editor.dart';
@@ -58,6 +59,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   final Set<String> _selectedSports = {'Tenis', 'Correr'};
   String _goal = 'Jugar por nivel';
   double _radiusKm = 15;
+  LocationResult? _selectedLocation;
 
   final displayNameCtrl = TextEditingController();
   DateTime? birthDate;
@@ -183,11 +185,14 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       final req = UpdateProfileRequest(
         displayName: displayNameCtrl.text.trim(),
         birthDate: _formatDate(birthDate!),
-        city: 'Madrid',
+        city: _selectedLocation?.displayName,
         bio: _goal,
         sports: _sportsForBackend(), // ✅ solo Tenis/Correr
+        latitude: _selectedLocation?.latitude,
+        longitude: _selectedLocation?.longitude,
       );
       await controller.service.updateProfile(req);
+      await controller.service.updateDiscoveryRadius(_radiusKm.round());
 
       for (final photo in _localPhotos) {
         await controller.service.uploadPhoto(
@@ -310,6 +315,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 onGoalChanged: (g) => setState(() => _goal = g),
               ),
               OnboardingLocationStep(
+                location: _selectedLocation,
+                onLocationChanged: (loc) =>
+                    setState(() => _selectedLocation = loc),
                 radiusKm: _radiusKm,
                 onRadiusChanged: (v) => setState(() => _radiusKm = v),
               ),

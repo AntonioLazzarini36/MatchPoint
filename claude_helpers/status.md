@@ -19,6 +19,15 @@ Ramas vivas ahora mismo, aparte del trunk:
   persona que lea esto escriba sus propios tests (cobertura hoy: 1 test de
   crypto en el backend, 1 widget test boilerplate en mobile — prácticamente
   cero).
+- **`feat/manual-location`** — ✅ mergeada en `feature/rust-backend`
+  (2026-08-01). Ver "Hecho" abajo.
+- **`fix/discovery-header-cleanup`** — ✅ mergeada en `feature/rust-backend`
+  (2026-08-01). Ver "Hecho" abajo.
+- **`feat/tennis-court-map`** — pusheada, **sin mergear todavía**. Ver
+  "Hecho" abajo — **esta es la única que no verifiqué visualmente en el
+  navegador** (la extensión de Claude en Chrome no estaba conectada),
+  ábrela vos antes de confiar en que el mapa/marcadores/bottom-sheet
+  rendericen bien.
 
 Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
 `feat/logout-and-settings`, `feat/unmatch-block-report`, y las 10 de la
@@ -26,6 +35,26 @@ pasada de seguridad/fiabilidad del 2026-08-01) ya está **mergeado en
 `feature/rust-backend` y las ramas borradas** (local y remoto) — el detalle
 de cada una vive en el historial de git (`git log feature/rust-backend`),
 no hace falta duplicarlo aquí.
+
+### Issues de GitHub — correlación con lo de arriba
+
+Vi la lista de issues abiertos del repo mientras trabajaba en esto (no toqué
+GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
+- **#15 "Corregir que no se muestren perfiles que ya son matches"** — creo
+  que esto **ya está resuelto** desde `feat/unmatch-block-report` (ya
+  mergeada): `/discover` excluye a cualquiera a quien ya le diste LIKE o
+  PASS, y un match requiere que ambos se hayan dado LIKE, así que un
+  perfil ya matcheado no puede reaparecer. Vale la pena que lo confirmes
+  probando y cierres el issue si es así.
+- **#18 "Mapa de pistas + reservar"** — `feat/tennis-court-map` cubre la
+  primera mitad (ver pistas reales, proponer partido a un match). La
+  reserva de verdad (disponibilidad, booking) no está — es harina de otro
+  costal, tal como dijiste.
+- **#17 "Sistema de ratings"**, **#19/#12 "Calendario"**, **#14 "Edit
+  profile en Settings"**, **#16 "Rediseño"** — ninguno tocado, siguen
+  abiertos. Ver la lista priorizada más abajo.
+- **#11 "Brainstorming doc"**, **"Create DataFlow diagram"** — documentación
+  pura, no código; no los toqué.
 
 ## Hecho (resumen)
 
@@ -65,6 +94,43 @@ no hace falta duplicarlo aquí.
 - Documentación: `CLAUDE.md`, `README.md`, `services/api-rust/NOTES.md`
   puestos al día (endpoints que faltaban desde antes: unmatch, report;
   `services/api` viejo ya no existe, etc.) el 2026-08-01.
+- **Ubicación estilo Hinge (`feat/manual-location`, sin mergear)** — nada
+  de GPS: escribes un sitio (ciudad, barrio, pueblo — "Málaga",
+  "Benalmádena", "Innsbruck") y eliges de sugerencias reales (Nominatim,
+  geocoding gratis de OSM, sin API key), igual que Hinge. Esa elección es
+  la que usa `/discover` para el filtro de radio, y se puede cambiar en
+  cualquier momento desde Settings, no solo en el onboarding. Backend:
+  migración `Profile.latitude/longitude` (nullable — `city` se reutiliza
+  como el nombre mostrado del sitio elegido, no hizo falta columna nueva),
+  `/discover` filtra por distancia real (Haversine en Rust, sin
+  PostGIS/earthdistance instalado) contra `preferences.distanceKm`; ni
+  viewer ni candidato sin coordenadas se ven afectados por el filtro (para
+  no vaciar discover mientras no todo el mundo haya puesto ubicación).
+  Coordenadas nunca salen al público (mismo criterio que `birthDate`→
+  `age`). `datagen` ahora pone coordenadas reales a los 10 perfiles falsos
+  (ya eran pueblos de la Costa del Sol). Sin enum de localidades — el
+  buscador escala a cualquier sitio del mundo. Verificado con checks +
+  curl contra el backend real (radio de 10km desde Málaga excluye
+  Fuengirola/Mijas, 50km los incluye) + `flutter build web --release`
+  limpio.
+- **Limpieza del header de Discovery (`fix/discovery-header-cleanup`, sin
+  mergear)** — se quitó el toggle "Tenis"/"Correr" y una fila
+  "Partner"/"Match" que no hacía nada (`isPartnerMode` se guardaba pero
+  nunca se leía en ningún lado). Discovery ahora es un único feed
+  implícito (tenis por defecto, igual que antes) con solo un título y el
+  ícono de filtros (todavía inerte, pendiente de la UI de preferencias de
+  arriba). Se borraron los dos widgets ya sin uso.
+- **Mapa de pistas de tenis, MVP (`feat/tennis-court-map`, sin mergear)** —
+  a propósito acotado ("poco a poco"): `flutter_map` + tiles de OSM (sin
+  API key), pistas reales cerca vía Overpass API (datos reales de
+  OpenStreetMap, `leisure=pitch`+`sport=tennis`), tocás una pista →
+  "Proponer partido" → elegís a cuál de tus matches → se manda un mensaje
+  al chat de ese match con el nombre de la pista + link a OSM. Reutiliza
+  `MatchesService`/`ChatService` tal cual, sin endpoint ni modelo de datos
+  nuevo para "propuestas" — esa es la frontera del MVP. Entrada: ícono
+  nuevo en la AppBar de Matches, no una 5ª pestaña del bottom nav. Sin
+  reservas/disponibilidad — eso es el issue #18 completo, mucho más
+  grande.
 - `.claude/settings.json` (commiteado, equipo entero): allowlist de
   permisos para que builds/tests/docker/git-local no interrumpan pidiendo
   aprobación — solo `git commit`/`push`/ops destructivas piden confirmación
@@ -82,9 +148,8 @@ no hace falta duplicarlo aquí.
 - **Sistema de rating/nivel** (Elo vs Glicko-2): pieza central del
   producto para emparejar por nivel, sin diseñar todavía — ni tabla, ni
   cómo lo usaría `discover`.
-- **Distancia real**: necesita guardar coordenadas (migración de schema) +
-  UI de ubicación en onboarding. Sin eso, `distanceKm` en preferencias no
-  tiene con qué compararse.
+- ~~**Distancia real**~~ — resuelto en `feat/manual-location` (ver
+  "Hecho"), pendiente de que la revises y mergees.
 - **Campo de género**: `Preferences.genderPreference` existe pero
   `Profile` no tiene ningún campo de género que filtrar — mismo problema
   que distancia, necesita schema + UI.
