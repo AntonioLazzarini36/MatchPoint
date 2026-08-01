@@ -80,6 +80,18 @@ fn years_ago(now: DateTime<Utc>, years: i32) -> DateTime<Utc> {
     }
 }
 
+/// Great-circle distance in km between two lat/lng points. No PostGIS/
+/// earthdistance extension set up, so this runs in Rust over an
+/// already-fetched candidate set rather than in the SQL query.
+fn haversine_km(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
+    const EARTH_RADIUS_KM: f64 = 6371.0;
+    let d_lat = (lat2 - lat1).to_radians();
+    let d_lng = (lng2 - lng1).to_radians();
+    let a = (d_lat / 2.0).sin().powi(2)
+        + lat1.to_radians().cos() * lat2.to_radians().cos() * (d_lng / 2.0).sin().powi(2);
+    EARTH_RADIUS_KM * 2.0 * a.sqrt().asin()
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DiscoverError {
     #[error("Database error: {0}")]
@@ -113,17 +125,32 @@ pub async fn discover(
         .load(&mut conn)
         .await?;
 
-    // `distance_km`/`gender_preference` aren't applied: profiles have no
-    // stored coordinates and no gender field to filter against yet
-    // (tracked separately — see status.md), so only age is enforceable
-    // today.
-    let age_range = preferences::table
+    // `gender_preference` still isn't applied — no gender field on
+    // `Profile` to filter against yet (tracked in status.md). `distance_km`
+    // *is* now applied, against the viewer's own hand-picked coordinates
+    // (see `me/dto.rs` — Hinge-style, not device GPS).
+    let prefs = preferences::table
         .filter(preferences::user_id.eq(current_user_id))
-        .select((preferences::age_min, preferences::age_max))
-        .first::<(i32, i32)>(&mut conn)
+        .select((
+            preferences::age_min,
+            preferences::age_max,
+            preferences::distance_km,
+        ))
+        .first::<(i32, i32, i32)>(&mut conn)
         .await
         .optional()?;
-    let (age_min, age_max) = age_range.unwrap_or((18, 60));
+    let (age_min, age_max, distance_km) = prefs.unwrap_or((18, 60, 25));
+
+    // No coordinates set -> nothing to filter by distance with, so every
+    // candidate passes regardless of `distance_km` (same "not enforceable
+    // yet for this viewer" spirit as the age fallback above).
+    let my_location = profiles::table
+        .filter(profiles::user_id.eq(current_user_id))
+        .select((profiles::latitude, profiles::longitude))
+        .first::<(Option<f64>, Option<f64>)>(&mut conn)
+        .await
+        .optional()?
+        .and_then(|(lat, lng)| lat.zip(lng));
 
     let now = Utc::now();
     // birth_date <= this means "at least age_min years old".
@@ -146,6 +173,12 @@ pub async fn discover(
         query = query.filter(profiles::sports.contains(vec![sport]));
     }
 
+    // When we'll need to filter by distance afterwards (in Rust, no
+    // PostGIS), fetch a larger candidate pool up front — otherwise the
+    // SQL-side LIMIT could hand us 20 rows that all get filtered out by
+    // distance and we'd return fewer results than actually exist.
+    let fetch_limit: i64 = if my_location.is_some() { 200 } else { 20 };
+
     let rows = query
         .select((
             profiles::user_id,
@@ -155,8 +188,10 @@ pub async fn discover(
             profiles::bio,
             profiles::photos,
             profiles::sports,
+            profiles::latitude,
+            profiles::longitude,
         ))
-        .limit(20)
+        .limit(fetch_limit)
         .load::<(
             String,
             String,
@@ -165,21 +200,41 @@ pub async fn discover(
             Option<String>,
             Vec<String>,
             Vec<Sport>,
+            Option<f64>,
+            Option<f64>,
         )>(&mut conn)
         .await?;
 
-    Ok(rows
+    let mut result: Vec<DiscoverProfile> = rows
         .into_iter()
+        .filter(|(_, _, _, _, _, _, _, lat, lng)| {
+            let Some((my_lat, my_lng)) = my_location else {
+                return true;
+            };
+            // A candidate who hasn't set a location yet isn't excluded —
+            // we simply can't tell whether they're in range, and punishing
+            // them for not having set a location would just empty out
+            // discover for everyone until the whole user base has.
+            let (Some(lat), Some(lng)) = (lat, lng) else {
+                return true;
+            };
+            haversine_km(my_lat, my_lng, *lat, *lng) <= distance_km as f64
+        })
         .map(
-            |(user_id, display_name, birth_date, city, bio, photos, sports)| DiscoverProfile {
-                user_id,
-                display_name,
-                age: age_from_birth_date(birth_date),
-                city,
-                bio,
-                photos,
-                sports,
+            |(user_id, display_name, birth_date, city, bio, photos, sports, _lat, _lng)| {
+                DiscoverProfile {
+                    user_id,
+                    display_name,
+                    age: age_from_birth_date(birth_date),
+                    city,
+                    bio,
+                    photos,
+                    sports,
+                }
             },
         )
-        .collect())
+        .collect();
+
+    result.truncate(20);
+    Ok(result)
 }

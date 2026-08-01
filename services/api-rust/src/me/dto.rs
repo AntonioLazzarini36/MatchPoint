@@ -12,8 +12,13 @@ use crate::models::Sport;
 pub struct UpdateProfileDto {
     pub display_name: Option<String>,
     pub birth_date: Option<String>, // "YYYY-MM-DD" o ISO, igual que en TS
+    /// Nombre mostrado del lugar elegido a mano (p.ej. "Málaga, España"),
+    /// estilo Hinge — no viene de GPS. Se manda junto a `latitude`/
+    /// `longitude`, elegidos en un buscador (Nominatim) en el cliente.
     pub city: Option<String>,
     pub bio: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     // Deliberately no `photos` here — photos are only ever managed through
     // POST/DELETE /me/photos, which enforce the MAX_PHOTOS cap and validate
     // the uploaded file. A `photos` field here would let a client overwrite

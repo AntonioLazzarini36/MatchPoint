@@ -4,6 +4,8 @@ class UpdateProfileRequest {
   final String? city;
   final String? bio;
   final List<String> sports;
+  final double? latitude;
+  final double? longitude;
 
   UpdateProfileRequest({
     required this.displayName,
@@ -11,6 +13,8 @@ class UpdateProfileRequest {
     this.city,
     this.bio,
     required this.sports,
+    this.latitude,
+    this.longitude,
   });
 
   // Photos are managed only via ProfileService.uploadPhoto/deletePhoto
@@ -22,5 +26,7 @@ class UpdateProfileRequest {
     'city': city,
     'bio': bio,
     'sports': sports,
+    'latitude': latitude,
+    'longitude': longitude,
   };
 }

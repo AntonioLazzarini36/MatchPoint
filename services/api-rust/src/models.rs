@@ -70,6 +70,11 @@ pub struct Profile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+    /// Hinge-style: typed/picked, not device GPS. Both null until the user
+    /// sets a location; `/discover`'s distance filter is skipped entirely
+    /// for a viewer or candidate without coordinates.
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -85,6 +90,8 @@ pub struct NewProfile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub updated_at: DateTime<Utc>,
 }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/location/location_result.dart';
 import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
 import '../models/profile.dart';
@@ -17,6 +18,43 @@ class ProfileService {
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('Profile update failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  /// Cambia la ubicación (Hinge-style, elegida a mano) en cualquier
+  /// momento, no solo en el onboarding — manda un PATCH parcial (solo
+  /// city/lat/lng) en vez de reusar `updateProfile`, que exige mandar
+  /// displayName/birthDate/sports también.
+  Future<void> updateLocation(LocationResult location) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {
+        'city': location.displayName,
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+      },
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UpdateLocation failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  /// Solo el radio de descubrimiento por ahora (`distanceKm`) — editar
+  /// edad/deportes/género buscados es una pantalla de filtros aparte, sin
+  /// alcance definido todavía (ver status.md).
+  Future<void> updateDiscoveryRadius(int distanceKm) async {
+    final res = await api.patch(
+      '/me/preferences',
+      body: {'distanceKm': distanceKm},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'UpdatePreferences failed: ${res.statusCode} ${res.body}',
+      );
     }
   }
 

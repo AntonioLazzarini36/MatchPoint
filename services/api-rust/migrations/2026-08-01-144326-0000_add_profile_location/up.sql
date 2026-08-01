@@ -1,0 +1,3 @@
+-- Your SQL goes here
+ALTER TABLE "Profile" ADD COLUMN latitude DOUBLE PRECISION;
+ALTER TABLE "Profile" ADD COLUMN longitude DOUBLE PRECISION;
