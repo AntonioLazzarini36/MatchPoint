@@ -138,7 +138,9 @@ struct AuthRejection(AuthError);
 impl IntoResponse for AuthRejection {
     fn into_response(self) -> axum::response::Response {
         let status = match &self.0 {
-            AuthError::EmailInUse => StatusCode::BAD_REQUEST,
+            AuthError::EmailInUse | AuthError::InvalidEmail | AuthError::InvalidPassword => {
+                StatusCode::BAD_REQUEST
+            }
             AuthError::InvalidCredentials
             | AuthError::MissingRefreshToken
             | AuthError::InvalidRefreshToken

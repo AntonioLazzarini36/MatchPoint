@@ -16,12 +16,16 @@ import '../../auth/services/auth_service.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
+import '../../discovery/models/skill_level.dart';
+import '../../discovery/models/sport.dart';
 
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_step_scaffold.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_skill_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 
 class _PickedPhoto {
   final Uint8List bytes;
@@ -50,16 +54,31 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
-  static const _totalPages = 4;
-  static const _photoStepIndex = 3;
+  static const _totalPages = 6;
+  static const _skillStepIndex = 1;
+  static const _photoStepIndex = 4;
+  static const _previewStepIndex = 5;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final Set<String> _selectedSports = {'Tenis', 'Correr'};
+  // Empieza vacío a propósito: con los dos marcados desde el arranque no
+  // quedaba claro qué habías elegido vos y qué no (feedback del usuario,
+  // 2026-08-02) — mejor forzar una elección explícita, validada abajo.
+  final Set<String> _selectedSports = {};
   String _goal = 'Jugar por nivel';
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
+
+  Map<Sport, SkillLevel> _skillLevels = {};
+  // Tenis: años jugando + club. Correr: ritmo/distancia media. Se
+  // muestran condicionalmente en OnboardingSkillStep según los deportes
+  // elegidos arriba — ver status.md, "Reposicionamiento de producto".
+  int? _yearsPlaying;
+  String _club = '';
+  double? _avgPaceMinPerKm;
+  double? _avgDistanceKm;
+  List<String> _achievements = [];
 
   final displayNameCtrl = TextEditingController();
   DateTime? birthDate;
@@ -106,6 +125,35 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     return _selectedSports.map(_sportToBackend).whereType<String>().toList();
   }
 
+  List<Sport> _sportsAsEnum() {
+    return _sportsForBackend().map(SportApi.fromApi).toList();
+  }
+
+  /// El paso de nivel/credenciales es el único realmente opcional del
+  /// wizard — en vez de escribir "(opcional)" en la pantalla, el botón
+  /// mismo dice "Saltar" mientras no haya nada cargado, y pasa a
+  /// "Siguiente" en cuanto tocás algo (feedback del usuario, 2026-08-02).
+  bool get _hasCredentialsFilled {
+    return _yearsPlaying != null ||
+        _club.isNotEmpty ||
+        _avgPaceMinPerKm != null ||
+        _avgDistanceKm != null ||
+        _achievements.isNotEmpty;
+  }
+
+  bool get _isSkillStepEmpty => _skillLevels.isEmpty && !_hasCredentialsFilled;
+
+  int? get _age {
+    final b = birthDate;
+    if (b == null) return null;
+    final now = DateTime.now();
+    var a = now.year - b.year;
+    final hadBirthday =
+        (now.month > b.month) || (now.month == b.month && now.day >= b.day);
+    if (!hadBirthday) a--;
+    return a;
+  }
+
   String _formatDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -123,6 +171,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     if (picked != null) setState(() => birthDate = picked);
   }
 
+  static const _maxDisplayNameLength = 30;
+  static const _maxClubLength = 60;
+  static const _maxAchievementLength = 80;
+
   Future<void> _goNextOrFinish() async {
     if (_currentPage == 0) {
       final name = displayNameCtrl.text.trim();
@@ -130,13 +182,38 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         controller.setError('Display name is required');
         return;
       }
+      if (name.length > _maxDisplayNameLength) {
+        controller.setError(
+          'El nombre no puede superar los $_maxDisplayNameLength caracteres',
+        );
+        return;
+      }
       if (birthDate == null) {
         controller.setError('Birth date is required');
         return;
       }
+      if (_selectedSports.isEmpty) {
+        controller.setError('Elige al menos un deporte');
+        return;
+      }
     }
 
-    if (_currentPage < _photoStepIndex) {
+    if (_currentPage == _skillStepIndex) {
+      if (_club.length > _maxClubLength) {
+        controller.setError(
+          'El club no puede superar los $_maxClubLength caracteres',
+        );
+        return;
+      }
+      if (_achievements.any((a) => a.length > _maxAchievementLength)) {
+        controller.setError(
+          'Cada logro no puede superar los $_maxAchievementLength caracteres',
+        );
+        return;
+      }
+    }
+
+    if (_currentPage < _previewStepIndex) {
       controller.setError(null);
       await _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -145,8 +222,11 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       return;
     }
 
-    // _currentPage == _photoStepIndex: el botón solo llega aquí activo si
-    // ya hay al menos 1 foto local (ver `onNext` en build()).
+    // _currentPage == _previewStepIndex: nada se manda al backend hasta
+    // este último paso — antes se creaba todo directo desde el paso de
+    // fotos, ahora hay un preview de por medio para que confirmes cómo
+    // se ve antes de que se cree de verdad (pedido del usuario,
+    // 2026-08-03).
     await _completeRegistration();
   }
 
@@ -193,6 +273,23 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       );
       await controller.service.updateProfile(req);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
+
+      final mySports = _sportsAsEnum().toSet();
+      final levelsForMySports = Map<Sport, SkillLevel>.fromEntries(
+        _skillLevels.entries.where((e) => mySports.contains(e.key)),
+      );
+      if (levelsForMySports.isNotEmpty) {
+        await controller.service.updateSkillLevels(levelsForMySports);
+      }
+      if (_hasCredentialsFilled) {
+        await controller.service.updateCredentials(
+          yearsPlaying: _yearsPlaying,
+          club: _club.isEmpty ? null : _club,
+          avgPaceMinPerKm: _avgPaceMinPerKm,
+          avgDistanceKm: _avgDistanceKm,
+          achievements: _achievements,
+        );
+      }
 
       for (final photo in _localPhotos) {
         await controller.service.uploadPhoto(
@@ -258,11 +355,50 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     });
   }
 
-  void _goBack() {
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  /// En la primera página, "atrás" ya no tiene otra página del wizard a
+  /// la que volver — significa abandonar el registro/onboarding entero,
+  /// así que confirma antes (pedido del usuario, 2026-08-03: es "cambiar
+  /// a otra lógica", no un simple paso atrás). En el resto de páginas
+  /// sigue siendo solo navegación normal dentro del wizard, sin preguntar
+  /// nada.
+  Future<void> _goBack() async {
+    if (_currentPage > 0) {
+      await _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Salir del registro?'),
+        content: const Text(
+          'Vas a volver a la pantalla de login/registro. Nada de lo que '
+          'completaste todavía se guardó — no se pierde ningún dato ya '
+          'creado, pero tendrás que volver a empezar el registro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true || !mounted) return;
+
+    // Por si esta pantalla se alcanzó ya logueado (cuenta a medias de un
+    // intento anterior, ver el comentario de `widget.email` arriba) —
+    // sin esto, `router.dart` redirige de vuelta a /onboarding en vez de
+    // dejar ver login/registro, porque sigue habiendo un token válido.
+    await TokenStorage.clear();
+    if (mounted) context.go(AppRoutes.onboardingAuth);
   }
 
   @override
@@ -285,7 +421,13 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               ? null
               : _goNextOrFinish,
           isLoading: controller.isLoading,
-          nextLabel: _currentPage == _photoStepIndex ? 'Comenzar' : 'Siguiente',
+          nextLabel: _currentPage == _previewStepIndex
+              ? 'Confirmar y crear perfil'
+              : _currentPage == _photoStepIndex
+              ? 'Ver preview'
+              : (_currentPage == _skillStepIndex && _isSkillStepEmpty
+                    ? 'Saltar'
+                    : 'Siguiente'),
           errorText: controller.error,
           child: PageView(
             controller: _pageController,
@@ -310,6 +452,26 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                   });
                 },
               ),
+              OnboardingSkillStep(
+                sports: _sportsAsEnum(),
+                skillLevels: _skillLevels,
+                onSkillLevelsChanged: (levels) =>
+                    setState(() => _skillLevels = levels),
+                yearsPlaying: _yearsPlaying,
+                onYearsPlayingChanged: (v) =>
+                    setState(() => _yearsPlaying = v),
+                club: _club,
+                onClubChanged: (v) => setState(() => _club = v),
+                avgPaceMinPerKm: _avgPaceMinPerKm,
+                onAvgPaceMinPerKmChanged: (v) =>
+                    setState(() => _avgPaceMinPerKm = v),
+                avgDistanceKm: _avgDistanceKm,
+                onAvgDistanceKmChanged: (v) =>
+                    setState(() => _avgDistanceKm = v),
+                achievements: _achievements,
+                onAchievementsChanged: (v) =>
+                    setState(() => _achievements = v),
+              ),
               OnboardingGoalStep(
                 goal: _goal,
                 onGoalChanged: (g) => setState(() => _goal = g),
@@ -327,6 +489,20 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 error: _photoError,
                 onAdd: _addOnboardingPhoto,
                 onDelete: _deleteOnboardingPhoto,
+              ),
+              OnboardingPreviewStep(
+                photos: _localPhotos.map((p) => p.bytes).toList(),
+                displayName: displayNameCtrl.text.trim(),
+                age: _age,
+                city: _selectedLocation?.displayName,
+                bio: _goal,
+                sports: _sportsAsEnum(),
+                skillLevels: _skillLevels,
+                yearsPlaying: _yearsPlaying,
+                club: _club.isEmpty ? null : _club,
+                avgPaceMinPerKm: _avgPaceMinPerKm,
+                avgDistanceKm: _avgDistanceKm,
+                achievements: _achievements,
               ),
             ],
           ),

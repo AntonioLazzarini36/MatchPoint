@@ -32,6 +32,10 @@ pub struct EmailAvailability {
 pub enum AuthError {
     #[error("Email already in use")]
     EmailInUse,
+    #[error("Email inválido")]
+    InvalidEmail,
+    #[error("La contraseña debe tener entre 8 y 72 caracteres")]
+    InvalidPassword,
     #[error("Invalid credentials")]
     InvalidCredentials,
     #[error("Missing refresh token")]
@@ -61,6 +65,25 @@ pub enum AuthError {
 /// window covers the whole thing and different tokens can't collide.
 fn refresh_token_digest(refresh_token: &str) -> String {
     STANDARD.encode(Sha256::digest(refresh_token.as_bytes()))
+}
+
+/// Not full RFC 5322 — just enough to reject obviously malformed input
+/// (empty, no `@`, no `.` in the domain, whitespace) before it ever
+/// touches the DB or bcrypt. The client already checks `contains('@')`,
+/// but that's trivially bypassable by calling the API directly, so the
+/// same floor needs to exist here too.
+fn is_valid_email(email: &str) -> bool {
+    if email.is_empty() || email.len() > 254 || email.contains(' ') {
+        return false;
+    }
+    let Some((local, domain)) = email.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !domain.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
 }
 
 async fn issue_tokens(
@@ -136,6 +159,18 @@ pub async fn email_available(state: &AppState, email: &str) -> Result<bool, Auth
 pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, AuthError> {
     let email = dto.email.trim().to_lowercase();
 
+    if !is_valid_email(&email) {
+        return Err(AuthError::InvalidEmail);
+    }
+    // Bcrypt only ever looks at the first 72 bytes of its input (see the
+    // rotation-bug comment on `refresh_token_digest` above) — a longer
+    // password wouldn't be a vulnerability exactly, but it would
+    // silently hash to the same thing as its first 72 bytes, which is
+    // confusing enough to just reject outright.
+    if !(8..=72).contains(&dto.password.len()) {
+        return Err(AuthError::InvalidPassword);
+    }
+
     let mut conn = state
         .db
         .get()
@@ -192,6 +227,11 @@ pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, 
                         // flow already makes right after registering.
                         latitude: None,
                         longitude: None,
+                        years_playing: None,
+                        club: None,
+                        achievements: vec![],
+                        avg_pace_min_per_km: None,
+                        avg_distance_km: None,
                         updated_at: Utc::now(),
                     })
                     .execute(conn)

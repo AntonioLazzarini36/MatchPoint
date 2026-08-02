@@ -8,7 +8,7 @@ use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 
-use crate::discover::service::{age_from_birth_date, DiscoverProfile};
+use crate::discover::service::{age_from_birth_date, fetch_skill_levels, DiscoverProfile};
 use crate::models::NewReport;
 use crate::schema::{profiles, reports};
 use crate::state::AppState;
@@ -19,6 +19,8 @@ pub enum UsersError {
     ProfileNotFound,
     #[error("Cannot report yourself")]
     CannotTargetSelf,
+    #[error("Reason must be between 1 and 1000 characters")]
+    InvalidReason,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -42,6 +44,11 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
             profiles::bio,
             profiles::photos,
             profiles::sports,
+            profiles::years_playing,
+            profiles::club,
+            profiles::achievements,
+            profiles::avg_pace_min_per_km,
+            profiles::avg_distance_km,
         ))
         .first::<(
             String,
@@ -51,12 +58,31 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
             Option<String>,
             Vec<String>,
             Vec<crate::models::Sport>,
+            Option<i32>,
+            Option<String>,
+            Vec<String>,
+            Option<f64>,
+            Option<f64>,
         )>(&mut conn)
         .await
         .optional()?
         .ok_or(UsersError::ProfileNotFound)?;
 
-    let (user_id, display_name, birth_date, city, bio, photos, sports) = row;
+    let (
+        user_id,
+        display_name,
+        birth_date,
+        city,
+        bio,
+        photos,
+        sports,
+        years_playing,
+        club,
+        achievements,
+        avg_pace_min_per_km,
+        avg_distance_km,
+    ) = row;
+    let skill_levels = fetch_skill_levels(&mut conn, &user_id).await?;
 
     Ok(DiscoverProfile {
         user_id,
@@ -66,6 +92,12 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         bio,
         photos,
         sports,
+        years_playing,
+        club,
+        avg_pace_min_per_km,
+        avg_distance_km,
+        achievements,
+        skill_levels,
     })
 }
 
@@ -80,6 +112,9 @@ pub async fn report_user(
 ) -> Result<(), UsersError> {
     if reporter_id == reported_id {
         return Err(UsersError::CannotTargetSelf);
+    }
+    if reason.trim().is_empty() || reason.chars().count() > 1000 {
+        return Err(UsersError::InvalidReason);
     }
 
     let mut conn = state

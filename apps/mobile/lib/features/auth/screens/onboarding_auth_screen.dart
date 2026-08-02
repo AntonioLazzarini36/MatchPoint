@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import 'package:match_point/core/network/api.dart';
+import 'package:match_point/core/ui/widgets/app_logo_placeholder.dart';
 import '../auth_controller.dart';
 import '../models/register_request.dart';
 import '../services/auth_service.dart';
@@ -117,6 +118,8 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Center(child: AppLogoPlaceholder(size: 64)),
+                const SizedBox(height: 20),
                 Text(
                   isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta',
                   style: t.headlineSmall,
@@ -173,6 +176,19 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
 
                           if (isLogin) {
                             await _submitLogin(email, pass);
+                            return;
+                          }
+
+                          if (pass.length < 8) {
+                            controller.setError(
+                              'La contraseña debe tener al menos 8 caracteres',
+                            );
+                            return;
+                          }
+                          if (pass.length > 72) {
+                            controller.setError(
+                              'La contraseña no puede superar los 72 caracteres',
+                            );
                             return;
                           }
 

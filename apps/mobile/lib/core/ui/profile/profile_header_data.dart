@@ -1,3 +1,4 @@
+import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
 
 class ProfileHeaderData {
@@ -8,6 +9,15 @@ class ProfileHeaderData {
   final List<String> photos;
   final List<Sport> sports;
 
+  /// Señales de confianza + nivel auto-declarado — ver status.md,
+  /// "Reposicionamiento de producto".
+  final Map<Sport, SkillLevel> skillLevels;
+  final int? yearsPlaying;
+  final String? club;
+  final List<String> achievements;
+  final double? avgPaceMinPerKm;
+  final double? avgDistanceKm;
+
   const ProfileHeaderData({
     required this.displayName,
     required this.photos,
@@ -15,6 +25,12 @@ class ProfileHeaderData {
     this.age,
     this.city,
     this.bio,
+    this.skillLevels = const {},
+    this.yearsPlaying,
+    this.club,
+    this.achievements = const [],
+    this.avgPaceMinPerKm,
+    this.avgDistanceKm,
   });
 
   String get title {

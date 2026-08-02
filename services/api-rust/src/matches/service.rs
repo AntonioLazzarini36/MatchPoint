@@ -16,7 +16,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::chats::crypto;
-use crate::discover::service::DiscoverProfile;
+use crate::discover::service::{fetch_skill_levels, DiscoverProfile};
 use crate::models::Profile;
 use crate::schema::{matches, messages, profiles};
 use crate::state::AppState;
@@ -123,6 +123,7 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
             .first::<Profile>(&mut conn)
             .await
             .optional()?;
+        let other_skill_levels = fetch_skill_levels(&mut conn, &other_id).await?;
 
         let last_message_row = messages::table
             .filter(messages::match_id.eq(&match_id))
@@ -157,7 +158,10 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
             created_at,
             other_user: OtherUserWithProfile {
                 user_id: other_id,
-                profile: other_profile.map(DiscoverProfile::from),
+                profile: other_profile.map(|p| DiscoverProfile {
+                    skill_levels: other_skill_levels,
+                    ..DiscoverProfile::from(p)
+                }),
             },
             me: UserWithProfile {
                 user_id: me_id,

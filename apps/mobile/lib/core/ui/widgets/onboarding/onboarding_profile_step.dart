@@ -23,14 +23,17 @@ class OnboardingProfileStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Tu perfil', style: t.headlineMedium),
           const SizedBox(height: 8),
-          Text('Dinos quien eres.', style: t.bodyLarge),
+          Text(
+            'Esto es lo que va a ver el resto de la gente en tu perfil.',
+            style: t.bodyLarge,
+          ),
           const SizedBox(height: 24),
 
           TextField(
@@ -51,47 +54,131 @@ class OnboardingProfileStep extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          Text('Deportes', style: t.titleMedium),
+          Text('¿A qué deporte juegas?', style: t.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Elege uno o los dos — esto decide a quién ves en Discovery y '
+            'quién te ve a ti.',
+            style: t.bodySmall,
+          ),
           const SizedBox(height: 12),
 
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          Row(
             children: [
-              _sportChip(
-                label: 'Tenis',
-                icon: Icons.sports_tennis,
-                selected: selectedSports.contains('Tenis'),
-                onChanged: (v) => onSportToggle('Tenis', v),
+              Expanded(
+                child: _SportCard(
+                  label: 'Tenis',
+                  icon: Icons.sports_tennis,
+                  selected: selectedSports.contains('Tenis'),
+                  onTap: () => onSportToggle(
+                    'Tenis',
+                    !selectedSports.contains('Tenis'),
+                  ),
+                ),
               ),
-              _sportChip(
-                label: 'Correr',
-                icon: Icons.directions_run,
-                selected: selectedSports.contains('Correr'),
-                onChanged: (v) => onSportToggle('Correr', v),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _SportCard(
+                  label: 'Correr',
+                  icon: Icons.directions_run,
+                  selected: selectedSports.contains('Correr'),
+                  onTap: () => onSportToggle(
+                    'Correr',
+                    !selectedSports.contains('Correr'),
+                  ),
+                ),
               ),
             ],
           ),
+          if (selectedSports.isEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Elige al menos un deporte para continuar.',
+              style: t.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
 
-  Widget _sportChip({
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return FilterChip(
-      label: Text(label),
-      avatar: Icon(icon, size: 18),
-      selected: selected,
-      onSelected: onChanged,
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+/// Tarjeta grande de sí/no por deporte — a propósito mucho más notoria
+/// que un `FilterChip` chico: color de fondo + borde + check cuando está
+/// seleccionado, en vez de solo un cambio sutil de color, porque en la
+/// versión anterior no quedaba claro cuál estaba elegido (feedback del
+/// usuario, 2026-08-02).
+class _SportCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SportCard({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+
+    return Material(
+      color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? scheme.primary : scheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    icon,
+                    size: 32,
+                    color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+                  ),
+                  if (selected)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 18,
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: t.titleSmall?.copyWith(
+                  color: selected ? scheme.onPrimary : scheme.onSurface,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -22,11 +22,13 @@ Ramas vivas ahora mismo, aparte del trunk:
   feed se arma por cada deporte del propio perfil y se unen los
   resultados; agrega también una fila "Deportes" en Settings (antes no
   existía forma de cambiar tus deportes después del onboarding).
-- **`feat/skill-level-and-credentials`** — en curso (arrancada
-  2026-08-02, sin mergear todavía). Ver "Reposicionamiento de producto"
-  más abajo para el contexto completo — nivel auto-declarado por
-  deporte + credenciales (años jugando, club, logros) + onboarding/
-  Discovery menos abruptos.
+- **`feat/skill-level-and-credentials`** — ✅ hecha, verificada
+  (fmt/clippy/build/test backend, analyze/test mobile, probada en vivo en
+  Chrome), **pusheada a origin, sin mergear** en `feature/rust-backend`
+  (igual que la de arriba, mergeo pendiente de tu decisión). Ver "Hecho"
+  y "Reposicionamiento de producto" más abajo para el detalle completo —
+  nivel auto-declarado por deporte + credenciales (años jugando, club,
+  logros) + banner de bienvenida en Discovery.
 - **`redesign/ui-overhaul`** — creada, sin empezar. Rediseño general de la
   UI. Falta definir alcance/estilo (¿pantalla por pantalla con mockups como
   hicimos con Settings, o carta blanca?).
@@ -191,6 +193,188 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   permisos para que builds/tests/docker/git-local no interrumpan pidiendo
   aprobación — solo `git commit`/`push`/ops destructivas piden confirmación
   siempre (nunca se auto-aprueban, pero se pueden aprobar).
+- **`fix/discovery-sports-selection` (2026-08-02, ✅ commiteada y
+  pusheada, sin mergear)** — `DiscoveryController` respeta ahora los
+  deportes reales del usuario (antes fijo en tenis); fila "Deportes" en
+  Settings para poder cambiarlos después del onboarding.
+- **Nivel auto-declarado + credenciales, `feat/skill-level-and-credentials`
+  (2026-08-02, ✅ commiteada y pusheada, sin mergear)** — primera mitad
+  del "Reposicionamiento de producto" de abajo. Backend: tabla nueva
+  `SkillLevel` (una fila por `userId`+`sport`, enum
+  `BEGINNER/INTERMEDIATE/ADVANCED/COMPETITIVE`, no ligado a `Profile`
+  porque el nivel es por deporte, no global) + columnas
+  `yearsPlaying`/`club`/`achievements` en `Profile`. Nuevo
+  `PATCH /me/skill-levels` (upsert por deporte, no toca los que no vienen
+  en el body); `PATCH /me/profile` extendido con las credenciales.
+  Expuesto en `/me`, `/discover`, `/users/:userId/profile` y el lado
+  `otherUser` de `/matches` — mismo nivel de visibilidad que `bio`/
+  `sports` (público, no tan privado como `birthDate`). `datagen` siembra
+  nivel+credenciales realistas por perfil falso (Diego "competitivo,
+  club, 2 logros", Andrea "principiante", etc.) para tener datos reales
+  al probar. Móvil: paso nuevo de onboarding ("Tu nivel", entre Perfil y
+  Objetivo — chips de nivel por deporte + años/club/logros, todo
+  opcional, no bloquea "Siguiente"); filas "Nivel"/"Credenciales" en
+  Settings (mismo patrón que Ubicación/Radio); badge de nivel en la
+  esquina de la mini-card de Discovery, sección "Experiencia" en el
+  preview sheet y en `ProfileView` (compartida entre perfil propio y
+  perfil público de otros). Además, banner de bienvenida de Discovery
+  ("Encontrá tu compañero de juego..."), mostrado una sola vez (flag en
+  `flutter_secure_storage`, no un paquete nuevo) — ver
+  "Reposicionamiento de producto" más abajo, punto 3. Verificado:
+  fmt/clippy/build/test backend en verde, migración corrida contra la DB
+  real, curl end-to-end (`/me`, `/discover`, `PATCH /me/skill-levels`)
+  con datos reales; analyze/test mobile en verde; probado en vivo en
+  Chrome (onboarding hasta el paso de fotos, Settings con datos reales de
+  Diego, Discovery con badges de nivel y preview con Experiencia).
+  **Deliberadamente no tocado en esta rama**: el mecanismo de swipe y el
+  lenguaje "Match"/corazón (punto 4 del reposicionamiento) — se solapa
+  con `redesign/ui-overhaul`, sin alcance definido, así que hacerlo a
+  ciegas hubiera sido tirar trabajo.
+- **Pulido de onboarding tras feedback en vivo (2026-08-02, misma rama
+  `feat/skill-level-and-credentials`)** — probaste el paso de deportes y
+  volviste con cuatro pedidos concretos, todos hechos:
+  - El paso de "Tu perfil" arrancaba con Tenis **y** Correr ya marcados
+    los dos, así que tocar un chip lo *sacaba* — se leía como "estoy
+    borrando algo", no "estoy eligiendo". Ahora arranca sin nada
+    marcado (`OnboardingProfileScreen._selectedSports = {}`), valida
+    que elijas al menos uno antes de "Siguiente", y el chip de deporte
+    se rediseñó como tarjeta grande (ícono + check + fondo sólido
+    `primary` cuando está seleccionado, borde neutro si no) en vez del
+    `FilterChip` chico de antes — mucho más difícil de leer mal.
+  - Las credenciales ahora dependen del deporte: si jugás al tenis ves
+    años jugando + club (como antes); si corrés ves ritmo medio
+    (min/km) y distancia media (km) en su lugar; si jugás ambos, ves
+    los cuatro campos. Logros/torneos es compartido, sea cual sea el
+    deporte. Nuevas columnas `Profile.avgPaceMinPerKm`/`avgDistanceKm`
+    (mismo patrón que `yearsPlaying`/`club`: nullable, expuestas en
+    `/me`/`/discover`/`/users/:userId/profile`/`otherUser` de
+    `/matches`). Mismo patrón condicional en el paso de onboarding y en
+    la fila "Credenciales" de Settings.
+  - "Credenciales (opcional)" se sacó del texto — en vez de escribirlo,
+    el botón del wizard dice "Saltar" mientras no hayas tocado nada en
+    ese paso (ni nivel, ni ningún campo de credenciales) y pasa solo a
+    "Siguiente" en cuanto cargás algo. Autoexplicativo, sin texto extra.
+  - El recuadro "Elegir ubicación" del onboarding ahora muestra un mapa
+    chico (`flutter_map`, mismo patrón que el mapa de clubes) con un
+    pin en el sitio elegido, una vez que elegís uno — sin círculo de
+    radio, se descartó a propósito por ser complejidad extra para poco
+    beneficio visual a ese tamaño.
+  - De paso, más texto explicando el "para qué" en varios pasos del
+    wizard (perfil, deportes, ubicación) — no solo en el paso de
+    deportes que motivó el pedido.
+  Verificado: fmt/clippy/build/test backend en verde, migración corrida,
+  curl end-to-end contra `/me` con datos reales de ritmo/distancia;
+  analyze/test mobile en verde. Sin prueba visual en vivo esta vuelta —
+  la extensión de Chrome no estaba conectada en el momento; vos ibas a
+  probarlo de todos modos.
+- **Dos bugs reales de esa prueba en vivo (2026-08-02, misma rama),
+  arreglados:**
+  - **Mapa del paso de ubicación no se recentraba.** Al elegir una
+    ubicación nueva, el pin se movía a las coordenadas correctas pero
+    la cámara del mapa se quedaba en el sitio anterior — el pin quedaba
+    fuera de la vista, así que se veía "el mapa de antes, sin pin".
+    Causa: `flutter_map`'s `MapOptions.initialCenter` solo se aplica al
+    montar el widget la primera vez, no en cada rebuild; sin nada que
+    lo forzara a remontar, la cámara nunca se movía tras el primer
+    render. Arreglado dándole al `FlutterMap` una `key` atada a las
+    coordenadas (`onboarding_location_step.dart`) — al cambiar la
+    ubicación, cambia la key, y Flutter remonta el mapa entero, que
+    vuelve a centrar solo.
+  - **Los campos de ritmo/distancia/años/club "saltaban" de campo
+    mientras escribías, y no dejaban escribir ":" en el ritmo.** Causa
+    de fondo: `OnboardingSkillStep` usaba
+    `TextFormField(initialValue: ..., key: ValueKey('campo-$valor'))`
+    — como `$valor` es justo el valor que se actualiza en cada
+    pulsación (vía `onChanged` → `setState` en el padre), la `key`
+    cambiaba en cada tecla, así que Flutter destruía y recreaba el
+    campo en cada pulsación: perdía el foco a mitad de escribir y (en
+    web) el navegador lo movía al siguiente campo enfocable. Arreglado
+    convirtiendo `OnboardingSkillStep` a `StatefulWidget` con
+    `TextEditingController`s creados una sola vez en `initState`, sin
+    key dependiente del valor — mismo patrón que ya usaba
+    correctamente `_CredentialsSheet` en Settings (por eso ese no tenía
+    el bug). De paso, el ritmo ahora se escribe y se muestra como
+    "min:seg" (`4:30`) en vez de decimal (`4.5`), que es como la gente
+    que corre piensa su ritmo de verdad — nuevo helper compartido
+    `core/utils/pace_format.dart` (`parsePaceMinPerKm`/
+    `formatPaceMinPerKm`, acepta también decimal por si acaso) usado en
+    onboarding, Settings, preview de Discovery y `ProfileView`. El
+    dato en el backend no cambió — sigue siendo minutos decimales
+    (`Profile.avgPaceMinPerKm`), el formato "min:seg" es solo cosa del
+    cliente.
+  Verificado: analyze/test mobile en verde.
+- **Tres pedidos más + pasada de hardening de inputs (2026-08-03, misma
+  rama):**
+  - **Volver atrás desde el primer paso del onboarding ahora sale al
+    login/registro, con confirmación.** Antes la flecha "atrás" se
+    ocultaba del todo en la primera página (no había a dónde volver);
+    ahora siempre está, y en la primera página pregunta "¿Salir del
+    registro?" antes de mandarte a `/onboarding-auth` — limpia el token
+    guardado primero (`TokenStorage.clear()`) para que, si veniste de
+    una cuenta a medias ya logueada, el router no te rebote de vuelta a
+    `/onboarding` (esa regla de redirect existe para gente con perfil
+    incompleto). En el resto de páginas, "atrás" sigue siendo solo
+    navegación normal del wizard, sin preguntar nada.
+  - **Nuevo paso de preview antes de crear el perfil de verdad.** El
+    wizard pasó de 5 a 6 páginas: después de "Sube tus fotos" (que ya
+    no crea nada al tocar su botón, solo avanza) hay una página "Así te
+    van a ver" con foto, nombre+edad, ciudad, deportes+nivel, bio y
+    credenciales — construida con fotos locales (`Image.memory`, no se
+    suben todavía) y los mismos bloques visuales que el preview de
+    Discovery. El botón "Confirmar y crear perfil" de esa página es el
+    que de verdad dispara `_completeRegistration()` (registro + perfil
+    + nivel + credenciales + subida de fotos), no el de fotos como
+    antes.
+  - **Placeholder de logo** en Welcome y en la pantalla de login/
+    registro — no hay un logo real todavía, así que es un círculo
+    dibujado con ícono (`AppLogoPlaceholder`, fácil de cambiar por
+    `Image.asset` el día que haya un logo de verdad). Pedido explícito
+    de que esas pantallas se sentían "frías".
+  - **Pasada de hardening en todos los inputs nuevos y varios viejos**
+    (pedido explícito: "no dejar vulnerabilidades ni opción a poner
+    letras... donde se esperan números"):
+    - Cliente: `inputFormatters` en años jugando/ritmo/distancia media
+      (solo dígitos, o dígitos+`:`+`.` según el campo) en el paso de
+      nivel del onboarding y en Settings; `maxLength` en club (100),
+      logros (200, tope de 20 logros), nombre mostrado (50), email
+      (254) y contraseña (72).
+    - Backend: nuevas validaciones de rango/longitud en
+      `me/service.rs` (`validate_profile_dto`/`validate_preferences_dto`,
+      nuevo `MeError::InvalidInput`, mapeado a 400) — nombre 1-50,
+      bio ≤500, ciudad ≤200, lat/lng dentro de rango real, años
+      jugando 0-100, club ≤100, hasta 20 logros de ≤200 caracteres
+      cada uno, ritmo 1-30 min/km, distancia 0-500km, radio 1-300km,
+      edad 18-100, y `ageMin <= ageMax` chequeado *después* de mezclar
+      con el valor ya guardado (por si el PATCH solo toca uno de los
+      dos). Además, motivo de reporte 1-1000 caracteres
+      (`UsersError::InvalidReason`, antes sin ningún límite). Y en
+      registro: email con un chequeo básico de formato (antes solo lo
+      validaba el cliente, trivial de saltarse llamando a la API
+      directo) y contraseña 8-72 caracteres (72 porque bcrypt trunca
+      ahí — antes no había mínimo en absoluto, se podía registrar con
+      una contraseña de un solo carácter).
+  Verificado: fmt/clippy/build/test backend en verde; curl contra el
+  backend real confirmando que cada validación nueva rechaza lo que
+  tiene que rechazar y sigue aceptando lo válido (contraseña corta,
+  email inválido, años jugando fuera de rango, ritmo negativo, string
+  donde se espera número, ageMin > ageMax); analyze/test mobile en
+  verde.
+- **Corrección sobre el hardening anterior (2026-08-03, misma rama):**
+  el `maxLength` de Flutter dibuja un contador "X/Y caracteres" debajo
+  del campo — feedback del usuario: eso es ruido visual innecesario, y
+  de paso los límites elegidos eran más largos de lo necesario. Se
+  sacó `maxLength` de club, logros, nombre mostrado, email y
+  contraseña (así desaparece el contador) y se acortaron los topes:
+  nombre 30 (antes 50), club 60 (antes 100), cada logro 80 (antes 200),
+  máximo 10 logros (antes 20) — contraseña se deja en 72 porque es un
+  límite técnico real de bcrypt, no una preferencia de UX. La
+  validación de longitud se sigue haciendo igual, pero solo al
+  intentar avanzar/guardar/añadir un logro, mostrando un mensaje de
+  error normal (mismo patrón que "Elige al menos un deporte") en vez
+  de un contador permanente. Los campos numéricos (años/ritmo/
+  distancia) no llevaban `maxLength` desde el principio — ya usaban
+  `inputFormatters` para restringir caracteres, sin contador visible;
+  no hizo falta tocarlos. Verificado: analyze/test mobile en verde.
 
 ## Pendiente / próximos pasos
 
@@ -201,9 +385,12 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   no existe ninguna pantalla ni modelo en el móvil para esto. El backend ya
   filtra por edad (`/discover`), pero no hay forma de cambiarla desde la
   app fuera del registro. Necesita diseño, no lo inventé.
-- **Sistema de rating/nivel** (Elo vs Glicko-2): pieza central del
-  producto para emparejar por nivel, sin diseñar todavía — ni tabla, ni
-  cómo lo usaría `discover`.
+- **Rating calculado** (Elo vs Glicko-2), a partir de resultados de
+  partidos reales — el nivel *auto-declarado* por deporte ya existe
+  (`feat/skill-level-and-credentials`, ver "Hecho"), esto es la parte
+  larga/pendiente: no hay ningún flujo para cargar el resultado de un
+  partido jugado, ni tabla para guardarlo, ni cómo lo usaría `discover`
+  para emparejar.
 - ~~**Distancia real**~~ — resuelto en `feat/manual-location` (ver
   "Hecho"), pendiente de que la revises y mergees.
 - **Campo de género**: `Preferences.genderPreference` existe pero
@@ -420,32 +607,34 @@ es esto ni por qué estás viendo caras.
 **Diagnóstico (mío) de qué falta para esa experiencia, en orden de
 prioridad:**
 
-1. **No hay ningún concepto de nivel/habilidad en el modelo de datos.**
-   `Profile` no tiene ningún campo de nivel, y no existe ningún registro
+1. **No había ningún concepto de nivel/habilidad en el modelo de datos.**
+   `Profile` no tenía ningún campo de nivel, y no existe ningún registro
    de resultados de partidos, así que tampoco hay de dónde calcular un
    rating real más adelante. Dos pasos, no uno:
-   - Corto plazo: nivel auto-declarado por deporte (no un único nivel
-     global — alguien puede ser avanzado en tenis y principiante
-     corriendo). Barato, desbloquea "busco gente de mi nivel" ya.
+   - ✅ **Hecho** (`feat/skill-level-and-credentials`) — corto plazo:
+     nivel auto-declarado por deporte (no un único nivel global —
+     alguien puede ser avanzado en tenis y principiante corriendo).
      Auto-declarado significa que se puede inflar, es una limitación
      conocida y aceptada por ahora.
-   - Largo plazo: rating calculado (Elo/Glicko, ya estaba en el backlog
-     de "Próximos pasos" del README) alimentado por resultados de
-     partidos reales — necesita un flujo de "cargar el resultado" que
-     hoy no existe ni como concepto. Se deja para después, no bloquea el
-     campo auto-declarado.
-2. **No hay nada que genere confianza más allá de una foto y un bio
-   libre.** Para el "ha jugado estos torneos que conozco": agregar campos
-   estructurados (años jugando, club, torneos/logros) en vez de esperar
-   que la gente lo escriba a mano en el bio y confiar en que alguien lo
-   lea. Tiene que verse en el preview del perfil, no escondido.
-3. **El onboarding no marca el tono, y Discovery tampoco.** Hoy el
-   onboarding pide nombre/fecha de nacimiento/deporte/ubicación y te
-   tira directo al swipe deck — no hay un momento de "esto es para qué"
-   ni se pregunta intención (¿buscás compañero casual, entrenamiento
-   serio, competitivo?) ni el nivel nuevo. Agregar eso al onboarding, y
-   pensar una primera pantalla de Discovery más suave (explicación breve
-   la primera vez) en vez de tarjetas sin contexto.
+   - **Sigue pendiente** — largo plazo: rating calculado (Elo/Glicko, ya
+     estaba en el backlog de "Próximos pasos" del README) alimentado por
+     resultados de partidos reales — necesita un flujo de "cargar el
+     resultado" que hoy no existe ni como concepto. No bloquea el campo
+     auto-declarado, que ya está en producción.
+2. **✅ Hecho** (`feat/skill-level-and-credentials`) — no había nada que
+   generara confianza más allá de una foto y un bio libre. Para el "ha
+   jugado estos torneos que conozco": se agregaron campos estructurados
+   (años jugando, club, torneos/logros), visibles en el preview del
+   perfil, no escondidos en el bio.
+3. **Parcialmente hecho.** El onboarding no marcaba el tono, y Discovery
+   tampoco — se entraba directo al swipe deck sin explicación. ✅ Se
+   agregó el paso de nivel/credenciales al onboarding y un banner
+   explicativo (dismissible, una sola vez) al entrar a Discovery por
+   primera vez. **Sigue sin hacerse:** no se agregó una pregunta de
+   intención explícita nueva (el paso "¿Cuál es tu objetivo?" que ya
+   existía — Jugar por nivel/Conocer gente/Ambos — se dejó tal cual, se
+   consideró suficiente por ahora en vez de agregar una segunda pregunta
+   redundante).
 4. **Reconsiderar el mecanismo de swipe y el lenguaje ("Match", corazón)
    — no urgente, no arrancado.** Todo eso se construyó a propósito
    imitando apps de citas. Si el objetivo real es "che, jugás a mi nivel,
@@ -456,9 +645,11 @@ prioridad:**
    trabajo de esta sesión a propósito, documentado acá para cuando se
    hable de esa rama.
 
-**Se me pidió arrancar los puntos 1-3 sin pausas.** Rama
-`feat/skill-level-and-credentials` (ver "Ramas vivas" arriba). El punto 4
-queda fuera, deliberadamente, por lo dicho arriba.
+**Se me pidió arrancar los puntos 1-3 sin pausas — ✅ hecho.** Rama
+`feat/skill-level-and-credentials` (ver "Ramas vivas" y "Hecho" arriba),
+pusheada, sin mergear. El punto 4 queda fuera, deliberadamente, por lo
+dicho arriba — y dentro de 1-3, el rating calculado (parte larga del
+punto 1) también queda fuera, ver el punto en sí.
 
 ## Notas del entorno local
 

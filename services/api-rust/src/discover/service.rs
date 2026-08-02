@@ -8,17 +8,75 @@
 //! which gives the same end result as the `.filter((u) => u.profile)` in
 //! the TS version.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Datelike, Utc};
 use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel::PgArrayExpressionMethods;
+use diesel_async::AsyncPgConnection;
 use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::models::Sport;
-use crate::schema::{preferences, profiles, swipes};
+use crate::models::{SkillLevel, Sport};
+use crate::schema::{preferences, profiles, skill_levels, swipes};
 use crate::state::AppState;
+
+/// One self-reported level for one sport — see `models::SkillLevel` and
+/// status.md for why this isn't a computed rating yet.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillLevelEntry {
+    pub sport: Sport,
+    pub level: SkillLevel,
+}
+
+/// Every level a user has set, across all their sports. Shared by
+/// `discover`, `users::service::get_profile`, and the "other side" of a
+/// match — anywhere a `DiscoverProfile` is built for someone other than
+/// the caller.
+pub async fn fetch_skill_levels(
+    conn: &mut AsyncPgConnection,
+    user_id: &str,
+) -> Result<Vec<SkillLevelEntry>, diesel::result::Error> {
+    let rows = skill_levels::table
+        .filter(skill_levels::user_id.eq(user_id))
+        .select((skill_levels::sport, skill_levels::level))
+        .load::<(Sport, SkillLevel)>(conn)
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|(sport, level)| SkillLevelEntry { sport, level })
+        .collect())
+}
+
+/// Same as `fetch_skill_levels` but batched for many users at once — used
+/// by `discover`, which would otherwise do one extra query per candidate.
+async fn fetch_skill_levels_for(
+    conn: &mut AsyncPgConnection,
+    user_ids: &[String],
+) -> Result<HashMap<String, Vec<SkillLevelEntry>>, diesel::result::Error> {
+    let rows = skill_levels::table
+        .filter(skill_levels::user_id.eq_any(user_ids))
+        .select((
+            skill_levels::user_id,
+            skill_levels::sport,
+            skill_levels::level,
+        ))
+        .load::<(String, Sport, SkillLevel)>(conn)
+        .await?;
+
+    let mut by_user: HashMap<String, Vec<SkillLevelEntry>> = HashMap::new();
+    for (user_id, sport, level) in rows {
+        by_user
+            .entry(user_id)
+            .or_default()
+            .push(SkillLevelEntry { sport, level });
+    }
+    Ok(by_user)
+}
 
 /// Shape sent back to the client. Field names are camelCase on purpose —
 /// this has to match discover.service.ts's return shape exactly, since
@@ -40,6 +98,20 @@ pub struct DiscoverProfile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+    /// Structured trust signals — same visibility tier as `bio`/`sports`
+    /// (public to anyone who can see this profile at all), not as private
+    /// as exact `birth_date`.
+    pub years_playing: Option<i32>,
+    pub club: Option<String>,
+    pub achievements: Vec<String>,
+    pub avg_pace_min_per_km: Option<f64>,
+    pub avg_distance_km: Option<f64>,
+    /// Self-reported, one entry per sport the user plays. Empty when
+    /// `DiscoverProfile` is built via `From<Profile>` without a DB
+    /// connection on hand — callers that need it populated (discover,
+    /// users::get_profile, matches list) fetch it separately and
+    /// overwrite this field.
+    pub skill_levels: Vec<SkillLevelEntry>,
 }
 
 impl From<crate::models::Profile> for DiscoverProfile {
@@ -52,6 +124,12 @@ impl From<crate::models::Profile> for DiscoverProfile {
             bio: p.bio,
             photos: p.photos,
             sports: p.sports,
+            years_playing: p.years_playing,
+            club: p.club,
+            achievements: p.achievements,
+            avg_pace_min_per_km: p.avg_pace_min_per_km,
+            avg_distance_km: p.avg_distance_km,
+            skill_levels: Vec::new(),
         }
     }
 }
@@ -190,6 +268,11 @@ pub async fn discover(
             profiles::sports,
             profiles::latitude,
             profiles::longitude,
+            profiles::years_playing,
+            profiles::club,
+            profiles::achievements,
+            profiles::avg_pace_min_per_km,
+            profiles::avg_distance_km,
         ))
         .limit(fetch_limit)
         .load::<(
@@ -202,12 +285,17 @@ pub async fn discover(
             Vec<Sport>,
             Option<f64>,
             Option<f64>,
+            Option<i32>,
+            Option<String>,
+            Vec<String>,
+            Option<f64>,
+            Option<f64>,
         )>(&mut conn)
         .await?;
 
     let mut result: Vec<DiscoverProfile> = rows
         .into_iter()
-        .filter(|(_, _, _, _, _, _, _, lat, lng)| {
+        .filter(|(_, _, _, _, _, _, _, lat, lng, _, _, _, _, _)| {
             let Some((my_lat, my_lng)) = my_location else {
                 return true;
             };
@@ -221,7 +309,22 @@ pub async fn discover(
             haversine_km(my_lat, my_lng, *lat, *lng) <= distance_km as f64
         })
         .map(
-            |(user_id, display_name, birth_date, city, bio, photos, sports, _lat, _lng)| {
+            |(
+                user_id,
+                display_name,
+                birth_date,
+                city,
+                bio,
+                photos,
+                sports,
+                _lat,
+                _lng,
+                years_playing,
+                club,
+                achievements,
+                avg_pace_min_per_km,
+                avg_distance_km,
+            )| {
                 DiscoverProfile {
                     user_id,
                     display_name,
@@ -230,11 +333,27 @@ pub async fn discover(
                     bio,
                     photos,
                     sports,
+                    years_playing,
+                    club,
+                    avg_pace_min_per_km,
+                    avg_distance_km,
+                    achievements,
+                    skill_levels: Vec::new(),
                 }
             },
         )
         .collect();
 
     result.truncate(20);
+
+    // One batched query for skill levels instead of one per candidate.
+    let ids: Vec<String> = result.iter().map(|p| p.user_id.clone()).collect();
+    let mut skill_levels_by_user = fetch_skill_levels_for(&mut conn, &ids).await?;
+    for profile in &mut result {
+        profile.skill_levels = skill_levels_by_user
+            .remove(&profile.user_id)
+            .unwrap_or_default();
+    }
+
     Ok(result)
 }

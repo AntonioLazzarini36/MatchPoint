@@ -16,6 +16,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
     #[diesel(postgres_type(name = "SwipeType"))]
     pub struct SwipeType;
+
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "SkillLevelValue"))]
+    pub struct SkillLevelValue;
 }
 
 diesel::table! {
@@ -51,6 +55,14 @@ diesel::table! {
         sports -> Array<Sport>,
         latitude -> Nullable<Double>,
         longitude -> Nullable<Double>,
+        #[sql_name = "yearsPlaying"]
+        years_playing -> Nullable<Int4>,
+        club -> Nullable<Text>,
+        achievements -> Array<Text>,
+        #[sql_name = "avgPaceMinPerKm"]
+        avg_pace_min_per_km -> Nullable<Double>,
+        #[sql_name = "avgDistanceKm"]
+        avg_distance_km -> Nullable<Double>,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
         #[sql_name = "updatedAt"]
@@ -165,6 +177,24 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::{Sport, SkillLevelValue};
+
+    #[sql_name = "SkillLevel"]
+    skill_levels (id) {
+        id -> Text,
+        #[sql_name = "userId"]
+        user_id -> Text,
+        sport -> Sport,
+        level -> SkillLevelValue,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
+        #[sql_name = "updatedAt"]
+        updated_at -> Timestamptz,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     users,
     profiles,
@@ -174,4 +204,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     matches,
     messages,
     reports,
+    skill_levels,
 );

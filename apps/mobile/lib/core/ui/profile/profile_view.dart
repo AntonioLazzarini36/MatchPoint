@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
+import '../../utils/pace_format.dart';
+import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
 import 'profile_header_data.dart';
 
@@ -121,6 +123,38 @@ class ProfileView extends StatelessWidget {
                   style: context.textStyles.bodyMedium,
                 ),
 
+                if (_hasCredentials) ...[
+                  const SizedBox(height: 24),
+                  Text('Experiencia', style: context.textStyles.titleMedium),
+                  const SizedBox(height: 8),
+                  if (data.yearsPlaying != null)
+                    _infoRow(
+                      context,
+                      Icons.timeline,
+                      '${data.yearsPlaying} años jugando',
+                    ),
+                  if ((data.club ?? '').isNotEmpty)
+                    _infoRow(context, Icons.groups_outlined, data.club!),
+                  if (data.avgPaceMinPerKm != null)
+                    _infoRow(
+                      context,
+                      Icons.speed,
+                      'Ritmo medio: ${formatPaceMinPerKm(data.avgPaceMinPerKm)} min/km',
+                    ),
+                  if (data.avgDistanceKm != null)
+                    _infoRow(
+                      context,
+                      Icons.route,
+                      'Distancia media: ${data.avgDistanceKm} km',
+                    ),
+                  for (final achievement in data.achievements)
+                    _infoRow(
+                      context,
+                      Icons.emoji_events_outlined,
+                      achievement,
+                    ),
+                ],
+
                 const SizedBox(height: 24),
 
                 // Stats (optional)
@@ -189,12 +223,36 @@ class ProfileView extends StatelessWidget {
 
   Widget _sportChip(BuildContext context, Sport sport) {
     final icon = _sportIcon(sport);
-    final label = _sportLabel(sport);
+    final level = data.skillLevels[sport];
+    final label = level == null
+        ? _sportLabel(sport)
+        : '${_sportLabel(sport)} · ${level.label}';
 
     return Chip(
       avatar: Icon(icon, size: 16),
       label: Text(label),
       backgroundColor: context.colors.surfaceContainerHighest,
+    );
+  }
+
+  bool get _hasCredentials =>
+      data.yearsPlaying != null ||
+      (data.club ?? '').isNotEmpty ||
+      data.avgPaceMinPerKm != null ||
+      data.avgDistanceKm != null ||
+      data.achievements.isNotEmpty;
+
+  Widget _infoRow(BuildContext context, IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: context.colors.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: context.textStyles.bodyMedium)),
+        ],
+      ),
     );
   }
 
