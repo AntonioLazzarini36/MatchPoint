@@ -154,7 +154,6 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
             TextFormField(
               controller: _clubCtrl,
               decoration: const InputDecoration(labelText: 'Club'),
-              maxLength: 100,
               onChanged: widget.onClubChanged,
             ),
             const SizedBox(height: 12),
@@ -216,12 +215,23 @@ class _AchievementsEditor extends StatefulWidget {
 
 class _AchievementsEditorState extends State<_AchievementsEditor> {
   final _ctrl = TextEditingController();
+  String? _error;
 
-  static const _maxAchievements = 20;
+  static const _maxAchievements = 10;
+  static const _maxLength = 80;
 
   void _add() {
     final text = _ctrl.text.trim();
-    if (text.isEmpty || widget.achievements.length >= _maxAchievements) return;
+    if (text.isEmpty) return;
+    if (text.length > _maxLength) {
+      setState(() => _error = 'Máximo $_maxLength caracteres por logro');
+      return;
+    }
+    if (widget.achievements.length >= _maxAchievements) {
+      setState(() => _error = 'Máximo $_maxAchievements logros');
+      return;
+    }
+    setState(() => _error = null);
     widget.onChanged([...widget.achievements, text]);
     _ctrl.clear();
   }
@@ -252,13 +262,22 @@ class _AchievementsEditorState extends State<_AchievementsEditor> {
                 decoration: const InputDecoration(
                   hintText: 'Ej. Campeón provincial 2024',
                 ),
-                maxLength: 200,
                 onSubmitted: (_) => _add(),
               ),
             ),
             IconButton(icon: const Icon(Icons.add), onPressed: _add),
           ],
         ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _error!,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         if (widget.achievements.isNotEmpty) ...[
           const SizedBox(height: 8),
           Wrap(

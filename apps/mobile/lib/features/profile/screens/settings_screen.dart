@@ -845,6 +845,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
   late final TextEditingController _distanceCtrl;
   late final TextEditingController _achievementCtrl;
   late List<String> _achievements;
+  String? _error;
 
   @override
   void initState() {
@@ -873,12 +874,23 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
     super.dispose();
   }
 
-  static const _maxAchievements = 20;
+  static const _maxAchievements = 10;
+  static const _maxAchievementLength = 80;
+  static const _maxClubLength = 60;
 
   void _addAchievement() {
     final text = _achievementCtrl.text.trim();
-    if (text.isEmpty || _achievements.length >= _maxAchievements) return;
+    if (text.isEmpty) return;
+    if (text.length > _maxAchievementLength) {
+      setState(() => _error = 'Máximo $_maxAchievementLength caracteres por logro');
+      return;
+    }
+    if (_achievements.length >= _maxAchievements) {
+      setState(() => _error = 'Máximo $_maxAchievements logros');
+      return;
+    }
     setState(() {
+      _error = null;
       _achievements.add(text);
       _achievementCtrl.clear();
     });
@@ -889,10 +901,15 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
   }
 
   void _save() {
+    final club = _clubCtrl.text.trim();
+    if (club.length > _maxClubLength) {
+      setState(() => _error = 'El club no puede superar los $_maxClubLength caracteres');
+      return;
+    }
     Navigator.of(context).pop(
       _CredentialsResult(
         yearsPlaying: int.tryParse(_yearsCtrl.text.trim()),
-        club: _clubCtrl.text.trim(),
+        club: club,
         avgPaceMinPerKm: parsePaceMinPerKm(_paceCtrl.text),
         avgDistanceKm: double.tryParse(_distanceCtrl.text.trim()),
         achievements: _achievements,
@@ -943,7 +960,6 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                 TextField(
                   controller: _clubCtrl,
                   decoration: const InputDecoration(labelText: 'Club'),
-                  maxLength: 100,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -987,7 +1003,6 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                       decoration: const InputDecoration(
                         hintText: 'Ej. Campeón provincial 2024',
                       ),
-                      maxLength: 200,
                       onSubmitted: (_) => _addAchievement(),
                     ),
                   ),
@@ -1011,6 +1026,16 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                   ],
                 ),
               ],
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _error!,
+                    style: context.textStyles.bodySmall?.withColor(
+                      context.colors.error,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

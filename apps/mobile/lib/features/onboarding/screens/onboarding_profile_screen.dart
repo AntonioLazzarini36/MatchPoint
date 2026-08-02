@@ -171,11 +171,21 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     if (picked != null) setState(() => birthDate = picked);
   }
 
+  static const _maxDisplayNameLength = 30;
+  static const _maxClubLength = 60;
+  static const _maxAchievementLength = 80;
+
   Future<void> _goNextOrFinish() async {
     if (_currentPage == 0) {
       final name = displayNameCtrl.text.trim();
       if (name.isEmpty) {
         controller.setError('Display name is required');
+        return;
+      }
+      if (name.length > _maxDisplayNameLength) {
+        controller.setError(
+          'El nombre no puede superar los $_maxDisplayNameLength caracteres',
+        );
         return;
       }
       if (birthDate == null) {
@@ -184,6 +194,21 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       }
       if (_selectedSports.isEmpty) {
         controller.setError('Elige al menos un deporte');
+        return;
+      }
+    }
+
+    if (_currentPage == _skillStepIndex) {
+      if (_club.length > _maxClubLength) {
+        controller.setError(
+          'El club no puede superar los $_maxClubLength caracteres',
+        );
+        return;
+      }
+      if (_achievements.any((a) => a.length > _maxAchievementLength)) {
+        controller.setError(
+          'Cada logro no puede superar los $_maxAchievementLength caracteres',
+        );
         return;
       }
     }

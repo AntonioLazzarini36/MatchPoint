@@ -130,14 +130,12 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                   controller: emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Email'),
-                  maxLength: 254,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: passCtrl,
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Password'),
-                  maxLength: 72,
                 ),
                 if (!isLogin) ...[
                   const SizedBox(height: 12),
@@ -147,7 +145,6 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Confirm Password',
                     ),
-                    maxLength: 72,
                   ),
                 ],
                 const SizedBox(height: 24),
