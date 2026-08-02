@@ -267,6 +267,42 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   analyze/test mobile en verde. Sin prueba visual en vivo esta vuelta —
   la extensión de Chrome no estaba conectada en el momento; vos ibas a
   probarlo de todos modos.
+- **Dos bugs reales de esa prueba en vivo (2026-08-02, misma rama),
+  arreglados:**
+  - **Mapa del paso de ubicación no se recentraba.** Al elegir una
+    ubicación nueva, el pin se movía a las coordenadas correctas pero
+    la cámara del mapa se quedaba en el sitio anterior — el pin quedaba
+    fuera de la vista, así que se veía "el mapa de antes, sin pin".
+    Causa: `flutter_map`'s `MapOptions.initialCenter` solo se aplica al
+    montar el widget la primera vez, no en cada rebuild; sin nada que
+    lo forzara a remontar, la cámara nunca se movía tras el primer
+    render. Arreglado dándole al `FlutterMap` una `key` atada a las
+    coordenadas (`onboarding_location_step.dart`) — al cambiar la
+    ubicación, cambia la key, y Flutter remonta el mapa entero, que
+    vuelve a centrar solo.
+  - **Los campos de ritmo/distancia/años/club "saltaban" de campo
+    mientras escribías, y no dejaban escribir ":" en el ritmo.** Causa
+    de fondo: `OnboardingSkillStep` usaba
+    `TextFormField(initialValue: ..., key: ValueKey('campo-$valor'))`
+    — como `$valor` es justo el valor que se actualiza en cada
+    pulsación (vía `onChanged` → `setState` en el padre), la `key`
+    cambiaba en cada tecla, así que Flutter destruía y recreaba el
+    campo en cada pulsación: perdía el foco a mitad de escribir y (en
+    web) el navegador lo movía al siguiente campo enfocable. Arreglado
+    convirtiendo `OnboardingSkillStep` a `StatefulWidget` con
+    `TextEditingController`s creados una sola vez en `initState`, sin
+    key dependiente del valor — mismo patrón que ya usaba
+    correctamente `_CredentialsSheet` en Settings (por eso ese no tenía
+    el bug). De paso, el ritmo ahora se escribe y se muestra como
+    "min:seg" (`4:30`) en vez de decimal (`4.5`), que es como la gente
+    que corre piensa su ritmo de verdad — nuevo helper compartido
+    `core/utils/pace_format.dart` (`parsePaceMinPerKm`/
+    `formatPaceMinPerKm`, acepta también decimal por si acaso) usado en
+    onboarding, Settings, preview de Discovery y `ProfileView`. El
+    dato en el backend no cambió — sigue siendo minutos decimales
+    (`Profile.avgPaceMinPerKm`), el formato "min:seg" es solo cosa del
+    cliente.
+  Verificado: analyze/test mobile en verde.
 
 ## Pendiente / próximos pasos
 
