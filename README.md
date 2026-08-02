@@ -55,7 +55,7 @@ Después, actualizar `src/schema.rs` y `src/models.rs` a mano (con su `#[sql_nam
 
 - `apps/mobile/` → Flutter: frontend. Solo interfaz, sin base de datos propia. Llama al backend por HTTP.
 - `services/api-rust/` → Backend actual (Rust, Axum + Diesel + diesel-async). Conecta a PostgreSQL. Escucha en `localhost:3000`.
-- `services/api/` → Backend antiguo (NestJS + Prisma). **Pendiente de borrar** una vez se confirme el build + smoke test final del backend Rust en todos los entornos del equipo.
+- `services/api/` → ✅ **ya no existe.** Backend antiguo (NestJS + Prisma), borrado del todo tras confirmar el build + smoke test del backend Rust. Si ves referencias a él en comentarios/docs viejos, son históricas.
 - Diesel: ORM. Genera `schema.rs`/`models.rs` (a mano). Ejecuta migraciones.
 - PostgreSQL: base de datos. Corre en Docker. Vive en `localhost:5432`.
 - Docker: por defecto solo levanta la DB. El backend Rust se corre nativo (`cargo run`) para desarrollo; el `docker compose up -d --build api-rust` es opcional (verificación puntual del Dockerfile / despliegue).
@@ -83,7 +83,7 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 - DELETE /me/photos (no deja borrar la última foto)
 #### Discover
 - GET /discover?sport=TENNIS|RUNNING
-  (excluye a quien ya swipeaste y filtra por `ageMin`/`ageMax` de tus preferencias; `distanceKm`/`genderPreference` todavía no se aplican — no hay coordenadas ni campo de género guardados)
+  (excluye a quien ya swipeaste y filtra por `ageMin`/`ageMax` y `distanceKm` reales de tus preferencias — distancia por Haversine contra `Profile.latitude/longitude`, sin PostGIS; ni viewer ni candidato sin ubicación seteada se ven afectados por el filtro. `genderPreference` todavía no se aplica — no hay campo de género guardado en `Profile`)
 #### Swipes + match
 - POST /swipes { toUserId, sport, type: LIKE|PASS } → { match, matchId?, swipeId }
 #### Matches
@@ -117,7 +117,10 @@ Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al
 3. **Sistema de rating/nivel** (Elo vs Glicko-2): nueva tabla de partidos, cómo lo usa `discover`. Pieza central del producto, aún sin diseñar.
 4. ✅ **Swagger / OpenAPI** (`utoipa` + `utoipa-swagger-ui`), ver `http://localhost:3000/docs` arriba y "Documentar un endpoint nuevo" abajo.
 5. ✅ **Pasada de seguridad/fiabilidad (2026-08-01)**: secretos JWT obligatorios, rate limiting en auth, refresh token real en el móvil (+ arreglado un bug de bcrypt que dejaba la rotación sin efecto), fix de un par de crashes/bugs de UI, unread real en Matches, polling en el chat, buscador de matches. Detalle completo en `claude_helpers/status.md`.
-6. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, cobertura del backend hoy es prácticamente cero), UI de preferencias/filtros de discovery (no existe ninguna pantalla para editarlas), distancia real (necesita guardar coordenadas + UI de ubicación), campo de género en el perfil, super-like.
+6. ✅ **Ubicación real estilo Hinge** (`feat/manual-location`): sin GPS, se escribe un sitio y se elige de sugerencias reales (Nominatim/OSM); `/discover` ya filtra por `distanceKm` real (Haversine), editable en cualquier momento desde Settings.
+7. ✅ **Mapa de clubes de tenis, MVP** (`feat/tennis-court-map`, rama viva para seguir iterando): clubes reales cerca vía Overpass/OSM, proponer un partido a un match existente. Sin reservas/disponibilidad real todavía (issue #18 completo).
+8. ✅ **Rediseño de Discovery** (2026-08-02): deck de una tarjeta a la vez → columna de hasta 4 tarjetas horizontales de altura fija, sin superponerse, arrastrables para like/pass, preview al tocar.
+9. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, cobertura del backend hoy es prácticamente cero), UI de preferencias/filtros de discovery (no existe ninguna pantalla para editar edad/deporte — distancia sí se puede desde Settings), campo de género en el perfil, super-like, login con Google/Apple + verificación de email (necesita credenciales externas), bug de `Discovery` ignorando el/los deporte(s) reales del usuario (siempre pide solo tenis). Detalle completo de estos dos últimos en `claude_helpers/status.md`.
 
 ## Documentar un endpoint nuevo (OpenAPI)
 

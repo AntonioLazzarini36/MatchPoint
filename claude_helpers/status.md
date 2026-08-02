@@ -2,7 +2,7 @@
 
 > Documento vivo. Edítalo cuando quieras cambiar prioridades, tachar cosas o
 > añadir contexto — lo uso como referencia al arrancar en otros chats.
-> Última actualización: 2026-08-01.
+> Última actualización: 2026-08-02.
 
 ## Contexto de branches
 
@@ -42,6 +42,14 @@ pasada de seguridad/fiabilidad del 2026-08-01) ya está **mergeado en
 `feature/rust-backend` y las ramas borradas** (local y remoto) — el detalle
 de cada una vive en el historial de git (`git log feature/rust-backend`),
 no hace falta duplicarlo aquí.
+
+⚠️ **Ramas locales viejas sin documentar, no tocadas:** `gonzalo` y
+`restore-7a0d958` (local), más `origin/12-calendar` (remoto) — son de antes
+del rewrite a Rust (commits tipo "fix prisma chat flow", "npm run lint
+--fix"), de la era NestJS/Prisma. No forman parte del trabajo activo en
+`feature/rust-backend`; las dejo intactas por si son tuyas o de un
+colaborador (el nombre "gonzalo" sugiere que sí) — decime si querés que las
+borre o si hay algo ahí que rescatar antes de irse del todo.
 
 ### Issues de GitHub — correlación con lo de arriba
 
@@ -346,6 +354,35 @@ Seguridad/fiabilidad, por prioridad:
    recordatorio para cuando se hable de despliegue real.
 
 Nada de esto lo toqué sin preguntar — son hallazgos, no cambios.
+
+### Ideas nuevas para el backlog (mías, no pedidas — 2026-08-02)
+
+Cosas que noté mientras trabajaba en lo de arriba y que no estaban
+anotadas en ningún lado. Ninguna la empecé — son solo ideas para cuando
+quieras priorizar:
+
+1. **Con el rediseño de Discovery, el feed no se re-pide solo cuando
+   quedan pocas tarjetas.** `reload()` solo se llama a mano ("Reiniciar
+   búsqueda") cuando el stack llega a 0. Con el deck viejo (una tarjeta a
+   la vez) no se notaba, pero con la columna de hasta 4 huecos fijos,
+   bajar a 1-2 perfiles deja 2-3 espacios vacíos visibles antes de llegar
+   al estado "No hay más perfiles cerca". Podría auto-refetch cuando el
+   stack baja de cierto umbral (ej. <4) en vez de solo al vaciarse del
+   todo.
+2. **No hay "deshacer último swipe"** (para un pass sin querer) — común en
+   apps similares, no existe ni en el backend ni en la UI.
+3. **No hay borrar cuenta.** Existe logout, deshacer match y reportar,
+   pero ningún endpoint tipo `DELETE /me` ni UI para borrar la cuenta del
+   todo — hueco en el ciclo de privacidad si en algún momento importa
+   cumplimiento tipo RGPD.
+4. **No se puede reordenar fotos ni elegir cuál es la principal** —
+   `DiscoverProfile.mainPhoto` es siempre `photos.first`, o sea "la
+   primera que subiste", sin forma de cambiarla después sin borrar y
+   resubir en el orden que querés.
+5. **Sin notificaciones push.** El chat usa polling (4s) mientras estás
+   en esa pantalla, pero no hay nada si la app está en segundo plano o en
+   otra pantalla — te enterás de un match/mensaje nuevo solo si volvés a
+   abrir la pestaña correspondiente.
 
 ## Notas del entorno local
 
