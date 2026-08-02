@@ -359,6 +359,22 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   email inválido, años jugando fuera de rango, ritmo negativo, string
   donde se espera número, ageMin > ageMax); analyze/test mobile en
   verde.
+- **Corrección sobre el hardening anterior (2026-08-03, misma rama):**
+  el `maxLength` de Flutter dibuja un contador "X/Y caracteres" debajo
+  del campo — feedback del usuario: eso es ruido visual innecesario, y
+  de paso los límites elegidos eran más largos de lo necesario. Se
+  sacó `maxLength` de club, logros, nombre mostrado, email y
+  contraseña (así desaparece el contador) y se acortaron los topes:
+  nombre 30 (antes 50), club 60 (antes 100), cada logro 80 (antes 200),
+  máximo 10 logros (antes 20) — contraseña se deja en 72 porque es un
+  límite técnico real de bcrypt, no una preferencia de UX. La
+  validación de longitud se sigue haciendo igual, pero solo al
+  intentar avanzar/guardar/añadir un logro, mostrando un mensaje de
+  error normal (mismo patrón que "Elige al menos un deporte") en vez
+  de un contador permanente. Los campos numéricos (años/ritmo/
+  distancia) no llevaban `maxLength` desde el principio — ya usaban
+  `inputFormatters` para restringir caracteres, sin contador visible;
+  no hizo falta tocarlos. Verificado: analyze/test mobile en verde.
 
 ## Pendiente / próximos pasos
 
