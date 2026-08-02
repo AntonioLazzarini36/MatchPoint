@@ -192,6 +192,9 @@ pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, 
                         // flow already makes right after registering.
                         latitude: None,
                         longitude: None,
+                        years_playing: None,
+                        club: None,
+                        achievements: vec![],
                         updated_at: Utc::now(),
                     })
                     .execute(conn)

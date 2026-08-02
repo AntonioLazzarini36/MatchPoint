@@ -24,8 +24,10 @@ use diesel_async::{AsyncConnection, AsyncPgConnection};
 
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::db;
-use matchpoint_api::models::{NewPreferences, NewProfile, NewUser, Sport};
-use matchpoint_api::schema::{preferences, profiles, users};
+use matchpoint_api::models::{
+    NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
+};
+use matchpoint_api::schema::{preferences, profiles, skill_levels, users};
 
 const FAKE_PASSWORD: &str = "password123";
 
@@ -43,6 +45,13 @@ struct FakeProfile {
     sports: &'static [Sport],
     sports_wanted: &'static [Sport],
     gender_preference: Option<&'static str>,
+    years_playing: Option<i32>,
+    club: Option<&'static str>,
+    achievements: &'static [&'static str],
+    // One level per entry in `sports`, same order — kept as a parallel
+    // list here only because it's static seed data typed by hand; the
+    // real DB rows are a proper (user, sport) table, see models.rs.
+    skill_levels: &'static [SkillLevel],
 }
 
 const FAKE_PROFILES: &[FakeProfile] = &[
@@ -57,6 +66,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender_preference: None,
+        years_playing: Some(5),
+        club: None,
+        achievements: &[],
+        skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
         email: "marcos.running@example.com",
@@ -69,6 +82,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender_preference: None,
+        years_playing: Some(3),
+        club: None,
+        achievements: &["10K de Benalmádena 2025 - 45min"],
+        skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
         email: "sofia.multideporte@example.com",
@@ -81,6 +98,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender_preference: None,
+        years_playing: Some(2),
+        club: None,
+        achievements: &[],
+        skill_levels: &[SkillLevel::Beginner, SkillLevel::Beginner],
     },
     FakeProfile {
         email: "javier.club@example.com",
@@ -93,6 +114,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender_preference: None,
+        years_playing: Some(12),
+        club: Some("Club de Tenis Torremolinos"),
+        achievements: &[],
+        skill_levels: &[SkillLevel::Advanced],
     },
     FakeProfile {
         email: "elena.maraton@example.com",
@@ -105,6 +130,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender_preference: None,
+        years_playing: Some(4),
+        club: None,
+        achievements: &["Media maratón de Málaga 2025 - 1h52"],
+        skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
         email: "pablo.finde@example.com",
@@ -117,6 +146,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender_preference: None,
+        years_playing: Some(1),
+        club: None,
+        achievements: &[],
+        skill_levels: &[SkillLevel::Beginner],
     },
     FakeProfile {
         email: "carla.trail@example.com",
@@ -129,6 +162,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender_preference: None,
+        years_playing: Some(6),
+        club: None,
+        achievements: &["Trail Sierra de Mijas 21K - finisher 2024"],
+        skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
         email: "diego.competitivo@example.com",
@@ -141,6 +178,13 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender_preference: None,
+        years_playing: Some(15),
+        club: Some("Club de Tenis Málaga"),
+        achievements: &[
+            "Campeón provincial +35, 2024",
+            "Semifinalista Copa Andalucía 2023",
+        ],
+        skill_levels: &[SkillLevel::Competitive],
     },
     FakeProfile {
         email: "andrea.principiante@example.com",
@@ -153,6 +197,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender_preference: None,
+        years_playing: Some(0),
+        club: None,
+        achievements: &[],
+        skill_levels: &[SkillLevel::Beginner],
     },
     FakeProfile {
         email: "hugo.ambos@example.com",
@@ -165,6 +213,10 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender_preference: None,
+        years_playing: Some(7),
+        club: None,
+        achievements: &[],
+        skill_levels: &[SkillLevel::Intermediate, SkillLevel::Intermediate],
     },
 ];
 
@@ -192,6 +244,10 @@ async fn seed_one(
     sports: Vec<Sport>,
     sports_wanted: Vec<Sport>,
     gender_preference: Option<&str>,
+    years_playing: Option<i32>,
+    club: Option<&str>,
+    achievements: Vec<String>,
+    skill_levels_by_sport: Vec<(Sport, SkillLevel)>,
 ) -> anyhow::Result<bool> {
     let existing = users::table
         .filter(users::email.eq(email))
@@ -214,6 +270,7 @@ async fn seed_one(
     let tx_city = city.map(|c| c.to_string());
     let tx_bio = bio.map(|b| b.to_string());
     let tx_gender_preference = gender_preference.map(|g| g.to_string());
+    let tx_club = club.map(|c| c.to_string());
 
     conn.transaction::<_, anyhow::Error, _>(|conn| {
         async move {
@@ -239,6 +296,9 @@ async fn seed_one(
                     sports,
                     latitude: location.map(|(lat, _)| lat),
                     longitude: location.map(|(_, lng)| lng),
+                    years_playing,
+                    club: tx_club,
+                    achievements,
                     updated_at: Utc::now(),
                 })
                 .execute(conn)
@@ -258,6 +318,19 @@ async fn seed_one(
                 .execute(conn)
                 .await?;
 
+            for (sport, level) in skill_levels_by_sport {
+                diesel::insert_into(skill_levels::table)
+                    .values(NewUserSkillLevel {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        user_id: tx_user_id.clone(),
+                        sport,
+                        level,
+                        updated_at: Utc::now(),
+                    })
+                    .execute(conn)
+                    .await?;
+            }
+
             Ok(())
         }
         .scope_boxed()
@@ -274,6 +347,13 @@ async fn seed_fakes(conn: &mut AsyncPgConnection) -> anyhow::Result<()> {
     let mut skipped = 0;
 
     for p in FAKE_PROFILES {
+        let skill_levels_by_sport: Vec<(Sport, SkillLevel)> = p
+            .sports
+            .iter()
+            .copied()
+            .zip(p.skill_levels.iter().copied())
+            .collect();
+
         let inserted = seed_one(
             conn,
             p.email,
@@ -286,6 +366,10 @@ async fn seed_fakes(conn: &mut AsyncPgConnection) -> anyhow::Result<()> {
             p.sports.to_vec(),
             p.sports_wanted.to_vec(),
             p.gender_preference,
+            p.years_playing,
+            p.club,
+            p.achievements.iter().map(|s| s.to_string()).collect(),
+            skill_levels_by_sport,
         )
         .await?;
 
@@ -325,6 +409,10 @@ async fn seed_me(
         vec![Sport::Tennis, Sport::Running],
         vec![Sport::Tennis, Sport::Running],
         None,
+        None, // years_playing — se completa luego desde la app
+        None,
+        vec![],
+        vec![],
     )
     .await?;
 

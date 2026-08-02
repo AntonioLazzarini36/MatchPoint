@@ -5,7 +5,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::models::Sport;
+use crate::models::{SkillLevel, Sport};
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +24,30 @@ pub struct UpdateProfileDto {
     // the uploaded file. A `photos` field here would let a client overwrite
     // the array with arbitrary strings/URLs, bypassing both.
     pub sports: Option<Vec<Sport>>,
+    /// Structured trust signals — see `models::Profile` docs. Skill level
+    /// is deliberately NOT here: it lives in its own table (one row per
+    /// sport) and goes through `UpdateSkillLevelsDto`/`PATCH
+    /// /me/skill-levels` instead, same reasoning as photos above.
+    pub years_playing: Option<i32>,
+    pub club: Option<String>,
+    pub achievements: Option<Vec<String>>,
+}
+
+/// `PATCH /me/skill-levels` body — replaces the level for each `(sport,
+/// level)` pair provided, leaves any other sport's level untouched. To
+/// clear a sport's level entirely, that's a separate concern not exposed
+/// yet (no product need for it so far — you'd just set a new one).
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSkillLevelsDto {
+    pub levels: Vec<SkillLevelInput>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillLevelInput {
+    pub sport: Sport,
+    pub level: SkillLevel,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

@@ -16,10 +16,11 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::me::dto::{UpdatePreferencesDto, UpdateProfileDto};
+use crate::discover::service::{fetch_skill_levels, SkillLevelEntry};
+use crate::me::dto::{UpdatePreferencesDto, UpdateProfileDto, UpdateSkillLevelsDto};
 use crate::me::photos::{self, PhotoError, MAX_PHOTOS};
-use crate::models::{NewPreferences, NewProfile, Preferences, Profile, Sport};
-use crate::schema::{preferences, profiles, users};
+use crate::models::{NewPreferences, NewProfile, NewUserSkillLevel, Preferences, Profile, Sport};
+use crate::schema::{preferences, profiles, skill_levels, users};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -50,6 +51,10 @@ pub struct MeResponse {
     pub email: String,
     pub profile: Option<Profile>,
     pub preferences: Option<Preferences>,
+    /// Lives outside `Profile` (its own table, one row per sport — see
+    /// `models::UserSkillLevel`), so it's fetched and attached separately
+    /// rather than being a column on `profile`.
+    pub skill_levels: Vec<SkillLevelEntry>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -80,11 +85,14 @@ pub async fn get_me(state: &AppState, user_id: &str) -> Result<MeResponse, MeErr
         .await
         .optional()?;
 
+    let skill_levels = fetch_skill_levels(&mut conn, user_id).await?;
+
     Ok(MeResponse {
         id,
         email,
         profile,
         preferences,
+        skill_levels,
         created_at,
     })
 }
@@ -142,6 +150,16 @@ pub async fn update_profile(
         .sports
         .or_else(|| existing.as_ref().map(|p| p.sports.clone()))
         .unwrap_or_default();
+    let years_playing = dto
+        .years_playing
+        .or_else(|| existing.as_ref().and_then(|p| p.years_playing));
+    let club = dto
+        .club
+        .or_else(|| existing.as_ref().and_then(|p| p.club.clone()));
+    let achievements: Vec<String> = dto
+        .achievements
+        .or_else(|| existing.as_ref().map(|p| p.achievements.clone()))
+        .unwrap_or_default();
 
     let saved = diesel::insert_into(profiles::table)
         .values(NewProfile {
@@ -155,6 +173,9 @@ pub async fn update_profile(
             sports: sports.clone(),
             latitude,
             longitude,
+            years_playing,
+            club: club.clone(),
+            achievements: achievements.clone(),
             updated_at: Utc::now(),
         })
         .on_conflict(profiles::user_id)
@@ -168,12 +189,54 @@ pub async fn update_profile(
             profiles::sports.eq(sports),
             profiles::latitude.eq(latitude),
             profiles::longitude.eq(longitude),
+            profiles::years_playing.eq(years_playing),
+            profiles::club.eq(club),
+            profiles::achievements.eq(achievements),
             profiles::updated_at.eq(Utc::now()),
         ))
         .get_result::<Profile>(&mut conn)
         .await?;
 
     Ok(saved)
+}
+
+/// Upserts each `(sport, level)` pair provided — one row per sport in
+/// `SkillLevel`, `ON CONFLICT (userId, sport)` so re-setting a sport's
+/// level just updates it instead of erroring. Sports not mentioned in
+/// `dto.levels` are left untouched. Returns the user's full current set
+/// of skill levels (not just the ones just written), same "return the
+/// merged state" shape as `update_profile`.
+pub async fn update_skill_levels(
+    state: &AppState,
+    user_id: &str,
+    dto: UpdateSkillLevelsDto,
+) -> Result<Vec<SkillLevelEntry>, MeError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
+
+    for input in dto.levels {
+        diesel::insert_into(skill_levels::table)
+            .values(NewUserSkillLevel {
+                id: uuid::Uuid::new_v4().to_string(),
+                user_id: user_id.to_string(),
+                sport: input.sport,
+                level: input.level,
+                updated_at: Utc::now(),
+            })
+            .on_conflict((skill_levels::user_id, skill_levels::sport))
+            .do_update()
+            .set((
+                skill_levels::level.eq(input.level),
+                skill_levels::updated_at.eq(Utc::now()),
+            ))
+            .execute(&mut conn)
+            .await?;
+    }
+
+    Ok(fetch_skill_levels(&mut conn, user_id).await?)
 }
 
 pub async fn update_preferences(

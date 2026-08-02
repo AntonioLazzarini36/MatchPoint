@@ -11,7 +11,11 @@ use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::auth::jwt::AuthUser;
-use crate::me::dto::{DeletePhotoDto, UpdatePreferencesDto, UpdateProfileDto};
+#[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
+use crate::discover::service::SkillLevelEntry;
+use crate::me::dto::{
+    DeletePhotoDto, UpdatePreferencesDto, UpdateProfileDto, UpdateSkillLevelsDto,
+};
 use crate::me::photos::PhotoError;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
 use crate::me::service::MeResponse;
@@ -27,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/me", get(get_me))
         .route("/me/profile", patch(update_profile))
         .route("/me/preferences", patch(update_preferences))
+        .route("/me/skill-levels", patch(update_skill_levels))
         .route("/me/photos", post(add_photo).delete(remove_photo))
 }
 
@@ -97,6 +102,28 @@ async fn update_preferences(
 ) -> impl IntoResponse {
     match service::update_preferences(&state, &user.user_id, dto).await {
         Ok(prefs) => Json(prefs).into_response(),
+        Err(e) => me_error_response(e),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/me/skill-levels",
+    tag = "me",
+    security(("bearerAuth" = [])),
+    request_body = UpdateSkillLevelsDto,
+    responses(
+        (status = 200, description = "Nivel actualizado por deporte (upsert por sport, no toca los deportes no incluidos)", body = Vec<SkillLevelEntry>),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+    )
+)]
+async fn update_skill_levels(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(dto): Json<UpdateSkillLevelsDto>,
+) -> impl IntoResponse {
+    match service::update_skill_levels(&state, &user.user_id, dto).await {
+        Ok(levels) => Json(levels).into_response(),
         Err(e) => me_error_response(e),
     }
 }

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::schema::{
-    matches, messages, preferences, profiles, refresh_tokens, reports, swipes, users,
+    matches, messages, preferences, profiles, refresh_tokens, reports, skill_levels, swipes, users,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
@@ -33,6 +33,27 @@ pub enum SwipeType {
     #[db_rename = "PASS"]
     #[serde(rename = "PASS")]
     Pass,
+}
+
+/// Self-reported, not computed — there's no Elo/Glicko rating yet (see
+/// status.md). One of these exists per (user, sport) in `SkillLevel`, not
+/// as a single scalar on `Profile`, since a player can be at a different
+/// level in each sport they play.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+#[ExistingTypePath = "crate::schema::sql_types::SkillLevelValue"]
+pub enum SkillLevel {
+    #[db_rename = "BEGINNER"]
+    #[serde(rename = "BEGINNER")]
+    Beginner,
+    #[db_rename = "INTERMEDIATE"]
+    #[serde(rename = "INTERMEDIATE")]
+    Intermediate,
+    #[db_rename = "ADVANCED"]
+    #[serde(rename = "ADVANCED")]
+    Advanced,
+    #[db_rename = "COMPETITIVE"]
+    #[serde(rename = "COMPETITIVE")]
+    Competitive,
 }
 
 #[derive(Debug, Clone, Queryable, Selectable, Serialize)]
@@ -75,6 +96,12 @@ pub struct Profile {
     /// for a viewer or candidate without coordinates.
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    /// Structured trust signals shown alongside `bio` so the other person
+    /// has something concrete to judge "plays my level" on, rather than
+    /// hoping it's mentioned in free text.
+    pub years_playing: Option<i32>,
+    pub club: Option<String>,
+    pub achievements: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -92,6 +119,9 @@ pub struct NewProfile {
     pub sports: Vec<Sport>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    pub years_playing: Option<i32>,
+    pub club: Option<String>,
+    pub achievements: Vec<String>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -228,4 +258,29 @@ pub struct NewReport {
     pub reporter_user_id: String,
     pub reported_user_id: String,
     pub reason: String,
+}
+
+/// Named `UserSkillLevel` (not `SkillLevel`, which is the level enum
+/// above) — one row per (user, sport).
+#[derive(Debug, Clone, Queryable, Selectable, Serialize)]
+#[diesel(table_name = skill_levels)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[serde(rename_all = "camelCase")]
+pub struct UserSkillLevel {
+    pub id: String,
+    pub user_id: String,
+    pub sport: Sport,
+    pub level: SkillLevel,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = skill_levels)]
+pub struct NewUserSkillLevel {
+    pub id: String,
+    pub user_id: String,
+    pub sport: Sport,
+    pub level: SkillLevel,
+    pub updated_at: DateTime<Utc>,
 }
