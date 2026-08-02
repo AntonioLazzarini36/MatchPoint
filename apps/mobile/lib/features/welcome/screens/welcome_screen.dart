@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/routes.dart';
+import '../../../core/ui/widgets/app_logo_placeholder.dart';
 import '../../../core/ui/widgets/background_scaffold.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -16,6 +17,8 @@ class WelcomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Spacer(),
+          const Center(child: AppLogoPlaceholder(size: 88)),
+          const SizedBox(height: 20),
           Text(
             'MatchPoint',
             textAlign: TextAlign.center,

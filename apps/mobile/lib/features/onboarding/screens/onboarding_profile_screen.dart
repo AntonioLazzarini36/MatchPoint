@@ -25,6 +25,7 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_skill_step.dar
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 
 class _PickedPhoto {
   final Uint8List bytes;
@@ -53,9 +54,10 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
-  static const _totalPages = 5;
+  static const _totalPages = 6;
   static const _skillStepIndex = 1;
   static const _photoStepIndex = 4;
+  static const _previewStepIndex = 5;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
@@ -141,6 +143,17 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
   bool get _isSkillStepEmpty => _skillLevels.isEmpty && !_hasCredentialsFilled;
 
+  int? get _age {
+    final b = birthDate;
+    if (b == null) return null;
+    final now = DateTime.now();
+    var a = now.year - b.year;
+    final hadBirthday =
+        (now.month > b.month) || (now.month == b.month && now.day >= b.day);
+    if (!hadBirthday) a--;
+    return a;
+  }
+
   String _formatDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -175,7 +188,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       }
     }
 
-    if (_currentPage < _photoStepIndex) {
+    if (_currentPage < _previewStepIndex) {
       controller.setError(null);
       await _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -184,8 +197,11 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       return;
     }
 
-    // _currentPage == _photoStepIndex: el botón solo llega aquí activo si
-    // ya hay al menos 1 foto local (ver `onNext` en build()).
+    // _currentPage == _previewStepIndex: nada se manda al backend hasta
+    // este último paso — antes se creaba todo directo desde el paso de
+    // fotos, ahora hay un preview de por medio para que confirmes cómo
+    // se ve antes de que se cree de verdad (pedido del usuario,
+    // 2026-08-03).
     await _completeRegistration();
   }
 
@@ -314,11 +330,50 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     });
   }
 
-  void _goBack() {
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  /// En la primera página, "atrás" ya no tiene otra página del wizard a
+  /// la que volver — significa abandonar el registro/onboarding entero,
+  /// así que confirma antes (pedido del usuario, 2026-08-03: es "cambiar
+  /// a otra lógica", no un simple paso atrás). En el resto de páginas
+  /// sigue siendo solo navegación normal dentro del wizard, sin preguntar
+  /// nada.
+  Future<void> _goBack() async {
+    if (_currentPage > 0) {
+      await _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Salir del registro?'),
+        content: const Text(
+          'Vas a volver a la pantalla de login/registro. Nada de lo que '
+          'completaste todavía se guardó — no se pierde ningún dato ya '
+          'creado, pero tendrás que volver a empezar el registro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true || !mounted) return;
+
+    // Por si esta pantalla se alcanzó ya logueado (cuenta a medias de un
+    // intento anterior, ver el comentario de `widget.email` arriba) —
+    // sin esto, `router.dart` redirige de vuelta a /onboarding en vez de
+    // dejar ver login/registro, porque sigue habiendo un token válido.
+    await TokenStorage.clear();
+    if (mounted) context.go(AppRoutes.onboardingAuth);
   }
 
   @override
@@ -341,8 +396,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               ? null
               : _goNextOrFinish,
           isLoading: controller.isLoading,
-          nextLabel: _currentPage == _photoStepIndex
-              ? 'Comenzar'
+          nextLabel: _currentPage == _previewStepIndex
+              ? 'Confirmar y crear perfil'
+              : _currentPage == _photoStepIndex
+              ? 'Ver preview'
               : (_currentPage == _skillStepIndex && _isSkillStepEmpty
                     ? 'Saltar'
                     : 'Siguiente'),
@@ -407,6 +464,20 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 error: _photoError,
                 onAdd: _addOnboardingPhoto,
                 onDelete: _deleteOnboardingPhoto,
+              ),
+              OnboardingPreviewStep(
+                photos: _localPhotos.map((p) => p.bytes).toList(),
+                displayName: displayNameCtrl.text.trim(),
+                age: _age,
+                city: _selectedLocation?.displayName,
+                bio: _goal,
+                sports: _sportsAsEnum(),
+                skillLevels: _skillLevels,
+                yearsPlaying: _yearsPlaying,
+                club: _club.isEmpty ? null : _club,
+                avgPaceMinPerKm: _avgPaceMinPerKm,
+                avgDistanceKm: _avgDistanceKm,
+                achievements: _achievements,
               ),
             ],
           ),

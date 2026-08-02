@@ -39,6 +39,7 @@ class OnboardingProfileStep extends StatelessWidget {
           TextField(
             controller: displayNameCtrl,
             decoration: const InputDecoration(labelText: 'Display name'),
+            maxLength: 50,
           ),
           const SizedBox(height: 12),
 

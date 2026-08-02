@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
@@ -872,9 +873,11 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
     super.dispose();
   }
 
+  static const _maxAchievements = 20;
+
   void _addAchievement() {
     final text = _achievementCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _achievements.length >= _maxAchievements) return;
     setState(() {
       _achievements.add(text);
       _achievementCtrl.clear();
@@ -931,11 +934,16 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                     labelText: 'Años jugando al tenis',
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(3),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _clubCtrl,
                   decoration: const InputDecoration(labelText: 'Club'),
+                  maxLength: 100,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -946,6 +954,10 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                     labelText: 'Ritmo medio (min:seg / km)',
                     hintText: 'Ej. 4:30',
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9:.]')),
+                    LengthLimitingTextInputFormatter(5),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -957,6 +969,10 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    LengthLimitingTextInputFormatter(6),
+                  ],
                 ),
                 const SizedBox(height: 12),
               ],
@@ -971,6 +987,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                       decoration: const InputDecoration(
                         hintText: 'Ej. Campeón provincial 2024',
                       ),
+                      maxLength: 200,
                       onSubmitted: (_) => _addAchievement(),
                     ),
                   ),

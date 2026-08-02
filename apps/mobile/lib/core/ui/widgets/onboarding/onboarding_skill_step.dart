@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:match_point/core/utils/pace_format.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
@@ -143,12 +144,17 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
               controller: _yearsCtrl,
               decoration: const InputDecoration(labelText: 'Años jugando al tenis'),
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(3),
+              ],
               onChanged: (v) => widget.onYearsPlayingChanged(int.tryParse(v)),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _clubCtrl,
               decoration: const InputDecoration(labelText: 'Club'),
+              maxLength: 100,
               onChanged: widget.onClubChanged,
             ),
             const SizedBox(height: 12),
@@ -160,6 +166,10 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
                 labelText: 'Ritmo medio (min:seg / km)',
                 hintText: 'Ej. 4:30',
               ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9:.]')),
+                LengthLimitingTextInputFormatter(5),
+              ],
               onChanged: (v) =>
                   widget.onAvgPaceMinPerKmChanged(parsePaceMinPerKm(v)),
             ),
@@ -171,6 +181,10 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
                 hintText: 'Ej. 10',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                LengthLimitingTextInputFormatter(6),
+              ],
               onChanged: (v) =>
                   widget.onAvgDistanceKmChanged(double.tryParse(v)),
             ),
@@ -203,9 +217,11 @@ class _AchievementsEditor extends StatefulWidget {
 class _AchievementsEditorState extends State<_AchievementsEditor> {
   final _ctrl = TextEditingController();
 
+  static const _maxAchievements = 20;
+
   void _add() {
     final text = _ctrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || widget.achievements.length >= _maxAchievements) return;
     widget.onChanged([...widget.achievements, text]);
     _ctrl.clear();
   }
@@ -236,6 +252,7 @@ class _AchievementsEditorState extends State<_AchievementsEditor> {
                 decoration: const InputDecoration(
                   hintText: 'Ej. Campeón provincial 2024',
                 ),
+                maxLength: 200,
                 onSubmitted: (_) => _add(),
               ),
             ),

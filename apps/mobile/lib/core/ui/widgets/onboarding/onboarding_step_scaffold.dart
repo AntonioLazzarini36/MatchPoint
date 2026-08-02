@@ -30,9 +30,13 @@ class OnboardingStepScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: currentPage > 0
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack)
-            : null,
+        // Antes se ocultaba en la primera página (no había "atrás" al
+        // que ir); ahora la primera página también tiene una acción de
+        // "atrás" válida — salir del wizard — así que solo se oculta si
+        // el padre no pasó ningún `onBack` en absoluto.
+        leading: onBack == null
+            ? null
+            : IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack),
         actions: onSkip == null
             ? const []
             : [TextButton(onPressed: onSkip, child: const Text('Saltar'))],
