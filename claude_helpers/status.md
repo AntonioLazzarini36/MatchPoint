@@ -303,6 +303,62 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     (`Profile.avgPaceMinPerKm`), el formato "min:seg" es solo cosa del
     cliente.
   Verificado: analyze/test mobile en verde.
+- **Tres pedidos más + pasada de hardening de inputs (2026-08-03, misma
+  rama):**
+  - **Volver atrás desde el primer paso del onboarding ahora sale al
+    login/registro, con confirmación.** Antes la flecha "atrás" se
+    ocultaba del todo en la primera página (no había a dónde volver);
+    ahora siempre está, y en la primera página pregunta "¿Salir del
+    registro?" antes de mandarte a `/onboarding-auth` — limpia el token
+    guardado primero (`TokenStorage.clear()`) para que, si veniste de
+    una cuenta a medias ya logueada, el router no te rebote de vuelta a
+    `/onboarding` (esa regla de redirect existe para gente con perfil
+    incompleto). En el resto de páginas, "atrás" sigue siendo solo
+    navegación normal del wizard, sin preguntar nada.
+  - **Nuevo paso de preview antes de crear el perfil de verdad.** El
+    wizard pasó de 5 a 6 páginas: después de "Sube tus fotos" (que ya
+    no crea nada al tocar su botón, solo avanza) hay una página "Así te
+    van a ver" con foto, nombre+edad, ciudad, deportes+nivel, bio y
+    credenciales — construida con fotos locales (`Image.memory`, no se
+    suben todavía) y los mismos bloques visuales que el preview de
+    Discovery. El botón "Confirmar y crear perfil" de esa página es el
+    que de verdad dispara `_completeRegistration()` (registro + perfil
+    + nivel + credenciales + subida de fotos), no el de fotos como
+    antes.
+  - **Placeholder de logo** en Welcome y en la pantalla de login/
+    registro — no hay un logo real todavía, así que es un círculo
+    dibujado con ícono (`AppLogoPlaceholder`, fácil de cambiar por
+    `Image.asset` el día que haya un logo de verdad). Pedido explícito
+    de que esas pantallas se sentían "frías".
+  - **Pasada de hardening en todos los inputs nuevos y varios viejos**
+    (pedido explícito: "no dejar vulnerabilidades ni opción a poner
+    letras... donde se esperan números"):
+    - Cliente: `inputFormatters` en años jugando/ritmo/distancia media
+      (solo dígitos, o dígitos+`:`+`.` según el campo) en el paso de
+      nivel del onboarding y en Settings; `maxLength` en club (100),
+      logros (200, tope de 20 logros), nombre mostrado (50), email
+      (254) y contraseña (72).
+    - Backend: nuevas validaciones de rango/longitud en
+      `me/service.rs` (`validate_profile_dto`/`validate_preferences_dto`,
+      nuevo `MeError::InvalidInput`, mapeado a 400) — nombre 1-50,
+      bio ≤500, ciudad ≤200, lat/lng dentro de rango real, años
+      jugando 0-100, club ≤100, hasta 20 logros de ≤200 caracteres
+      cada uno, ritmo 1-30 min/km, distancia 0-500km, radio 1-300km,
+      edad 18-100, y `ageMin <= ageMax` chequeado *después* de mezclar
+      con el valor ya guardado (por si el PATCH solo toca uno de los
+      dos). Además, motivo de reporte 1-1000 caracteres
+      (`UsersError::InvalidReason`, antes sin ningún límite). Y en
+      registro: email con un chequeo básico de formato (antes solo lo
+      validaba el cliente, trivial de saltarse llamando a la API
+      directo) y contraseña 8-72 caracteres (72 porque bcrypt trunca
+      ahí — antes no había mínimo en absoluto, se podía registrar con
+      una contraseña de un solo carácter).
+  Verificado: fmt/clippy/build/test backend en verde; curl contra el
+  backend real confirmando que cada validación nueva rechaza lo que
+  tiene que rechazar y sigue aceptando lo válido (contraseña corta,
+  email inválido, años jugando fuera de rango, ritmo negativo, string
+  donde se espera número, ageMin > ageMax); analyze/test mobile en
+  verde.
 
 ## Pendiente / próximos pasos
 
