@@ -98,10 +98,16 @@ pub struct Profile {
     pub longitude: Option<f64>,
     /// Structured trust signals shown alongside `bio` so the other person
     /// has something concrete to judge "plays my level" on, rather than
-    /// hoping it's mentioned in free text.
+    /// hoping it's mentioned in free text. `years_playing`/`club` read as
+    /// tennis-oriented, `avg_pace_min_per_km`/`avg_distance_km` as
+    /// running-oriented — the mobile client shows each pair only when the
+    /// matching sport is among the user's `sports`. `achievements` is
+    /// shared across whatever sports the user plays.
     pub years_playing: Option<i32>,
     pub club: Option<String>,
     pub achievements: Vec<String>,
+    pub avg_pace_min_per_km: Option<f64>,
+    pub avg_distance_km: Option<f64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -122,6 +128,8 @@ pub struct NewProfile {
     pub years_playing: Option<i32>,
     pub club: Option<String>,
     pub achievements: Vec<String>,
+    pub avg_pace_min_per_km: Option<f64>,
+    pub avg_distance_km: Option<f64>,
     pub updated_at: DateTime<Utc>,
 }
 

@@ -195,6 +195,8 @@ pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, 
                         years_playing: None,
                         club: None,
                         achievements: vec![],
+                        avg_pace_min_per_km: None,
+                        avg_distance_km: None,
                         updated_at: Utc::now(),
                     })
                     .execute(conn)

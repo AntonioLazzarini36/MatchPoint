@@ -59,6 +59,10 @@ diesel::table! {
         years_playing -> Nullable<Int4>,
         club -> Nullable<Text>,
         achievements -> Array<Text>,
+        #[sql_name = "avgPaceMinPerKm"]
+        avg_pace_min_per_km -> Nullable<Double>,
+        #[sql_name = "avgDistanceKm"]
+        avg_distance_km -> Nullable<Double>,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
         #[sql_name = "updatedAt"]

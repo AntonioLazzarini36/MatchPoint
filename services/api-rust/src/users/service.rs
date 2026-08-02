@@ -45,6 +45,8 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
             profiles::years_playing,
             profiles::club,
             profiles::achievements,
+            profiles::avg_pace_min_per_km,
+            profiles::avg_distance_km,
         ))
         .first::<(
             String,
@@ -57,6 +59,8 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
             Option<i32>,
             Option<String>,
             Vec<String>,
+            Option<f64>,
+            Option<f64>,
         )>(&mut conn)
         .await
         .optional()?
@@ -73,6 +77,8 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         years_playing,
         club,
         achievements,
+        avg_pace_min_per_km,
+        avg_distance_km,
     ) = row;
     let skill_levels = fetch_skill_levels(&mut conn, &user_id).await?;
 
@@ -86,6 +92,8 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         sports,
         years_playing,
         club,
+        avg_pace_min_per_km,
+        avg_distance_km,
         achievements,
         skill_levels,
     })

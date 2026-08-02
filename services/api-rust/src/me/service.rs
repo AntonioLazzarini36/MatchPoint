@@ -160,6 +160,12 @@ pub async fn update_profile(
         .achievements
         .or_else(|| existing.as_ref().map(|p| p.achievements.clone()))
         .unwrap_or_default();
+    let avg_pace_min_per_km = dto
+        .avg_pace_min_per_km
+        .or_else(|| existing.as_ref().and_then(|p| p.avg_pace_min_per_km));
+    let avg_distance_km = dto
+        .avg_distance_km
+        .or_else(|| existing.as_ref().and_then(|p| p.avg_distance_km));
 
     let saved = diesel::insert_into(profiles::table)
         .values(NewProfile {
@@ -176,6 +182,8 @@ pub async fn update_profile(
             years_playing,
             club: club.clone(),
             achievements: achievements.clone(),
+            avg_pace_min_per_km,
+            avg_distance_km,
             updated_at: Utc::now(),
         })
         .on_conflict(profiles::user_id)
@@ -190,6 +198,8 @@ pub async fn update_profile(
             profiles::latitude.eq(latitude),
             profiles::longitude.eq(longitude),
             profiles::years_playing.eq(years_playing),
+            profiles::avg_pace_min_per_km.eq(avg_pace_min_per_km),
+            profiles::avg_distance_km.eq(avg_distance_km),
             profiles::club.eq(club),
             profiles::achievements.eq(achievements),
             profiles::updated_at.eq(Utc::now()),

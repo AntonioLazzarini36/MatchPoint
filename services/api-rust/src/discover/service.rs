@@ -104,6 +104,8 @@ pub struct DiscoverProfile {
     pub years_playing: Option<i32>,
     pub club: Option<String>,
     pub achievements: Vec<String>,
+    pub avg_pace_min_per_km: Option<f64>,
+    pub avg_distance_km: Option<f64>,
     /// Self-reported, one entry per sport the user plays. Empty when
     /// `DiscoverProfile` is built via `From<Profile>` without a DB
     /// connection on hand — callers that need it populated (discover,
@@ -125,6 +127,8 @@ impl From<crate::models::Profile> for DiscoverProfile {
             years_playing: p.years_playing,
             club: p.club,
             achievements: p.achievements,
+            avg_pace_min_per_km: p.avg_pace_min_per_km,
+            avg_distance_km: p.avg_distance_km,
             skill_levels: Vec::new(),
         }
     }
@@ -267,6 +271,8 @@ pub async fn discover(
             profiles::years_playing,
             profiles::club,
             profiles::achievements,
+            profiles::avg_pace_min_per_km,
+            profiles::avg_distance_km,
         ))
         .limit(fetch_limit)
         .load::<(
@@ -282,12 +288,14 @@ pub async fn discover(
             Option<i32>,
             Option<String>,
             Vec<String>,
+            Option<f64>,
+            Option<f64>,
         )>(&mut conn)
         .await?;
 
     let mut result: Vec<DiscoverProfile> = rows
         .into_iter()
-        .filter(|(_, _, _, _, _, _, _, lat, lng, _, _, _)| {
+        .filter(|(_, _, _, _, _, _, _, lat, lng, _, _, _, _, _)| {
             let Some((my_lat, my_lng)) = my_location else {
                 return true;
             };
@@ -314,6 +322,8 @@ pub async fn discover(
                 years_playing,
                 club,
                 achievements,
+                avg_pace_min_per_km,
+                avg_distance_km,
             )| {
                 DiscoverProfile {
                     user_id,
@@ -325,6 +335,8 @@ pub async fn discover(
                     sports,
                     years_playing,
                     club,
+                    avg_pace_min_per_km,
+                    avg_distance_km,
                     achievements,
                     skill_levels: Vec::new(),
                 }

@@ -31,6 +31,10 @@ pub struct UpdateProfileDto {
     pub years_playing: Option<i32>,
     pub club: Option<String>,
     pub achievements: Option<Vec<String>>,
+    /// Running-oriented counterpart to `years_playing`/`club` — see
+    /// `models::Profile` docs.
+    pub avg_pace_min_per_km: Option<f64>,
+    pub avg_distance_km: Option<f64>,
 }
 
 /// `PATCH /me/skill-levels` body — replaces the level for each `(sport,
