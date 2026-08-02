@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
+import '../../discovery/models/skill_level.dart';
+import '../../discovery/models/sport.dart';
 import '../../onboarding/models/profile.dart' as onboarding_profile;
 import '../../onboarding/services/profile_service.dart';
 import '../../../core/ui/profile/photo_manager_sheet.dart';
@@ -23,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Object? error;
   ProfileHeaderData? data;
   onboarding_profile.Profile? profile;
+  Map<Sport, SkillLevel> _skillLevels = {};
   String? myUserId;
 
   @override
@@ -45,6 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       myUserId = me.id;
+      _skillLevels = me.skillLevels;
 
       if (p == null) {
         // No hay perfil todavia: renderizamos algo “vacio”
@@ -69,6 +73,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           bio: p.bio,
           photos: p.photos,
           sports: p.sports,
+          skillLevels: _skillLevels,
+          yearsPlaying: p.yearsPlaying,
+          club: p.club,
+          achievements: p.achievements,
         );
         loading = false;
       });
@@ -111,6 +119,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               bio: currentProfile.bio,
               photos: photos,
               sports: currentProfile.sports,
+              skillLevels: _skillLevels,
+              yearsPlaying: currentProfile.yearsPlaying,
+              club: currentProfile.club,
+              achievements: currentProfile.achievements,
             );
           });
         },

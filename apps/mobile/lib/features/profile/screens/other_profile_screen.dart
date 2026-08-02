@@ -65,6 +65,10 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
           bio: p.bio,
           photos: p.photos,
           sports: p.sports,
+          skillLevels: p.skillLevels,
+          yearsPlaying: p.yearsPlaying,
+          club: p.club,
+          achievements: p.achievements,
         );
         loading = false;
       });

@@ -16,9 +16,12 @@ import '../../auth/services/auth_service.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
+import '../../discovery/models/skill_level.dart';
+import '../../discovery/models/sport.dart';
 
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_step_scaffold.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_skill_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
@@ -50,8 +53,8 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
-  static const _totalPages = 4;
-  static const _photoStepIndex = 3;
+  static const _totalPages = 5;
+  static const _photoStepIndex = 4;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
@@ -60,6 +63,11 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   String _goal = 'Jugar por nivel';
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
+
+  Map<Sport, SkillLevel> _skillLevels = {};
+  int? _yearsPlaying;
+  String _club = '';
+  List<String> _achievements = [];
 
   final displayNameCtrl = TextEditingController();
   DateTime? birthDate;
@@ -104,6 +112,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
   List<String> _sportsForBackend() {
     return _selectedSports.map(_sportToBackend).whereType<String>().toList();
+  }
+
+  List<Sport> _sportsAsEnum() {
+    return _sportsForBackend().map(SportApi.fromApi).toList();
   }
 
   String _formatDate(DateTime d) =>
@@ -193,6 +205,21 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       );
       await controller.service.updateProfile(req);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
+
+      final mySports = _sportsAsEnum().toSet();
+      final levelsForMySports = Map<Sport, SkillLevel>.fromEntries(
+        _skillLevels.entries.where((e) => mySports.contains(e.key)),
+      );
+      if (levelsForMySports.isNotEmpty) {
+        await controller.service.updateSkillLevels(levelsForMySports);
+      }
+      if (_yearsPlaying != null || _club.isNotEmpty || _achievements.isNotEmpty) {
+        await controller.service.updateCredentials(
+          yearsPlaying: _yearsPlaying,
+          club: _club.isEmpty ? null : _club,
+          achievements: _achievements,
+        );
+      }
 
       for (final photo in _localPhotos) {
         await controller.service.uploadPhoto(
@@ -309,6 +336,20 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                     }
                   });
                 },
+              ),
+              OnboardingSkillStep(
+                sports: _sportsAsEnum(),
+                skillLevels: _skillLevels,
+                onSkillLevelsChanged: (levels) =>
+                    setState(() => _skillLevels = levels),
+                yearsPlaying: _yearsPlaying,
+                onYearsPlayingChanged: (v) =>
+                    setState(() => _yearsPlaying = v),
+                club: _club,
+                onClubChanged: (v) => setState(() => _club = v),
+                achievements: _achievements,
+                onAchievementsChanged: (v) =>
+                    setState(() => _achievements = v),
               ),
               OnboardingGoalStep(
                 goal: _goal,

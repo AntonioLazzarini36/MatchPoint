@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
 import '../models/profile.dart';
 import '../../discovery/models/discover_profile.dart';
+import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 
 class ProfileService {
@@ -56,6 +57,54 @@ class ProfileService {
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('UpdateSports failed: ${res.statusCode} ${res.body}');
     }
+  }
+
+  /// Señales de confianza estructuradas (`Profile.yearsPlaying/club/
+  /// achievements`) — ver status.md, "Reposicionamiento de producto".
+  /// Cualquier parámetro en `null` deja el valor existente sin tocar
+  /// (mismo upsert parcial que el resto de `PATCH /me/profile`); pasar
+  /// una lista vacía sí borra los logros existentes, a propósito, para
+  /// poder vaciarla desde Settings.
+  Future<void> updateCredentials({
+    int? yearsPlaying,
+    String? club,
+    List<String>? achievements,
+  }) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {
+        'yearsPlaying': ?yearsPlaying,
+        'club': ?club,
+        'achievements': ?achievements,
+      },
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UpdateCredentials failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  /// Nivel auto-declarado por deporte — vive en su propia tabla en el
+  /// backend (no en `Profile`), así que va por `PATCH /me/skill-levels`
+  /// en vez de `updateProfile`/`updateCredentials`. Upsert por deporte:
+  /// un deporte no incluido en `levels` no se toca.
+  Future<Map<Sport, SkillLevel>> updateSkillLevels(
+    Map<Sport, SkillLevel> levels,
+  ) async {
+    final res = await api.patch(
+      '/me/skill-levels',
+      body: {'levels': skillLevelsToJson(levels)},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'UpdateSkillLevels failed: ${res.statusCode} ${res.body}',
+      );
+    }
+
+    return skillLevelsFromJson(jsonDecode(res.body));
   }
 
   /// Solo el radio de descubrimiento por ahora (`distanceKm`) — editar

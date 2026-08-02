@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../../features/discovery/models/discover_profile.dart';
+import '../../../../features/discovery/models/skill_level.dart';
 
 /// Compact card for the horizontal Discovery row — several of these show
 /// at once (vs. the old one-at-a-time full-screen card), so this only
@@ -60,10 +61,44 @@ class DiscoveryMiniCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (_skillLabel != null)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _skillLabel!,
+                      style: context.textStyles.labelSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Nivel del primer deporte en común entre `user.sports` y sus niveles
+  /// declarados — a este tamaño de tarjeta no entra un badge por deporte,
+  /// así que se muestra uno solo (el detalle completo va en el preview).
+  String? get _skillLabel {
+    if (user.skillLevels.isEmpty) return null;
+    for (final sport in user.sports) {
+      final level = user.skillLevels[sport];
+      if (level != null) return level.label;
+    }
+    return user.skillLevels.values.first.label;
   }
 }

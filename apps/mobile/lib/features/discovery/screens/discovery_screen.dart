@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
 import '../../../core/network/api.dart';
+import '../../../core/storage/local_flags.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../discovery_controller.dart';
 import '../models/discover_profile.dart';
 import '../models/sport.dart';
 import '../services/discovery_service.dart';
 import 'package:match_point/features/discovery/models/swipe_type.dart';
+import '../../../core/ui/widgets/discovery/discovery_intro_banner.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
 import '../../../core/ui/widgets/discovery/discovery_mini_card.dart';
 import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
@@ -30,11 +32,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   static const _cardSpacing = 10.0;
 
   DiscoveryController? controller;
+  bool _showIntro = false;
 
   @override
   void initState() {
     super.initState();
     _init();
+    _loadIntroFlag();
+  }
+
+  Future<void> _loadIntroFlag() async {
+    final seen = await LocalFlags.hasSeenDiscoveryIntro();
+    if (!mounted || seen) return;
+    setState(() => _showIntro = true);
+  }
+
+  Future<void> _dismissIntro() async {
+    setState(() => _showIntro = false);
+    await LocalFlags.setSeenDiscoveryIntro();
   }
 
   /// El feed depende de los deportes reales del usuario (`Profile.sports`),
@@ -123,6 +138,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     ],
                   ),
                 ),
+
+                if (_showIntro) DiscoveryIntroBanner(onDismiss: _dismissIntro),
 
                 const SizedBox(height: 8),
 

@@ -1,3 +1,4 @@
+import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 
 class Profile {
@@ -22,6 +23,15 @@ class Profile {
   final double? latitude;
   final double? longitude;
 
+  /// Señales de confianza estructuradas ("che, este juega a mi nivel, ha
+  /// jugado estos torneos") — ver status.md, "Reposicionamiento de
+  /// producto". El nivel de habilidad NO vive acá — es un campo hermano
+  /// de `profile` en `/me` (ver `MeResponse.skillLevels`), no anidado
+  /// dentro del propio perfil.
+  final int? yearsPlaying;
+  final String? club;
+  final List<String> achievements;
+
   Profile({
     required this.id,
     required this.displayName,
@@ -33,6 +43,9 @@ class Profile {
     this.bio,
     this.latitude,
     this.longitude,
+    this.yearsPlaying,
+    this.club,
+    this.achievements = const [],
   }) : _explicitAge = age;
 
   int? get age {
@@ -69,6 +82,11 @@ class Profile {
           .toList(),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      yearsPlaying: (json['yearsPlaying'] as num?)?.toInt(),
+      club: json['club']?.toString(),
+      achievements: (json['achievements'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 }
@@ -99,11 +117,17 @@ class MeResponse {
   final Profile? profile;
   final Preferences? preferences;
 
+  /// Hermano de `profile`, no anidado en él — el backend lo guarda en su
+  /// propia tabla (una fila por deporte), ver
+  /// `services/api-rust/src/me/service.rs::MeResponse`.
+  final Map<Sport, SkillLevel> skillLevels;
+
   MeResponse({
     required this.id,
     required this.email,
     required this.profile,
     this.preferences,
+    this.skillLevels = const {},
   });
 
   factory MeResponse.fromJson(Map<String, dynamic> json) {
@@ -116,6 +140,7 @@ class MeResponse {
       preferences: json['preferences'] == null
           ? null
           : Preferences.fromJson(json['preferences'] as Map<String, dynamic>),
+      skillLevels: skillLevelsFromJson(json['skillLevels']),
     );
   }
 }

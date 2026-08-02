@@ -8,6 +8,7 @@ import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/location/location_search_screen.dart';
 import '../../auth/services/auth_service.dart';
+import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/profile.dart';
 import '../../onboarding/services/profile_service.dart';
@@ -27,10 +28,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _email;
   Profile? _profile;
   Preferences? _preferences;
+  Map<Sport, SkillLevel> _skillLevels = {};
   bool _loggingOut = false;
   bool _savingLocation = false;
   bool _savingRadius = false;
   bool _savingSports = false;
+  bool _savingSkillLevels = false;
+  bool _savingCredentials = false;
 
   @override
   void initState() {
@@ -48,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _email = me.email;
         _profile = me.profile;
         _preferences = me.preferences;
+        _skillLevels = me.skillLevels;
         _loading = false;
       });
     } catch (_) {
@@ -133,6 +138,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Nivel auto-declarado por deporte — ver status.md,
+  /// "Reposicionamiento de producto". Solo se puede setear nivel para los
+  /// deportes que el usuario ya juega (`_profile.sports`).
+  Future<void> _changeSkillLevels() async {
+    final sports = _profile?.sports ?? const [];
+    if (sports.isEmpty) return;
+
+    final chosen = await showModalBottomSheet<Map<Sport, SkillLevel>>(
+      context: context,
+      builder: (sheetContext) =>
+          _SkillLevelSheet(sports: sports, initialLevels: _skillLevels),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _savingSkillLevels = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateSkillLevels(chosen);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar el nivel: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingSkillLevels = false);
+    }
+  }
+
+  /// Señales de confianza estructuradas (años jugando, club, logros) — ver
+  /// status.md, "Reposicionamiento de producto".
+  Future<void> _changeCredentials() async {
+    final chosen = await showModalBottomSheet<_CredentialsResult>(
+      context: context,
+      builder: (sheetContext) => _CredentialsSheet(
+        initialYearsPlaying: _profile?.yearsPlaying,
+        initialClub: _profile?.club ?? '',
+        initialAchievements: _profile?.achievements ?? const [],
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _savingCredentials = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateCredentials(
+        yearsPlaying: chosen.yearsPlaying,
+        club: chosen.club,
+        achievements: chosen.achievements,
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudieron actualizar las credenciales: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingCredentials = false);
+    }
+  }
+
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -169,6 +235,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final sports = _profile?.sports ?? const [];
     if (sports.isEmpty) return 'Sin definir';
     return sports.map((s) => s.label).join(', ');
+  }
+
+  String get _skillLevelsSubtitle {
+    final sports = _profile?.sports ?? const [];
+    if (sports.isEmpty) return 'Elige tus deportes primero';
+    final parts = sports
+        .map((s) => _skillLevels[s] == null ? null : '${s.label}: ${_skillLevels[s]!.label}')
+        .whereType<String>()
+        .toList();
+    return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
+  }
+
+  String get _credentialsSubtitle {
+    final parts = <String>[
+      if (_profile?.yearsPlaying != null)
+        '${_profile!.yearsPlaying} años jugando',
+      if ((_profile?.club ?? '').isNotEmpty) _profile!.club!,
+      if ((_profile?.achievements ?? const []).isNotEmpty)
+        '${_profile!.achievements.length} logro(s)',
+    ];
+    return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
   }
 
   @override
@@ -267,6 +354,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingSports ? null : _changeSports,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.military_tech_outlined,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Nivel',
+                      subtitle: _skillLevelsSubtitle,
+                      trailing: _savingSkillLevels
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingSkillLevels ? null : _changeSkillLevels,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.emoji_events_outlined,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Credenciales',
+                      subtitle: _credentialsSubtitle,
+                      trailing: _savingCredentials
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingCredentials ? null : _changeCredentials,
                     ),
                   ],
                 ),
@@ -590,6 +717,232 @@ class _SportsSheetState extends State<_SportsSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkillLevelSheet extends StatefulWidget {
+  final List<Sport> sports;
+  final Map<Sport, SkillLevel> initialLevels;
+
+  const _SkillLevelSheet({required this.sports, required this.initialLevels});
+
+  @override
+  State<_SkillLevelSheet> createState() => _SkillLevelSheetState();
+}
+
+class _SkillLevelSheetState extends State<_SkillLevelSheet> {
+  late Map<Sport, SkillLevel> _levels;
+
+  @override
+  void initState() {
+    super.initState();
+    _levels = Map<Sport, SkillLevel>.from(widget.initialLevels);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nivel', style: context.textStyles.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Para que quien vea tu perfil sepa si juega a tu nivel.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            for (final sport in widget.sports) ...[
+              Text(sport.label, style: context.textStyles.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: SkillLevel.values.map((level) {
+                  return ChoiceChip(
+                    label: Text(level.label),
+                    selected: _levels[sport] == level,
+                    onSelected: (_) => setState(() => _levels[sport] = level),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(_levels),
+                child: const Text('Guardar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CredentialsResult {
+  final int? yearsPlaying;
+  final String? club;
+  final List<String> achievements;
+
+  const _CredentialsResult({
+    required this.yearsPlaying,
+    required this.club,
+    required this.achievements,
+  });
+}
+
+class _CredentialsSheet extends StatefulWidget {
+  final int? initialYearsPlaying;
+  final String initialClub;
+  final List<String> initialAchievements;
+
+  const _CredentialsSheet({
+    required this.initialYearsPlaying,
+    required this.initialClub,
+    required this.initialAchievements,
+  });
+
+  @override
+  State<_CredentialsSheet> createState() => _CredentialsSheetState();
+}
+
+class _CredentialsSheetState extends State<_CredentialsSheet> {
+  late final TextEditingController _yearsCtrl;
+  late final TextEditingController _clubCtrl;
+  late final TextEditingController _achievementCtrl;
+  late List<String> _achievements;
+
+  @override
+  void initState() {
+    super.initState();
+    _yearsCtrl = TextEditingController(
+      text: widget.initialYearsPlaying?.toString() ?? '',
+    );
+    _clubCtrl = TextEditingController(text: widget.initialClub);
+    _achievementCtrl = TextEditingController();
+    _achievements = [...widget.initialAchievements];
+  }
+
+  @override
+  void dispose() {
+    _yearsCtrl.dispose();
+    _clubCtrl.dispose();
+    _achievementCtrl.dispose();
+    super.dispose();
+  }
+
+  void _addAchievement() {
+    final text = _achievementCtrl.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _achievements.add(text);
+      _achievementCtrl.clear();
+    });
+  }
+
+  void _removeAchievement(int index) {
+    setState(() => _achievements.removeAt(index));
+  }
+
+  void _save() {
+    Navigator.of(context).pop(
+      _CredentialsResult(
+        yearsPlaying: int.tryParse(_yearsCtrl.text.trim()),
+        club: _clubCtrl.text.trim(),
+        achievements: _achievements,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Credenciales', style: context.textStyles.titleMedium),
+              const SizedBox(height: 8),
+              Text(
+                'Años jugando, tu club, torneos o logros.',
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _yearsCtrl,
+                decoration: const InputDecoration(labelText: 'Años jugando'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _clubCtrl,
+                decoration: const InputDecoration(labelText: 'Club'),
+              ),
+              const SizedBox(height: 16),
+              Text('Torneos / logros', style: context.textStyles.bodyMedium),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _achievementCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Ej. Campeón provincial 2024',
+                      ),
+                      onSubmitted: (_) => _addAchievement(),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: _addAchievement,
+                  ),
+                ],
+              ),
+              if (_achievements.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var i = 0; i < _achievements.length; i++)
+                      Chip(
+                        label: Text(_achievements[i]),
+                        onDeleted: () => _removeAchievement(i),
+                      ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _save,
+                  child: const Text('Guardar'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
