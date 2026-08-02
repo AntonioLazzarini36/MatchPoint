@@ -19,6 +19,8 @@ pub enum UsersError {
     ProfileNotFound,
     #[error("Cannot report yourself")]
     CannotTargetSelf,
+    #[error("Reason must be between 1 and 1000 characters")]
+    InvalidReason,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -110,6 +112,9 @@ pub async fn report_user(
 ) -> Result<(), UsersError> {
     if reporter_id == reported_id {
         return Err(UsersError::CannotTargetSelf);
+    }
+    if reason.trim().is_empty() || reason.chars().count() > 1000 {
+        return Err(UsersError::InvalidReason);
     }
 
     let mut conn = state

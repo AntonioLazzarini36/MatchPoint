@@ -39,6 +39,103 @@ pub enum MeError {
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
     Pool(String),
+    #[error("{0}")]
+    InvalidInput(String),
+}
+
+/// Bounds/length checks on whatever the client actually sent — fields the
+/// client didn't touch (`None`) are skipped here since they either keep
+/// an already-valid stored value or fall back to a known-good default
+/// further down. Deliberately checked before any DB work so obviously bad
+/// input fails fast with a 400 instead of a wasted round-trip.
+fn validate_profile_dto(dto: &UpdateProfileDto) -> Result<(), MeError> {
+    fn bad(msg: &str) -> MeError {
+        MeError::InvalidInput(msg.to_string())
+    }
+
+    if let Some(name) = &dto.display_name {
+        let len = name.trim().chars().count();
+        if len == 0 || len > 50 {
+            return Err(bad("El nombre debe tener entre 1 y 50 caracteres"));
+        }
+    }
+    if let Some(bio) = &dto.bio {
+        if bio.chars().count() > 500 {
+            return Err(bad("La bio no puede superar los 500 caracteres"));
+        }
+    }
+    if let Some(city) = &dto.city {
+        if city.chars().count() > 200 {
+            return Err(bad("La ciudad no puede superar los 200 caracteres"));
+        }
+    }
+    if let Some(lat) = dto.latitude {
+        if !(-90.0..=90.0).contains(&lat) {
+            return Err(bad("Latitud inválida"));
+        }
+    }
+    if let Some(lng) = dto.longitude {
+        if !(-180.0..=180.0).contains(&lng) {
+            return Err(bad("Longitud inválida"));
+        }
+    }
+    if let Some(years) = dto.years_playing {
+        if !(0..=100).contains(&years) {
+            return Err(bad("Años jugando debe estar entre 0 y 100"));
+        }
+    }
+    if let Some(club) = &dto.club {
+        if club.chars().count() > 100 {
+            return Err(bad("El club no puede superar los 100 caracteres"));
+        }
+    }
+    if let Some(achievements) = &dto.achievements {
+        if achievements.len() > 20 {
+            return Err(bad("Máximo 20 logros"));
+        }
+        if achievements.iter().any(|a| a.chars().count() > 200) {
+            return Err(bad("Cada logro debe tener como máximo 200 caracteres"));
+        }
+    }
+    if let Some(pace) = dto.avg_pace_min_per_km {
+        if !(1.0..=30.0).contains(&pace) {
+            return Err(bad("El ritmo medio debe estar entre 1 y 30 min/km"));
+        }
+    }
+    if let Some(dist) = dto.avg_distance_km {
+        if !(0.0..=500.0).contains(&dist) {
+            return Err(bad("La distancia media debe estar entre 0 y 500 km"));
+        }
+    }
+    Ok(())
+}
+
+fn validate_preferences_dto(dto: &UpdatePreferencesDto) -> Result<(), MeError> {
+    fn bad(msg: &str) -> MeError {
+        MeError::InvalidInput(msg.to_string())
+    }
+
+    if let Some(d) = dto.distance_km {
+        if !(1..=300).contains(&d) {
+            return Err(bad("El radio debe estar entre 1 y 300 km"));
+        }
+    }
+    if let Some(min) = dto.age_min {
+        if !(18..=100).contains(&min) {
+            return Err(bad("La edad mínima debe estar entre 18 y 100"));
+        }
+    }
+    if let Some(max) = dto.age_max {
+        if !(18..=100).contains(&max) {
+            return Err(bad("La edad máxima debe estar entre 18 y 100"));
+        }
+    }
+    if let Some(g) = &dto.gender_preference {
+        if g.chars().count() > 50 {
+            return Err(bad("Preferencia de género inválida"));
+        }
+    }
+    Ok(())
 }
 
 /// Mirrors exactly what me.service.ts's `getMe` selects — note the TS
@@ -102,6 +199,8 @@ pub async fn update_profile(
     user_id: &str,
     dto: UpdateProfileDto,
 ) -> Result<Profile, MeError> {
+    validate_profile_dto(&dto)?;
+
     let mut conn = state
         .db
         .get()
@@ -254,6 +353,8 @@ pub async fn update_preferences(
     user_id: &str,
     dto: UpdatePreferencesDto,
 ) -> Result<Preferences, MeError> {
+    validate_preferences_dto(&dto)?;
+
     let mut conn = state
         .db
         .get()
@@ -285,6 +386,15 @@ pub async fn update_preferences(
     let gender_preference = dto
         .gender_preference
         .or_else(|| existing.as_ref().and_then(|p| p.gender_preference.clone()));
+
+    // Checked post-merge (not just against the raw DTO) since this is a
+    // partial update — a request that only sends `ageMin` still has to be
+    // validated against whatever `ageMax` ends up being, stored or not.
+    if age_min > age_max {
+        return Err(MeError::InvalidInput(
+            "La edad mínima no puede ser mayor que la máxima".to_string(),
+        ));
+    }
 
     let saved = diesel::insert_into(preferences::table)
         .values(NewPreferences {

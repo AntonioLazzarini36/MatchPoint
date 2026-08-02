@@ -179,7 +179,9 @@ async fn remove_photo(
 fn me_error_response(err: MeError) -> axum::response::Response {
     let status = match &err {
         MeError::UserNotFound | MeError::ProfileNotFound => StatusCode::NOT_FOUND,
-        MeError::TooManyPhotos | MeError::LastPhotoRequired => StatusCode::BAD_REQUEST,
+        MeError::TooManyPhotos | MeError::LastPhotoRequired | MeError::InvalidInput(_) => {
+            StatusCode::BAD_REQUEST
+        }
         MeError::Photo(
             PhotoError::UnsupportedContentType(_)
             | PhotoError::TooLarge

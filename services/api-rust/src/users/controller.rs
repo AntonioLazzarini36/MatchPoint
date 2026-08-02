@@ -88,7 +88,7 @@ async fn report_user(
 
 fn users_error_response(err: UsersError) -> axum::response::Response {
     match err {
-        UsersError::CannotTargetSelf => (
+        UsersError::CannotTargetSelf | UsersError::InvalidReason => (
             StatusCode::BAD_REQUEST,
             Json(json!({ "message": err.to_string() })),
         )
