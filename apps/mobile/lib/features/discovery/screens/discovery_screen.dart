@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
 import '../../../core/network/api.dart';
+import '../../onboarding/services/profile_service.dart';
 import '../discovery_controller.dart';
 import '../models/discover_profile.dart';
+import '../models/sport.dart';
 import '../services/discovery_service.dart';
 import 'package:match_point/features/discovery/models/swipe_type.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
@@ -27,24 +29,46 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   static const _maxVisible = 4;
   static const _cardSpacing = 10.0;
 
-  late final DiscoveryController controller;
+  DiscoveryController? controller;
 
   @override
   void initState() {
     super.initState();
-    controller = DiscoveryController(DiscoveryService(Api.client));
-    controller.init();
+    _init();
+  }
+
+  /// El feed depende de los deportes reales del usuario (`Profile.sports`),
+  /// así que hay que leer `/me` antes de poder crear el controller — ya no
+  /// se puede asumir tenis fijo (ver discovery_controller.dart). Si `/me`
+  /// falla o el perfil no tiene deportes marcados, el controller cae solo
+  /// a tenis (mismo fallback de antes) en vez de dejar la pantalla rota.
+  Future<void> _init() async {
+    List<Sport> mySports = const [];
+    try {
+      final me = await ProfileService(Api.client).getMe();
+      mySports = me.profile?.sports ?? const [];
+    } catch (_) {
+      // sigue con mySports vacío -> el controller cae a [Sport.tennis]
+    }
+
+    if (!mounted) return;
+    final created = DiscoveryController(
+      DiscoveryService(Api.client),
+      mySports: mySports,
+    );
+    setState(() => controller = created);
+    await created.init();
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    controller?.dispose();
     super.dispose();
   }
 
   Future<void> _handleSwipe(DiscoverProfile user, SwipeType type) async {
     try {
-      final res = await controller.swipeUser(user: user, type: type);
+      final res = await controller!.swipeUser(user: user, type: type);
 
       if (!mounted) return;
 
@@ -65,6 +89,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final controller = this.controller;
+    if (controller == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -97,7 +126,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
                 const SizedBox(height: 8),
 
-                Expanded(child: _buildBody(context)),
+                Expanded(child: _buildBody(context, controller)),
               ],
             ),
           ),
@@ -106,7 +135,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, DiscoveryController controller) {
     if (controller.loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -190,7 +219,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 if (i > 0) const SizedBox(height: _cardSpacing),
                 SizedBox(
                   height: cardHeight,
-                  child: _buildCard(context, visible[i]),
+                  child: _buildCard(context, controller, visible[i]),
                 ),
               ],
             ],
@@ -200,7 +229,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     );
   }
 
-  Widget _buildCard(BuildContext context, DiscoverProfile user) {
+  Widget _buildCard(
+    BuildContext context,
+    DiscoveryController controller,
+    DiscoverProfile user,
+  ) {
     return Dismissible(
       // Includes `generation` so a card rolled back after a failed swipe
       // gets a fresh key instead of resurrecting the Dismissible that was

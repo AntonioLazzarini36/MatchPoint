@@ -12,6 +12,21 @@ sin el rewrite a Rust). La rama activa de verdad es **`feature/rust-backend`**
 esto en `dev`/`main`.
 
 Ramas vivas ahora mismo, aparte del trunk:
+- **`fix/discovery-sports-selection`** — ✅ hecha, verificada
+  (analyze/test en verde, probada en vivo en Chrome), **pusheada a
+  origin, todavía sin mergear** en `feature/rust-backend` (se dejó así a
+  propósito — solo se pidió commit+push, el merge queda para cuando lo
+  decidas). Arregla el bug real de status.md: `DiscoveryController`
+  estaba fijo en `Sport.tennis` sin importar qué eligió el usuario en el
+  onboarding — quien elegía solo "Correr" nunca veía a nadie. Ahora el
+  feed se arma por cada deporte del propio perfil y se unen los
+  resultados; agrega también una fila "Deportes" en Settings (antes no
+  existía forma de cambiar tus deportes después del onboarding).
+- **`feat/skill-level-and-credentials`** — en curso (arrancada
+  2026-08-02, sin mergear todavía). Ver "Reposicionamiento de producto"
+  más abajo para el contexto completo — nivel auto-declarado por
+  deporte + credenciales (años jugando, club, logros) + onboarding/
+  Discovery menos abruptos.
 - **`redesign/ui-overhaul`** — creada, sin empezar. Rediseño general de la
   UI. Falta definir alcance/estilo (¿pantalla por pantalla con mockups como
   hicimos con Settings, o carta blanca?).
@@ -383,6 +398,67 @@ quieras priorizar:
    en esa pantalla, pero no hay nada si la app está en segundo plano o en
    otra pantalla — te enterás de un match/mensaje nuevo solo si volvés a
    abrir la pestaña correspondiente.
+
+## Reposicionamiento de producto (pedido el 2026-08-02)
+
+Conversación con vos sobre hacia dónde va MatchPoint, resumida acá porque
+cambia cómo hay que pensar features futuras — no es un detalle de una
+rama, es el marco general.
+
+**Lo que dijiste:** MatchPoint no es (o no debería sentirse como) una app
+de citas que usa el deporte de excusa. Es una app para que alguien que
+juega al tenis (o corre, o cualquier deporte de a dos) encuentre a otra
+persona **de su nivel** en su ciudad para jugar/entrenar — el objetivo
+final es organizar el partido o la carrera, no una cita. Las dos partes
+tienen que poder mirarse el perfil y pensar "che, este tipo juega a mi
+nivel" o "ha jugado estos torneos que conozco" — algo que hoy no existe
+en absoluto, el perfil no tiene nada de eso. Además, la experiencia de
+entrar a la app tiene que ser más cómoda/progresiva — hoy se entra
+directo a Discovery con tarjetas de swipe sin ninguna explicación de qué
+es esto ni por qué estás viendo caras.
+
+**Diagnóstico (mío) de qué falta para esa experiencia, en orden de
+prioridad:**
+
+1. **No hay ningún concepto de nivel/habilidad en el modelo de datos.**
+   `Profile` no tiene ningún campo de nivel, y no existe ningún registro
+   de resultados de partidos, así que tampoco hay de dónde calcular un
+   rating real más adelante. Dos pasos, no uno:
+   - Corto plazo: nivel auto-declarado por deporte (no un único nivel
+     global — alguien puede ser avanzado en tenis y principiante
+     corriendo). Barato, desbloquea "busco gente de mi nivel" ya.
+     Auto-declarado significa que se puede inflar, es una limitación
+     conocida y aceptada por ahora.
+   - Largo plazo: rating calculado (Elo/Glicko, ya estaba en el backlog
+     de "Próximos pasos" del README) alimentado por resultados de
+     partidos reales — necesita un flujo de "cargar el resultado" que
+     hoy no existe ni como concepto. Se deja para después, no bloquea el
+     campo auto-declarado.
+2. **No hay nada que genere confianza más allá de una foto y un bio
+   libre.** Para el "ha jugado estos torneos que conozco": agregar campos
+   estructurados (años jugando, club, torneos/logros) en vez de esperar
+   que la gente lo escriba a mano en el bio y confiar en que alguien lo
+   lea. Tiene que verse en el preview del perfil, no escondido.
+3. **El onboarding no marca el tono, y Discovery tampoco.** Hoy el
+   onboarding pide nombre/fecha de nacimiento/deporte/ubicación y te
+   tira directo al swipe deck — no hay un momento de "esto es para qué"
+   ni se pregunta intención (¿buscás compañero casual, entrenamiento
+   serio, competitivo?) ni el nivel nuevo. Agregar eso al onboarding, y
+   pensar una primera pantalla de Discovery más suave (explicación breve
+   la primera vez) en vez de tarjetas sin contexto.
+4. **Reconsiderar el mecanismo de swipe y el lenguaje ("Match", corazón)
+   — no urgente, no arrancado.** Todo eso se construyó a propósito
+   imitando apps de citas. Si el objetivo real es "che, jugás a mi nivel,
+   organicemos" en vez de decidir por una foto en 2 segundos, quizás el
+   swipe-y-listo es la interacción equivocada del todo. Esto se solapa
+   con `redesign/ui-overhaul` (rama creada, sin alcance definido) y
+   depende de decisiones de diseño que no tengo — lo dejo fuera del
+   trabajo de esta sesión a propósito, documentado acá para cuando se
+   hable de esa rama.
+
+**Se me pidió arrancar los puntos 1-3 sin pausas.** Rama
+`feat/skill-level-and-credentials` (ver "Ramas vivas" arriba). El punto 4
+queda fuera, deliberadamente, por lo dicho arriba.
 
 ## Notas del entorno local
 

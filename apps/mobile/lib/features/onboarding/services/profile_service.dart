@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
 import '../models/profile.dart';
 import '../../discovery/models/discover_profile.dart';
+import '../../discovery/models/sport.dart';
 
 class ProfileService {
   final ApiClient api;
@@ -41,9 +42,25 @@ class ProfileService {
     }
   }
 
+  /// Deportes que juega el usuario (`Profile.sports`) — editable desde
+  /// Settings en cualquier momento, no solo en el onboarding. Distinto de
+  /// `Preferences.sportsWanted` (qué deportes busca en otros, sin UI
+  /// todavía, ver status.md).
+  Future<void> updateSports(List<Sport> sports) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {'sports': sports.map((s) => s.apiValue).toList()},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UpdateSports failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
   /// Solo el radio de descubrimiento por ahora (`distanceKm`) — editar
-  /// edad/deportes/género buscados es una pantalla de filtros aparte, sin
-  /// alcance definido todavía (ver status.md).
+  /// edad/género buscados es una pantalla de filtros aparte, sin alcance
+  /// definido todavía (ver status.md).
   Future<void> updateDiscoveryRadius(int distanceKm) async {
     final res = await api.patch(
       '/me/preferences',
