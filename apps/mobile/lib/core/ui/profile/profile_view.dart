@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
+import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
 import 'profile_header_data.dart';
@@ -138,7 +139,7 @@ class ProfileView extends StatelessWidget {
                     _infoRow(
                       context,
                       Icons.speed,
-                      'Ritmo medio: ${data.avgPaceMinPerKm} min/km',
+                      'Ritmo medio: ${formatPaceMinPerKm(data.avgPaceMinPerKm)} min/km',
                     ),
                   if (data.avgDistanceKm != null)
                     _infoRow(

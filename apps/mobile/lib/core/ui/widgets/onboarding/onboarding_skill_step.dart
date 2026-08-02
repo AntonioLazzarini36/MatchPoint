@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:match_point/core/utils/pace_format.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 
@@ -11,7 +12,17 @@ import 'package:match_point/features/discovery/models/sport.dart';
 /// los logros son compartidos, sea cual sea el deporte. Todo el paso es
 /// opcional — eso lo comunica el botón "Saltar" de
 /// `OnboardingProfileScreen`, no un texto acá.
-class OnboardingSkillStep extends StatelessWidget {
+///
+/// `StatefulWidget` con `TextEditingController`s a propósito, no
+/// `TextFormField(initialValue: ..., key: ValueKey('algo-$valor'))`
+/// como tenía antes: esa key cambiaba con cada tecla (porque el valor
+/// que forma parte de la key es justo el que se está escribiendo), así
+/// que Flutter destruía y recreaba el campo en cada pulsación — perdía
+/// el foco a mitad de escribir y saltaba al siguiente campo (bug
+/// reportado en vivo, 2026-08-02). Con un controller creado una sola
+/// vez en `initState`, el campo sigue siendo el mismo widget mientras
+/// se escribe.
+class OnboardingSkillStep extends StatefulWidget {
   final List<Sport> sports;
   final Map<Sport, SkillLevel> skillLevels;
   final ValueChanged<Map<Sport, SkillLevel>> onSkillLevelsChanged;
@@ -43,17 +54,51 @@ class OnboardingSkillStep extends StatelessWidget {
     required this.onAchievementsChanged,
   });
 
+  @override
+  State<OnboardingSkillStep> createState() => _OnboardingSkillStepState();
+}
+
+class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
+  late final TextEditingController _yearsCtrl;
+  late final TextEditingController _clubCtrl;
+  late final TextEditingController _paceCtrl;
+  late final TextEditingController _distanceCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _yearsCtrl = TextEditingController(
+      text: widget.yearsPlaying?.toString() ?? '',
+    );
+    _clubCtrl = TextEditingController(text: widget.club);
+    _paceCtrl = TextEditingController(
+      text: formatPaceMinPerKm(widget.avgPaceMinPerKm),
+    );
+    _distanceCtrl = TextEditingController(
+      text: widget.avgDistanceKm?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _yearsCtrl.dispose();
+    _clubCtrl.dispose();
+    _paceCtrl.dispose();
+    _distanceCtrl.dispose();
+    super.dispose();
+  }
+
   void _setLevel(Sport sport, SkillLevel level) {
-    final updated = Map<Sport, SkillLevel>.from(skillLevels);
+    final updated = Map<Sport, SkillLevel>.from(widget.skillLevels);
     updated[sport] = level;
-    onSkillLevelsChanged(updated);
+    widget.onSkillLevelsChanged(updated);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final playsTennis = sports.contains(Sport.tennis);
-    final playsRunning = sports.contains(Sport.running);
+    final playsTennis = widget.sports.contains(Sport.tennis);
+    final playsRunning = widget.sports.contains(Sport.running);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -68,7 +113,7 @@ class OnboardingSkillStep extends StatelessWidget {
             style: t.bodyLarge,
           ),
           const SizedBox(height: 24),
-          for (final sport in sports) ...[
+          for (final sport in widget.sports) ...[
             Text(sport.label, style: t.titleMedium),
             const SizedBox(height: 8),
             Wrap(
@@ -77,7 +122,7 @@ class OnboardingSkillStep extends StatelessWidget {
               children: SkillLevel.values.map((level) {
                 return ChoiceChip(
                   label: Text(level.label),
-                  selected: skillLevels[sport] == level,
+                  selected: widget.skillLevels[sport] == level,
                   onSelected: (_) => _setLevel(sport, level),
                 );
               }).toList(),
@@ -95,48 +140,46 @@ class OnboardingSkillStep extends StatelessWidget {
           const SizedBox(height: 12),
           if (playsTennis) ...[
             TextFormField(
-              key: ValueKey('years-$yearsPlaying'),
-              initialValue: yearsPlaying?.toString() ?? '',
+              controller: _yearsCtrl,
               decoration: const InputDecoration(labelText: 'Años jugando al tenis'),
               keyboardType: TextInputType.number,
-              onChanged: (v) => onYearsPlayingChanged(int.tryParse(v)),
+              onChanged: (v) => widget.onYearsPlayingChanged(int.tryParse(v)),
             ),
             const SizedBox(height: 12),
             TextFormField(
-              initialValue: club,
+              controller: _clubCtrl,
               decoration: const InputDecoration(labelText: 'Club'),
-              onChanged: onClubChanged,
+              onChanged: widget.onClubChanged,
             ),
             const SizedBox(height: 12),
           ],
           if (playsRunning) ...[
             TextFormField(
-              key: ValueKey('pace-$avgPaceMinPerKm'),
-              initialValue: avgPaceMinPerKm?.toString() ?? '',
+              controller: _paceCtrl,
               decoration: const InputDecoration(
-                labelText: 'Ritmo medio (min/km)',
-                hintText: 'Ej. 5.5',
+                labelText: 'Ritmo medio (min:seg / km)',
+                hintText: 'Ej. 4:30',
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (v) => onAvgPaceMinPerKmChanged(double.tryParse(v)),
+              onChanged: (v) =>
+                  widget.onAvgPaceMinPerKmChanged(parsePaceMinPerKm(v)),
             ),
             const SizedBox(height: 12),
             TextFormField(
-              key: ValueKey('distance-$avgDistanceKm'),
-              initialValue: avgDistanceKm?.toString() ?? '',
+              controller: _distanceCtrl,
               decoration: const InputDecoration(
                 labelText: 'Distancia media (km)',
                 hintText: 'Ej. 10',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (v) => onAvgDistanceKmChanged(double.tryParse(v)),
+              onChanged: (v) =>
+                  widget.onAvgDistanceKmChanged(double.tryParse(v)),
             ),
             const SizedBox(height: 12),
           ],
           const SizedBox(height: 4),
           _AchievementsEditor(
-            achievements: achievements,
-            onChanged: onAchievementsChanged,
+            achievements: widget.achievements,
+            onChanged: widget.onAchievementsChanged,
           ),
         ],
       ),

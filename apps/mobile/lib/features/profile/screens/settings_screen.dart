@@ -7,6 +7,7 @@ import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/location/location_search_screen.dart';
+import '../../../core/utils/pace_format.dart';
 import '../../auth/services/auth_service.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
@@ -258,7 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         '${_profile!.yearsPlaying} años jugando',
       if ((_profile?.club ?? '').isNotEmpty) _profile!.club!,
       if (_profile?.avgPaceMinPerKm != null)
-        '${_profile!.avgPaceMinPerKm} min/km',
+        '${formatPaceMinPerKm(_profile!.avgPaceMinPerKm)} min/km',
       if (_profile?.avgDistanceKm != null)
         '${_profile!.avgDistanceKm} km medios',
       if ((_profile?.achievements ?? const []).isNotEmpty)
@@ -852,7 +853,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
     );
     _clubCtrl = TextEditingController(text: widget.initialClub);
     _paceCtrl = TextEditingController(
-      text: widget.initialAvgPaceMinPerKm?.toString() ?? '',
+      text: formatPaceMinPerKm(widget.initialAvgPaceMinPerKm),
     );
     _distanceCtrl = TextEditingController(
       text: widget.initialAvgDistanceKm?.toString() ?? '',
@@ -889,7 +890,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
       _CredentialsResult(
         yearsPlaying: int.tryParse(_yearsCtrl.text.trim()),
         club: _clubCtrl.text.trim(),
-        avgPaceMinPerKm: double.tryParse(_paceCtrl.text.trim()),
+        avgPaceMinPerKm: parsePaceMinPerKm(_paceCtrl.text),
         avgDistanceKm: double.tryParse(_distanceCtrl.text.trim()),
         achievements: _achievements,
       ),
@@ -942,11 +943,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                 TextField(
                   controller: _paceCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Ritmo medio (min/km)',
-                    hintText: 'Ej. 5.5',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                    labelText: 'Ritmo medio (min:seg / km)',
+                    hintText: 'Ej. 4:30',
                   ),
                 ),
                 const SizedBox(height: 12),

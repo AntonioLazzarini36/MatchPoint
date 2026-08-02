@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
+import '../../../utils/pace_format.dart';
 import '../../../../features/discovery/models/discover_profile.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import '../../../../features/discovery/models/sport.dart';
@@ -135,7 +136,7 @@ class _CredentialsSection extends StatelessWidget {
           _infoRow(
             context,
             Icons.speed,
-            'Ritmo medio: ${user.avgPaceMinPerKm} min/km',
+            'Ritmo medio: ${formatPaceMinPerKm(user.avgPaceMinPerKm)} min/km',
           ),
         if (user.avgDistanceKm != null)
           _infoRow(

@@ -83,7 +83,20 @@ class OnboardingLocationStep extends StatelessWidget {
                                 // parte de la tarjeta abre el buscador
                                 // (el InkWell de arriba), el mapa no
                                 // necesita capturar sus propios gestos.
+                                //
+                                // `key` a propósito ligada a las
+                                // coordenadas: `MapOptions.initialCenter`
+                                // solo se aplica al montar el widget la
+                                // primera vez, no en cada rebuild — sin
+                                // esta key, elegir una ubicación nueva
+                                // dejaba la cámara del mapa en el sitio
+                                // viejo (el pin se movía a las coordenadas
+                                // correctas pero quedaba fuera de la
+                                // vista). La key fuerza un remount
+                                // completo del mapa cada vez que cambian
+                                // las coordenadas, así vuelve a centrar.
                                 child: FlutterMap(
+                                  key: ValueKey('${loc.latitude}_${loc.longitude}'),
                                   options: MapOptions(
                                     initialCenter: LatLng(
                                       loc.latitude,
