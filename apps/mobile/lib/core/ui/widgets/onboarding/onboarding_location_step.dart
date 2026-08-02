@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../location/location_result.dart';
 import '../../location/location_search_screen.dart';
@@ -28,8 +30,9 @@ class OnboardingLocationStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
+    final loc = location;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,7 +41,9 @@ class OnboardingLocationStep extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Escribe donde estas — no usamos tu ubicacion del dispositivo, '
-            'la eliges tu y puedes cambiarla cuando quieras.',
+            'la eliges tu y puedes cambiarla cuando quieras. La usamos '
+            'para mostrarte gente dentro del radio que elijas, nunca la '
+            'compartimos exacta con nadie.',
             style: t.bodyLarge,
           ),
           const SizedBox(height: 24),
@@ -49,18 +54,76 @@ class OnboardingLocationStep extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: () => _pickLocation(context),
-                    child: Row(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.location_on, color: scheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            location?.displayName ?? 'Elegir ubicacion',
-                            style: t.titleMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on, color: scheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                loc?.displayName ?? 'Elegir ubicacion',
+                                style: t.titleMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: scheme.outline),
+                          ],
                         ),
-                        Icon(Icons.chevron_right, color: scheme.outline),
+                        if (loc != null) ...[
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              height: 120,
+                              child: IgnorePointer(
+                                // Solo decorativo — tocar en cualquier
+                                // parte de la tarjeta abre el buscador
+                                // (el InkWell de arriba), el mapa no
+                                // necesita capturar sus propios gestos.
+                                child: FlutterMap(
+                                  options: MapOptions(
+                                    initialCenter: LatLng(
+                                      loc.latitude,
+                                      loc.longitude,
+                                    ),
+                                    initialZoom: 12,
+                                    interactionOptions: const InteractionOptions(
+                                      flags: InteractiveFlag.none,
+                                    ),
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate:
+                                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      userAgentPackageName:
+                                          'com.matchpoint.app',
+                                    ),
+                                    MarkerLayer(
+                                      markers: [
+                                        Marker(
+                                          point: LatLng(
+                                            loc.latitude,
+                                            loc.longitude,
+                                          ),
+                                          width: 36,
+                                          height: 36,
+                                          child: Icon(
+                                            Icons.location_on,
+                                            color: scheme.primary,
+                                            size: 36,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

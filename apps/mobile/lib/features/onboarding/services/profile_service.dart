@@ -68,6 +68,8 @@ class ProfileService {
   Future<void> updateCredentials({
     int? yearsPlaying,
     String? club,
+    double? avgPaceMinPerKm,
+    double? avgDistanceKm,
     List<String>? achievements,
   }) async {
     final res = await api.patch(
@@ -75,6 +77,8 @@ class ProfileService {
       body: {
         'yearsPlaying': ?yearsPlaying,
         'club': ?club,
+        'avgPaceMinPerKm': ?avgPaceMinPerKm,
+        'avgDistanceKm': ?avgDistanceKm,
         'achievements': ?achievements,
       },
       auth: true,

@@ -16,6 +16,8 @@ class DiscoverProfile {
   final int? yearsPlaying;
   final String? club;
   final List<String> achievements;
+  final double? avgPaceMinPerKm;
+  final double? avgDistanceKm;
   final Map<Sport, SkillLevel> skillLevels;
 
   DiscoverProfile({
@@ -29,6 +31,8 @@ class DiscoverProfile {
     this.yearsPlaying,
     this.club,
     this.achievements = const [],
+    this.avgPaceMinPerKm,
+    this.avgDistanceKm,
     this.skillLevels = const {},
   });
 
@@ -59,6 +63,8 @@ class DiscoverProfile {
       achievements: (p['achievements'] as List<dynamic>? ?? const [])
           .map((e) => e.toString())
           .toList(),
+      avgPaceMinPerKm: (p['avgPaceMinPerKm'] as num?)?.toDouble(),
+      avgDistanceKm: (p['avgDistanceKm'] as num?)?.toDouble(),
       skillLevels: skillLevelsFromJson(p['skillLevels']),
     );
   }

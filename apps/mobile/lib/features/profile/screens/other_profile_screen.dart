@@ -69,6 +69,8 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
           yearsPlaying: p.yearsPlaying,
           club: p.club,
           achievements: p.achievements,
+          avgPaceMinPerKm: p.avgPaceMinPerKm,
+          avgDistanceKm: p.avgDistanceKm,
         );
         loading = false;
       });

@@ -54,19 +54,28 @@ class OnboardingProfileScreen extends StatefulWidget {
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   static const _totalPages = 5;
+  static const _skillStepIndex = 1;
   static const _photoStepIndex = 4;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final Set<String> _selectedSports = {'Tenis', 'Correr'};
+  // Empieza vacío a propósito: con los dos marcados desde el arranque no
+  // quedaba claro qué habías elegido vos y qué no (feedback del usuario,
+  // 2026-08-02) — mejor forzar una elección explícita, validada abajo.
+  final Set<String> _selectedSports = {};
   String _goal = 'Jugar por nivel';
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
 
   Map<Sport, SkillLevel> _skillLevels = {};
+  // Tenis: años jugando + club. Correr: ritmo/distancia media. Se
+  // muestran condicionalmente en OnboardingSkillStep según los deportes
+  // elegidos arriba — ver status.md, "Reposicionamiento de producto".
   int? _yearsPlaying;
   String _club = '';
+  double? _avgPaceMinPerKm;
+  double? _avgDistanceKm;
   List<String> _achievements = [];
 
   final displayNameCtrl = TextEditingController();
@@ -118,6 +127,20 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     return _sportsForBackend().map(SportApi.fromApi).toList();
   }
 
+  /// El paso de nivel/credenciales es el único realmente opcional del
+  /// wizard — en vez de escribir "(opcional)" en la pantalla, el botón
+  /// mismo dice "Saltar" mientras no haya nada cargado, y pasa a
+  /// "Siguiente" en cuanto tocás algo (feedback del usuario, 2026-08-02).
+  bool get _hasCredentialsFilled {
+    return _yearsPlaying != null ||
+        _club.isNotEmpty ||
+        _avgPaceMinPerKm != null ||
+        _avgDistanceKm != null ||
+        _achievements.isNotEmpty;
+  }
+
+  bool get _isSkillStepEmpty => _skillLevels.isEmpty && !_hasCredentialsFilled;
+
   String _formatDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -144,6 +167,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       }
       if (birthDate == null) {
         controller.setError('Birth date is required');
+        return;
+      }
+      if (_selectedSports.isEmpty) {
+        controller.setError('Elige al menos un deporte');
         return;
       }
     }
@@ -213,10 +240,12 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       if (levelsForMySports.isNotEmpty) {
         await controller.service.updateSkillLevels(levelsForMySports);
       }
-      if (_yearsPlaying != null || _club.isNotEmpty || _achievements.isNotEmpty) {
+      if (_hasCredentialsFilled) {
         await controller.service.updateCredentials(
           yearsPlaying: _yearsPlaying,
           club: _club.isEmpty ? null : _club,
+          avgPaceMinPerKm: _avgPaceMinPerKm,
+          avgDistanceKm: _avgDistanceKm,
           achievements: _achievements,
         );
       }
@@ -312,7 +341,11 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               ? null
               : _goNextOrFinish,
           isLoading: controller.isLoading,
-          nextLabel: _currentPage == _photoStepIndex ? 'Comenzar' : 'Siguiente',
+          nextLabel: _currentPage == _photoStepIndex
+              ? 'Comenzar'
+              : (_currentPage == _skillStepIndex && _isSkillStepEmpty
+                    ? 'Saltar'
+                    : 'Siguiente'),
           errorText: controller.error,
           child: PageView(
             controller: _pageController,
@@ -347,6 +380,12 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                     setState(() => _yearsPlaying = v),
                 club: _club,
                 onClubChanged: (v) => setState(() => _club = v),
+                avgPaceMinPerKm: _avgPaceMinPerKm,
+                onAvgPaceMinPerKmChanged: (v) =>
+                    setState(() => _avgPaceMinPerKm = v),
+                avgDistanceKm: _avgDistanceKm,
+                onAvgDistanceKmChanged: (v) =>
+                    setState(() => _avgDistanceKm = v),
                 achievements: _achievements,
                 onAchievementsChanged: (v) =>
                     setState(() => _achievements = v),

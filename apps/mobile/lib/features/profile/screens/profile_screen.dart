@@ -77,6 +77,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           yearsPlaying: p.yearsPlaying,
           club: p.club,
           achievements: p.achievements,
+          avgPaceMinPerKm: p.avgPaceMinPerKm,
+          avgDistanceKm: p.avgDistanceKm,
         );
         loading = false;
       });
@@ -123,6 +125,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               yearsPlaying: currentProfile.yearsPlaying,
               club: currentProfile.club,
               achievements: currentProfile.achievements,
+              avgPaceMinPerKm: currentProfile.avgPaceMinPerKm,
+              avgDistanceKm: currentProfile.avgDistanceKm,
             );
           });
         },

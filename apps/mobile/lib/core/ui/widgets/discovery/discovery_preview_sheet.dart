@@ -101,6 +101,8 @@ Future<void> showDiscoveryPreviewSheet(
 bool _hasCredentials(DiscoverProfile user) {
   return user.yearsPlaying != null ||
       (user.club ?? '').isNotEmpty ||
+      user.avgPaceMinPerKm != null ||
+      user.avgDistanceKm != null ||
       user.achievements.isNotEmpty;
 }
 
@@ -129,6 +131,18 @@ class _CredentialsSection extends StatelessWidget {
           _infoRow(context, Icons.timeline, '${user.yearsPlaying} años jugando'),
         if ((user.club ?? '').isNotEmpty)
           _infoRow(context, Icons.groups_outlined, user.club!),
+        if (user.avgPaceMinPerKm != null)
+          _infoRow(
+            context,
+            Icons.speed,
+            'Ritmo medio: ${user.avgPaceMinPerKm} min/km',
+          ),
+        if (user.avgDistanceKm != null)
+          _infoRow(
+            context,
+            Icons.route,
+            'Distancia media: ${user.avgDistanceKm} km',
+          ),
         for (final achievement in user.achievements)
           _infoRow(context, Icons.emoji_events_outlined, achievement),
       ],

@@ -5,8 +5,12 @@ import 'package:match_point/features/discovery/models/sport.dart';
 
 /// Nivel por deporte + credenciales — para que la otra persona pueda
 /// pensar "che, este juega a mi nivel" antes de organizar nada (ver
-/// status.md, "Reposicionamiento de producto"). Todo opcional a
-/// propósito: no bloquea el "Siguiente" del wizard.
+/// status.md, "Reposicionamiento de producto"). Las credenciales que se
+/// muestran dependen de qué deportes elegiste en el paso anterior:
+/// años jugando/club para tenis, ritmo/distancia media para correr —
+/// los logros son compartidos, sea cual sea el deporte. Todo el paso es
+/// opcional — eso lo comunica el botón "Saltar" de
+/// `OnboardingProfileScreen`, no un texto acá.
 class OnboardingSkillStep extends StatelessWidget {
   final List<Sport> sports;
   final Map<Sport, SkillLevel> skillLevels;
@@ -15,6 +19,10 @@ class OnboardingSkillStep extends StatelessWidget {
   final ValueChanged<int?> onYearsPlayingChanged;
   final String club;
   final ValueChanged<String> onClubChanged;
+  final double? avgPaceMinPerKm;
+  final ValueChanged<double?> onAvgPaceMinPerKmChanged;
+  final double? avgDistanceKm;
+  final ValueChanged<double?> onAvgDistanceKmChanged;
   final List<String> achievements;
   final ValueChanged<List<String>> onAchievementsChanged;
 
@@ -27,6 +35,10 @@ class OnboardingSkillStep extends StatelessWidget {
     required this.onYearsPlayingChanged,
     required this.club,
     required this.onClubChanged,
+    required this.avgPaceMinPerKm,
+    required this.onAvgPaceMinPerKmChanged,
+    required this.avgDistanceKm,
+    required this.onAvgDistanceKmChanged,
     required this.achievements,
     required this.onAchievementsChanged,
   });
@@ -40,6 +52,8 @@ class OnboardingSkillStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final playsTennis = sports.contains(Sport.tennis);
+    final playsRunning = sports.contains(Sport.running);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -50,7 +64,7 @@ class OnboardingSkillStep extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Para que quien vea tu perfil sepa si juega a tu nivel antes '
-            'de organizar nada. Todo esto es opcional, pero ayuda mucho.',
+            'de organizar nada.',
             style: t.bodyLarge,
           ),
           const SizedBox(height: 24),
@@ -72,28 +86,54 @@ class OnboardingSkillStep extends StatelessWidget {
           ],
           const Divider(),
           const SizedBox(height: 16),
-          Text('Credenciales (opcional)', style: t.titleMedium),
+          Text('Credenciales', style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Años jugando, tu club, torneos o logros — lo que quieras que '
-            'se vea en tu perfil.',
+            'Lo que quieras que se vea en tu perfil para dar confianza.',
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            key: ValueKey('years-$yearsPlaying'),
-            initialValue: yearsPlaying?.toString() ?? '',
-            decoration: const InputDecoration(labelText: 'Años jugando'),
-            keyboardType: TextInputType.number,
-            onChanged: (v) => onYearsPlayingChanged(int.tryParse(v)),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: club,
-            decoration: const InputDecoration(labelText: 'Club'),
-            onChanged: onClubChanged,
-          ),
-          const SizedBox(height: 16),
+          if (playsTennis) ...[
+            TextFormField(
+              key: ValueKey('years-$yearsPlaying'),
+              initialValue: yearsPlaying?.toString() ?? '',
+              decoration: const InputDecoration(labelText: 'Años jugando al tenis'),
+              keyboardType: TextInputType.number,
+              onChanged: (v) => onYearsPlayingChanged(int.tryParse(v)),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: club,
+              decoration: const InputDecoration(labelText: 'Club'),
+              onChanged: onClubChanged,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (playsRunning) ...[
+            TextFormField(
+              key: ValueKey('pace-$avgPaceMinPerKm'),
+              initialValue: avgPaceMinPerKm?.toString() ?? '',
+              decoration: const InputDecoration(
+                labelText: 'Ritmo medio (min/km)',
+                hintText: 'Ej. 5.5',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) => onAvgPaceMinPerKmChanged(double.tryParse(v)),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: ValueKey('distance-$avgDistanceKm'),
+              initialValue: avgDistanceKm?.toString() ?? '',
+              decoration: const InputDecoration(
+                labelText: 'Distancia media (km)',
+                hintText: 'Ej. 10',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) => onAvgDistanceKmChanged(double.tryParse(v)),
+            ),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 4),
           _AchievementsEditor(
             achievements: achievements,
             onChanged: onAchievementsChanged,

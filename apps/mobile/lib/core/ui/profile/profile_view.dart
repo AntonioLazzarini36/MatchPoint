@@ -134,6 +134,18 @@ class ProfileView extends StatelessWidget {
                     ),
                   if ((data.club ?? '').isNotEmpty)
                     _infoRow(context, Icons.groups_outlined, data.club!),
+                  if (data.avgPaceMinPerKm != null)
+                    _infoRow(
+                      context,
+                      Icons.speed,
+                      'Ritmo medio: ${data.avgPaceMinPerKm} min/km',
+                    ),
+                  if (data.avgDistanceKm != null)
+                    _infoRow(
+                      context,
+                      Icons.route,
+                      'Distancia media: ${data.avgDistanceKm} km',
+                    ),
                   for (final achievement in data.achievements)
                     _infoRow(
                       context,
@@ -225,6 +237,8 @@ class ProfileView extends StatelessWidget {
   bool get _hasCredentials =>
       data.yearsPlaying != null ||
       (data.club ?? '').isNotEmpty ||
+      data.avgPaceMinPerKm != null ||
+      data.avgDistanceKm != null ||
       data.achievements.isNotEmpty;
 
   Widget _infoRow(BuildContext context, IconData icon, String text) {

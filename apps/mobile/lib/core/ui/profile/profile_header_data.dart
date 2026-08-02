@@ -15,6 +15,8 @@ class ProfileHeaderData {
   final int? yearsPlaying;
   final String? club;
   final List<String> achievements;
+  final double? avgPaceMinPerKm;
+  final double? avgDistanceKm;
 
   const ProfileHeaderData({
     required this.displayName,
@@ -27,6 +29,8 @@ class ProfileHeaderData {
     this.yearsPlaying,
     this.club,
     this.achievements = const [],
+    this.avgPaceMinPerKm,
+    this.avgDistanceKm,
   });
 
   String get title {

@@ -173,8 +173,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final chosen = await showModalBottomSheet<_CredentialsResult>(
       context: context,
       builder: (sheetContext) => _CredentialsSheet(
+        sports: _profile?.sports ?? const [],
         initialYearsPlaying: _profile?.yearsPlaying,
         initialClub: _profile?.club ?? '',
+        initialAvgPaceMinPerKm: _profile?.avgPaceMinPerKm,
+        initialAvgDistanceKm: _profile?.avgDistanceKm,
         initialAchievements: _profile?.achievements ?? const [],
       ),
     );
@@ -186,6 +189,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _profileService.updateCredentials(
         yearsPlaying: chosen.yearsPlaying,
         club: chosen.club,
+        avgPaceMinPerKm: chosen.avgPaceMinPerKm,
+        avgDistanceKm: chosen.avgDistanceKm,
         achievements: chosen.achievements,
       );
       await _load();
@@ -252,6 +257,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (_profile?.yearsPlaying != null)
         '${_profile!.yearsPlaying} años jugando',
       if ((_profile?.club ?? '').isNotEmpty) _profile!.club!,
+      if (_profile?.avgPaceMinPerKm != null)
+        '${_profile!.avgPaceMinPerKm} min/km',
+      if (_profile?.avgDistanceKm != null)
+        '${_profile!.avgDistanceKm} km medios',
       if ((_profile?.achievements ?? const []).isNotEmpty)
         '${_profile!.achievements.length} logro(s)',
     ];
@@ -793,23 +802,33 @@ class _SkillLevelSheetState extends State<_SkillLevelSheet> {
 class _CredentialsResult {
   final int? yearsPlaying;
   final String? club;
+  final double? avgPaceMinPerKm;
+  final double? avgDistanceKm;
   final List<String> achievements;
 
   const _CredentialsResult({
     required this.yearsPlaying,
     required this.club,
+    required this.avgPaceMinPerKm,
+    required this.avgDistanceKm,
     required this.achievements,
   });
 }
 
 class _CredentialsSheet extends StatefulWidget {
+  final List<Sport> sports;
   final int? initialYearsPlaying;
   final String initialClub;
+  final double? initialAvgPaceMinPerKm;
+  final double? initialAvgDistanceKm;
   final List<String> initialAchievements;
 
   const _CredentialsSheet({
+    required this.sports,
     required this.initialYearsPlaying,
     required this.initialClub,
+    required this.initialAvgPaceMinPerKm,
+    required this.initialAvgDistanceKm,
     required this.initialAchievements,
   });
 
@@ -820,6 +839,8 @@ class _CredentialsSheet extends StatefulWidget {
 class _CredentialsSheetState extends State<_CredentialsSheet> {
   late final TextEditingController _yearsCtrl;
   late final TextEditingController _clubCtrl;
+  late final TextEditingController _paceCtrl;
+  late final TextEditingController _distanceCtrl;
   late final TextEditingController _achievementCtrl;
   late List<String> _achievements;
 
@@ -830,6 +851,12 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
       text: widget.initialYearsPlaying?.toString() ?? '',
     );
     _clubCtrl = TextEditingController(text: widget.initialClub);
+    _paceCtrl = TextEditingController(
+      text: widget.initialAvgPaceMinPerKm?.toString() ?? '',
+    );
+    _distanceCtrl = TextEditingController(
+      text: widget.initialAvgDistanceKm?.toString() ?? '',
+    );
     _achievementCtrl = TextEditingController();
     _achievements = [...widget.initialAchievements];
   }
@@ -838,6 +865,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
   void dispose() {
     _yearsCtrl.dispose();
     _clubCtrl.dispose();
+    _paceCtrl.dispose();
+    _distanceCtrl.dispose();
     _achievementCtrl.dispose();
     super.dispose();
   }
@@ -860,6 +889,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
       _CredentialsResult(
         yearsPlaying: int.tryParse(_yearsCtrl.text.trim()),
         club: _clubCtrl.text.trim(),
+        avgPaceMinPerKm: double.tryParse(_paceCtrl.text.trim()),
+        avgDistanceKm: double.tryParse(_distanceCtrl.text.trim()),
         achievements: _achievements,
       ),
     );
@@ -867,6 +898,9 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final playsTennis = widget.sports.contains(Sport.tennis);
+    final playsRunning = widget.sports.contains(Sport.running);
+
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -883,23 +917,52 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
               Text('Credenciales', style: context.textStyles.titleMedium),
               const SizedBox(height: 8),
               Text(
-                'Años jugando, tu club, torneos o logros.',
+                'Lo que quieras que se vea en tu perfil para dar confianza.',
                 style: context.textStyles.bodySmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _yearsCtrl,
-                decoration: const InputDecoration(labelText: 'Años jugando'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _clubCtrl,
-                decoration: const InputDecoration(labelText: 'Club'),
-              ),
-              const SizedBox(height: 16),
+              if (playsTennis) ...[
+                TextField(
+                  controller: _yearsCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Años jugando al tenis',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _clubCtrl,
+                  decoration: const InputDecoration(labelText: 'Club'),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (playsRunning) ...[
+                TextField(
+                  controller: _paceCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Ritmo medio (min/km)',
+                    hintText: 'Ej. 5.5',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _distanceCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Distancia media (km)',
+                    hintText: 'Ej. 10',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 4),
               Text('Torneos / logros', style: context.textStyles.bodyMedium),
               const SizedBox(height: 8),
               Row(

@@ -32,6 +32,11 @@ class Profile {
   final String? club;
   final List<String> achievements;
 
+  /// Running-oriented counterpart to `yearsPlaying`/`club` — see
+  /// `models::Profile` docs on the backend.
+  final double? avgPaceMinPerKm;
+  final double? avgDistanceKm;
+
   Profile({
     required this.id,
     required this.displayName,
@@ -46,6 +51,8 @@ class Profile {
     this.yearsPlaying,
     this.club,
     this.achievements = const [],
+    this.avgPaceMinPerKm,
+    this.avgDistanceKm,
   }) : _explicitAge = age;
 
   int? get age {
@@ -87,6 +94,8 @@ class Profile {
       achievements: (json['achievements'] as List<dynamic>? ?? const [])
           .map((e) => e.toString())
           .toList(),
+      avgPaceMinPerKm: (json['avgPaceMinPerKm'] as num?)?.toDouble(),
+      avgDistanceKm: (json['avgDistanceKm'] as num?)?.toDouble(),
     );
   }
 }
