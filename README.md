@@ -77,8 +77,9 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
   (`login`/`register`/`email-available` tienen rate limit: 10 req/60s por IP, 429 a partir de ahí)
 #### Me (perfil + preferencias, autenticado)
 - GET /me
-- PATCH /me/profile (ya no acepta `photos` — eso solo se gestiona por los endpoints de abajo)
+- PATCH /me/profile (ya no acepta `photos` — eso solo se gestiona por los endpoints de abajo; incluye `yearsPlaying`/`club`/`achievements`/`avgPaceMinPerKm`/`avgDistanceKm`)
 - PATCH /me/preferences
+- PATCH /me/skill-levels (upsert de nivel por deporte — `{ levels: [{ sport, level }] }`, no toca los deportes no incluidos)
 - POST /me/photos (multipart, máx. 6 fotos, valida tipo/tamaño)
 - DELETE /me/photos (no deja borrar la última foto)
 #### Discover
@@ -101,10 +102,11 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 
 Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al migrar a Diesel).
 
-- Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS)
+- Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS), `SkillLevelValue` (BEGINNER, INTERMEDIATE, ADVANCED, COMPETITIVE)
 - **User**: id, email(unique), passwordHash, createdAt, updatedAt
-- **Profile**: id, userId(unique FK), displayName, birthDate, city?, bio?, photos[], sports[], timestamps
+- **Profile**: id, userId(unique FK), displayName, birthDate, city?, bio?, photos[], sports[], latitude?, longitude?, yearsPlaying?, club?, achievements[], avgPaceMinPerKm?, avgDistanceKm?, timestamps
 - **Preferences**: id, userId(unique FK), sportsWanted[], distanceKm, ageMin, ageMax, genderPreference?, timestamps
+- **SkillLevel**: id, userId(FK), sport, level, timestamps — unique(userId,sport). Nivel auto-declarado, no un rating calculado — ver punto 3 abajo.
 - **RefreshToken**: id, userId(FK), tokenHash, revokedAt?, createdAt
 - **Swipe**: id, fromUserId(FK), toUserId(FK), sport, type, createdAt — unique(fromUserId,toUserId,sport)
 - **Match**: id, userAId(FK), userBId(FK), sport, createdAt — unique(userAId,userBId,sport)
@@ -114,13 +116,15 @@ Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al
 
 1. ✅ Confirmar build + smoke test final del backend Rust en todos los entornos → borrada la carpeta `services/api` (NestJS+Prisma), `docker-compose.yml` limpio.
 2. ✅ **Generador de datos de prueba** (`cargo run --bin datagen`), ver sección de arriba.
-3. **Sistema de rating/nivel** (Elo vs Glicko-2): nueva tabla de partidos, cómo lo usa `discover`. Pieza central del producto, aún sin diseñar.
+3. **Sistema de rating/nivel** (Elo vs Glicko-2): la mitad corta ya está — nivel auto-declarado por deporte (`SkillLevel`, ver arriba) + credenciales (años jugando/club, ritmo/distancia media si corres, torneos/logros), editable desde onboarding y Settings, visible en Discovery/perfil público. Lo que falta es la parte larga: rating *calculado* a partir de resultados de partidos reales — no existe ni el concepto de "cargar el resultado de un partido" todavía, ni cómo lo usaría `discover` para emparejar.
 4. ✅ **Swagger / OpenAPI** (`utoipa` + `utoipa-swagger-ui`), ver `http://localhost:3000/docs` arriba y "Documentar un endpoint nuevo" abajo.
 5. ✅ **Pasada de seguridad/fiabilidad (2026-08-01)**: secretos JWT obligatorios, rate limiting en auth, refresh token real en el móvil (+ arreglado un bug de bcrypt que dejaba la rotación sin efecto), fix de un par de crashes/bugs de UI, unread real en Matches, polling en el chat, buscador de matches. Detalle completo en `claude_helpers/status.md`.
 6. ✅ **Ubicación real estilo Hinge** (`feat/manual-location`): sin GPS, se escribe un sitio y se elige de sugerencias reales (Nominatim/OSM); `/discover` ya filtra por `distanceKm` real (Haversine), editable en cualquier momento desde Settings.
 7. ✅ **Mapa de clubes de tenis, MVP** (`feat/tennis-court-map`, rama viva para seguir iterando): clubes reales cerca vía Overpass/OSM, proponer un partido a un match existente. Sin reservas/disponibilidad real todavía (issue #18 completo).
 8. ✅ **Rediseño de Discovery** (2026-08-02): deck de una tarjeta a la vez → columna de hasta 4 tarjetas horizontales de altura fija, sin superponerse, arrastrables para like/pass, preview al tocar.
-9. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, cobertura del backend hoy es prácticamente cero), UI de preferencias/filtros de discovery (no existe ninguna pantalla para editar edad/deporte — distancia sí se puede desde Settings), campo de género en el perfil, super-like, login con Google/Apple + verificación de email (necesita credenciales externas), bug de `Discovery` ignorando el/los deporte(s) reales del usuario (siempre pide solo tenis). Detalle completo de estos dos últimos en `claude_helpers/status.md`.
+9. ✅ **Bug de Discovery ignorando el/los deporte(s) reales del usuario** (2026-08-02/03): antes pedía siempre solo tenis sin importar qué eligió el usuario; ahora respeta `Profile.sports` de verdad y se puede editar desde Settings.
+10. ✅ **Segunda pasada de validación de inputs (2026-08-03)**: rangos/longitudes en `/me/profile` y `/me/preferences` (antes sin ningún límite server-side), email/password mínimos en registro (antes solo el cliente los chequeaba, trivial de saltarse), motivo de reporte acotado.
+11. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, cobertura del backend hoy es prácticamente cero), UI de preferencias/filtros de discovery (no existe ninguna pantalla para editar edad/deporte — distancia sí se puede desde Settings), campo de género en el perfil, super-like, login con Google/Apple + verificación de email (necesita credenciales externas). Detalle completo en `claude_helpers/status.md`.
 
 ## Documentar un endpoint nuevo (OpenAPI)
 

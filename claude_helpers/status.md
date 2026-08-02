@@ -2,7 +2,7 @@
 
 > Documento vivo. Edítalo cuando quieras cambiar prioridades, tachar cosas o
 > añadir contexto — lo uso como referencia al arrancar en otros chats.
-> Última actualización: 2026-08-02.
+> Última actualización: 2026-08-03.
 
 ## Contexto de branches
 
@@ -12,23 +12,6 @@ sin el rewrite a Rust). La rama activa de verdad es **`feature/rust-backend`**
 esto en `dev`/`main`.
 
 Ramas vivas ahora mismo, aparte del trunk:
-- **`fix/discovery-sports-selection`** — ✅ hecha, verificada
-  (analyze/test en verde, probada en vivo en Chrome), **pusheada a
-  origin, todavía sin mergear** en `feature/rust-backend` (se dejó así a
-  propósito — solo se pidió commit+push, el merge queda para cuando lo
-  decidas). Arregla el bug real de status.md: `DiscoveryController`
-  estaba fijo en `Sport.tennis` sin importar qué eligió el usuario en el
-  onboarding — quien elegía solo "Correr" nunca veía a nadie. Ahora el
-  feed se arma por cada deporte del propio perfil y se unen los
-  resultados; agrega también una fila "Deportes" en Settings (antes no
-  existía forma de cambiar tus deportes después del onboarding).
-- **`feat/skill-level-and-credentials`** — ✅ hecha, verificada
-  (fmt/clippy/build/test backend, analyze/test mobile, probada en vivo en
-  Chrome), **pusheada a origin, sin mergear** en `feature/rust-backend`
-  (igual que la de arriba, mergeo pendiente de tu decisión). Ver "Hecho"
-  y "Reposicionamiento de producto" más abajo para el detalle completo —
-  nivel auto-declarado por deporte + credenciales (años jugando, club,
-  logros) + banner de bienvenida en Discovery.
 - **`redesign/ui-overhaul`** — creada, sin empezar. Rediseño general de la
   UI. Falta definir alcance/estilo (¿pantalla por pantalla con mockups como
   hicimos con Settings, o carta blanca?).
@@ -54,8 +37,9 @@ Ramas vivas ahora mismo, aparte del trunk:
 
 Todo lo demás de ramas anteriores (`fix/expose-age-not-birthdate`,
 `feat/logout-and-settings`, `feat/unmatch-block-report`, `feat/manual-location`,
-`fix/discovery-header-cleanup`, `redesign/discovery-cards`, y las 10 de la
-pasada de seguridad/fiabilidad del 2026-08-01) ya está **mergeado en
+`fix/discovery-header-cleanup`, `redesign/discovery-cards`, las 10 de la
+pasada de seguridad/fiabilidad del 2026-08-01, y `fix/discovery-sports-selection`
++ `feat/skill-level-and-credentials` del 2026-08-02/03) ya está **mergeado en
 `feature/rust-backend` y las ramas borradas** (local y remoto) — el detalle
 de cada una vive en el historial de git (`git log feature/rust-backend`),
 no hace falta duplicarlo aquí.
@@ -193,12 +177,14 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   permisos para que builds/tests/docker/git-local no interrumpan pidiendo
   aprobación — solo `git commit`/`push`/ops destructivas piden confirmación
   siempre (nunca se auto-aprueban, pero se pueden aprobar).
-- **`fix/discovery-sports-selection` (2026-08-02, ✅ commiteada y
-  pusheada, sin mergear)** — `DiscoveryController` respeta ahora los
-  deportes reales del usuario (antes fijo en tenis); fila "Deportes" en
-  Settings para poder cambiarlos después del onboarding.
+- **`fix/discovery-sports-selection` (2026-08-02, ✅ mergeada en
+  `feature/rust-backend` el 2026-08-03 — commit `7eb33e4`, rama borrada
+  local y remoto)** — `DiscoveryController` respeta ahora los deportes
+  reales del usuario (antes fijo en tenis); fila "Deportes" en Settings
+  para poder cambiarlos después del onboarding.
 - **Nivel auto-declarado + credenciales, `feat/skill-level-and-credentials`
-  (2026-08-02, ✅ commiteada y pusheada, sin mergear)** — primera mitad
+  (2026-08-02/03, ✅ mergeada en `feature/rust-backend` el 2026-08-03 —
+  commit `63ca514`, rama borrada local y remoto)** — primera mitad
   del "Reposicionamiento de producto" de abajo. Backend: tabla nueva
   `SkillLevel` (una fila por `userId`+`sport`, enum
   `BEGINNER/INTERMEDIATE/ADVANCED/COMPETITIVE`, no ligado a `Profile`
@@ -645,9 +631,10 @@ prioridad:**
    trabajo de esta sesión a propósito, documentado acá para cuando se
    hable de esa rama.
 
-**Se me pidió arrancar los puntos 1-3 sin pausas — ✅ hecho.** Rama
-`feat/skill-level-and-credentials` (ver "Ramas vivas" y "Hecho" arriba),
-pusheada, sin mergear. El punto 4 queda fuera, deliberadamente, por lo
+**Se me pidió arrancar los puntos 1-3 sin pausas — ✅ hecho, y ya
+mergeado en `feature/rust-backend`** (ver "Hecho" arriba —
+`feat/skill-level-and-credentials`, rama borrada tras el merge). El
+punto 4 queda fuera, deliberadamente, por lo
 dicho arriba — y dentro de 1-3, el rating calculado (parte larga del
 punto 1) también queda fuera, ver el punto en sí.
 
