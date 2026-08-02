@@ -8,6 +8,7 @@ import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/location/location_search_screen.dart';
 import '../../auth/services/auth_service.dart';
+import '../../discovery/models/sport.dart';
 import '../../onboarding/models/profile.dart';
 import '../../onboarding/services/profile_service.dart';
 
@@ -29,6 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loggingOut = false;
   bool _savingLocation = false;
   bool _savingRadius = false;
+  bool _savingSports = false;
 
   @override
   void initState() {
@@ -103,6 +105,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Antes solo se podía elegir en el onboarding — este es el bug de
+  /// status.md: `DiscoveryController` ignoraba `Profile.sports` del todo
+  /// (fijo en tenis), y encima no había forma de cambiarlo después. Ahora
+  /// Discovery sí lo respeta (ver discovery_controller.dart), y esta fila
+  /// deja editarlo en cualquier momento, mismo patrón que Ubicación/Radio.
+  Future<void> _changeSports() async {
+    final current = _profile?.sports ?? const [Sport.tennis, Sport.running];
+    final chosen = await showModalBottomSheet<List<Sport>>(
+      context: context,
+      builder: (sheetContext) => _SportsSheet(initialSports: current),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _savingSports = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateSports(chosen);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudieron actualizar los deportes: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingSports = false);
+    }
+  }
+
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -133,6 +163,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!mounted) return;
     context.go(AppRoutes.welcome);
+  }
+
+  String get _sportsSubtitle {
+    final sports = _profile?.sports ?? const [];
+    if (sports.isEmpty) return 'Sin definir';
+    return sports.map((s) => s.label).join(', ');
   }
 
   @override
@@ -211,6 +247,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingRadius ? null : _changeRadius,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.sports_tennis,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Deportes',
+                      subtitle: _sportsSubtitle,
+                      trailing: _savingSports
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingSports ? null : _changeSports,
                     ),
                   ],
                 ),
@@ -434,6 +490,102 @@ class _RadiusSheetState extends State<_RadiusSheet> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(_km.round()),
+                child: const Text('Guardar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SportsSheet extends StatefulWidget {
+  final List<Sport> initialSports;
+
+  const _SportsSheet({required this.initialSports});
+
+  @override
+  State<_SportsSheet> createState() => _SportsSheetState();
+}
+
+class _SportsSheetState extends State<_SportsSheet> {
+  late Set<Sport> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialSports.toSet();
+  }
+
+  void _toggle(Sport sport, bool selected) {
+    setState(() {
+      if (selected) {
+        _selected.add(sport);
+      } else {
+        _selected.remove(sport);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Al menos un deporte tiene que quedar marcado — con cero, Discovery no
+    // tendría por qué mostrar a nadie (ver discovery_controller.dart).
+    final canSave = _selected.isNotEmpty;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Deportes', style: context.textStyles.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Qué deportes jugás — determina a quién ves en Discovery y '
+              'quién te ve a vos.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilterChip(
+                  label: const Text('Tenis'),
+                  avatar: const Icon(Icons.sports_tennis, size: 18),
+                  selected: _selected.contains(Sport.tennis),
+                  onSelected: (v) => _toggle(Sport.tennis, v),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
+                ),
+                FilterChip(
+                  label: const Text('Correr'),
+                  avatar: const Icon(Icons.directions_run, size: 18),
+                  selected: _selected.contains(Sport.running),
+                  onSelected: (v) => _toggle(Sport.running, v),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: canSave
+                    ? () => Navigator.of(context).pop(_selected.toList())
+                    : null,
                 child: const Text('Guardar'),
               ),
             ),
