@@ -230,6 +230,43 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   lenguaje "Match"/corazón (punto 4 del reposicionamiento) — se solapa
   con `redesign/ui-overhaul`, sin alcance definido, así que hacerlo a
   ciegas hubiera sido tirar trabajo.
+- **Pulido de onboarding tras feedback en vivo (2026-08-02, misma rama
+  `feat/skill-level-and-credentials`)** — probaste el paso de deportes y
+  volviste con cuatro pedidos concretos, todos hechos:
+  - El paso de "Tu perfil" arrancaba con Tenis **y** Correr ya marcados
+    los dos, así que tocar un chip lo *sacaba* — se leía como "estoy
+    borrando algo", no "estoy eligiendo". Ahora arranca sin nada
+    marcado (`OnboardingProfileScreen._selectedSports = {}`), valida
+    que elijas al menos uno antes de "Siguiente", y el chip de deporte
+    se rediseñó como tarjeta grande (ícono + check + fondo sólido
+    `primary` cuando está seleccionado, borde neutro si no) en vez del
+    `FilterChip` chico de antes — mucho más difícil de leer mal.
+  - Las credenciales ahora dependen del deporte: si jugás al tenis ves
+    años jugando + club (como antes); si corrés ves ritmo medio
+    (min/km) y distancia media (km) en su lugar; si jugás ambos, ves
+    los cuatro campos. Logros/torneos es compartido, sea cual sea el
+    deporte. Nuevas columnas `Profile.avgPaceMinPerKm`/`avgDistanceKm`
+    (mismo patrón que `yearsPlaying`/`club`: nullable, expuestas en
+    `/me`/`/discover`/`/users/:userId/profile`/`otherUser` de
+    `/matches`). Mismo patrón condicional en el paso de onboarding y en
+    la fila "Credenciales" de Settings.
+  - "Credenciales (opcional)" se sacó del texto — en vez de escribirlo,
+    el botón del wizard dice "Saltar" mientras no hayas tocado nada en
+    ese paso (ni nivel, ni ningún campo de credenciales) y pasa solo a
+    "Siguiente" en cuanto cargás algo. Autoexplicativo, sin texto extra.
+  - El recuadro "Elegir ubicación" del onboarding ahora muestra un mapa
+    chico (`flutter_map`, mismo patrón que el mapa de clubes) con un
+    pin en el sitio elegido, una vez que elegís uno — sin círculo de
+    radio, se descartó a propósito por ser complejidad extra para poco
+    beneficio visual a ese tamaño.
+  - De paso, más texto explicando el "para qué" en varios pasos del
+    wizard (perfil, deportes, ubicación) — no solo en el paso de
+    deportes que motivó el pedido.
+  Verificado: fmt/clippy/build/test backend en verde, migración corrida,
+  curl end-to-end contra `/me` con datos reales de ritmo/distancia;
+  analyze/test mobile en verde. Sin prueba visual en vivo esta vuelta —
+  la extensión de Chrome no estaba conectada en el momento; vos ibas a
+  probarlo de todos modos.
 
 ## Pendiente / próximos pasos
 
