@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
+import '../../../network/api.dart';
 import '../../../../features/discovery/models/discover_profile.dart';
-import '../../../../app/routes.dart';
+import '../../../../features/matches/services/matches_service.dart';
 
 Future<void> showDiscoveryMatchDialog(
   BuildContext context, {
@@ -58,10 +59,32 @@ Future<void> showDiscoveryMatchDialog(
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.of(ctx).pop();
-                      // Si tu chat necesita matchId, pasalo:
-                      context.go(AppRoutes.chat, extra: {'matchId': matchId});
+                      final id = matchId;
+                      if (id == null) return;
+                      // El chat necesita el MatchItem completo (perfiles,
+                      // sport, etc.), no solo el id -- lo buscamos en
+                      // /matches, igual que hace MatchesScreen.
+                      try {
+                        final matches = await MatchesService(
+                          Api.client,
+                        ).fetchMatches();
+                        final match = matches.firstWhere(
+                          (m) => m.matchId == id,
+                        );
+                        if (!context.mounted) return;
+                        context.push('/chat/${match.matchId}', extra: match);
+                      } catch (_) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No se pudo abrir el chat, prueba desde Matches',
+                            ),
+                          ),
+                        );
+                      }
                     },
                     child: const Text('Enviar mensaje'),
                   ),
