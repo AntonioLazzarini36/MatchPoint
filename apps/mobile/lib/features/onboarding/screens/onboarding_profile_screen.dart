@@ -22,7 +22,7 @@ import '../../discovery/models/sport.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_step_scaffold.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_skill_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding/onboarding_goal_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_preferences_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
@@ -70,6 +70,16 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   String _goal = 'Jugar por nivel';
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
+
+  // Preferencias de a quien mostrar en Discovery mas adelante (ver
+  // onboarding_preferences_step.dart) - independientes de _selectedSports
+  // (lo que el usuario juega). _sportsWanted vacio significa "todavia no
+  // lo toco" y cae a los mismos deportes que juega como default sensato
+  // (ver _effectiveSportsWanted abajo), sin necesitar sincronizarlo a
+  // mano en cada cambio de _selectedSports.
+  RangeValues _ageRange = const RangeValues(18, 60);
+  final Set<Sport> _sportsWanted = {};
+  String _genderPreference = '';
 
   Map<Sport, SkillLevel> _skillLevels = {};
   // Tenis: años jugando + club. Correr: ritmo/distancia media. Se
@@ -129,6 +139,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   List<Sport> _sportsAsEnum() {
     return _sportsForBackend().map(SportApi.fromApi).toList();
   }
+
+  Set<Sport> get _effectiveSportsWanted =>
+      _sportsWanted.isEmpty ? _sportsAsEnum().toSet() : _sportsWanted;
 
   /// El paso de nivel/credenciales es el único realmente opcional del
   /// wizard — en vez de escribir "(opcional)" en la pantalla, el botón
@@ -281,6 +294,12 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       );
       await controller.service.updateProfile(req);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
+      await controller.service.updatePreferences(
+        ageMin: _ageRange.start.round(),
+        ageMax: _ageRange.end.round(),
+        sportsWanted: _effectiveSportsWanted.toList(),
+        genderPreference: _genderPreference,
+      );
 
       final mySports = _sportsAsEnum().toSet();
       final levelsForMySports = Map<Sport, SkillLevel>.fromEntries(
@@ -459,6 +478,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                     }
                   });
                 },
+                onNameSubmitted: _goNextOrFinish,
               ),
               OnboardingSkillStep(
                 sports: _sportsAsEnum(),
@@ -479,10 +499,16 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 achievements: _achievements,
                 onAchievementsChanged: (v) =>
                     setState(() => _achievements = v),
+                onFieldSubmitted: _goNextOrFinish,
               ),
-              OnboardingGoalStep(
+              OnboardingPreferencesStep(
                 goal: _goal,
                 onGoalChanged: (g) => setState(() => _goal = g),
+                ageRange: _ageRange,
+                onAgeRangeChanged: (v) => setState(() => _ageRange = v),
+                genderPreference: _genderPreference,
+                onGenderPreferenceChanged: (v) =>
+                    setState(() => _genderPreference = v),
               ),
               OnboardingLocationStep(
                 location: _selectedLocation,

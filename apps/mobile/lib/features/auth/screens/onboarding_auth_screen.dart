@@ -25,19 +25,19 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
   final passCtrl = TextEditingController();
   final confirmPassCtrl = TextEditingController();
 
+  final passFocus = FocusNode();
+  // Enter avanza de campo en campo y al final envía el formulario, igual
+  // que tocar el botón — nunca inserta un salto de línea.
+  final confirmPassFocus = FocusNode();
+
   late final AuthController controller;
   late final AuthService authService;
 
-  // Solo para el check de email del registro — controller.isLoading es de
-  // AuthController y ahí ya no se usa para registrar (eso pasa al final
-  // del wizard, ver OnboardingProfileScreen).
   bool _checkingEmail = false;
 
   @override
   void initState() {
     super.initState();
-
-    // ⚠️ Pon aqui tu baseUrl real (ej: http://10.0.2.2:3000 para Android emulator)
     authService = AuthService(Api.client);
     controller = AuthController(authService);
   }
@@ -47,6 +47,8 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     emailCtrl.dispose();
     passCtrl.dispose();
     confirmPassCtrl.dispose();
+    passFocus.dispose();
+    confirmPassFocus.dispose();
     super.dispose();
   }
 
@@ -65,9 +67,6 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
       if (complete) {
         context.go(AppRoutes.shell);
       } else {
-        // Cuenta existente pero a medias (de un intento de onboarding
-        // interrumpido antes de este arreglo) — sin `extra`: ya hay
-        // token, solo falta completar el perfil, no registrar de nuevo.
         context.go(AppRoutes.onboarding);
       }
     } catch (e) {
@@ -90,8 +89,6 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
         return;
       }
 
-      // Nada se crea todavía: el registro se completa entero (usuario +
-      // perfil + foto) al terminar el wizard de onboarding.
       context.go(
         AppRoutes.onboarding,
         extra: RegisterRequest(email: email, password: pass),
@@ -103,10 +100,51 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     }
   }
 
+  bool get _busy => controller.isLoading || _checkingEmail;
+
+  Future<void> _submit() async {
+    if (_busy) return;
+
+    final email = emailCtrl.text.trim();
+    final pass = passCtrl.text;
+
+    if (email.isEmpty) {
+      controller.setError('Email is required');
+      return;
+    }
+
+    if (!email.contains('@')) {
+      controller.setError('Email is not valid');
+      return;
+    }
+
+    if (isLogin) {
+      await _submitLogin(email, pass);
+      return;
+    }
+
+    if (pass.length < 8) {
+      controller.setError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    if (pass.length > 72) {
+      controller.setError('La contraseña no puede superar los 72 caracteres');
+      return;
+    }
+
+    final confirm = confirmPassCtrl.text;
+    if (pass != confirm) {
+      controller.setError('Passwords do not match');
+      return;
+    }
+
+    await _submitRegister(email, pass);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final busy = controller.isLoading || _checkingEmail;
+    final busy = _busy;
 
     return Scaffold(
       appBar: AppBar(title: Text(isLogin ? 'Login' : 'Register')),
@@ -129,19 +167,34 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                 TextField(
                   controller: emailCtrl,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => passFocus.requestFocus(),
                   decoration: const InputDecoration(labelText: 'Email'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: passCtrl,
+                  focusNode: passFocus,
                   obscureText: true,
+                  textInputAction:
+                      isLogin ? TextInputAction.done : TextInputAction.next,
+                  onSubmitted: (_) {
+                    if (isLogin) {
+                      _submit();
+                    } else {
+                      confirmPassFocus.requestFocus();
+                    }
+                  },
                   decoration: const InputDecoration(labelText: 'Password'),
                 ),
                 if (!isLogin) ...[
                   const SizedBox(height: 12),
                   TextField(
                     controller: confirmPassCtrl,
+                    focusNode: confirmPassFocus,
                     obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
                     decoration: const InputDecoration(
                       labelText: 'Confirm Password',
                     ),
@@ -158,48 +211,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                 ],
 
                 FilledButton(
-                  onPressed: busy
-                      ? null
-                      : () async {
-                          final email = emailCtrl.text.trim();
-                          final pass = passCtrl.text;
-
-                          if (email.isEmpty) {
-                            controller.setError('Email is required');
-                            return;
-                          }
-
-                          if (!email.contains('@')) {
-                            controller.setError('Email is not valid');
-                            return;
-                          }
-
-                          if (isLogin) {
-                            await _submitLogin(email, pass);
-                            return;
-                          }
-
-                          if (pass.length < 8) {
-                            controller.setError(
-                              'La contraseña debe tener al menos 8 caracteres',
-                            );
-                            return;
-                          }
-                          if (pass.length > 72) {
-                            controller.setError(
-                              'La contraseña no puede superar los 72 caracteres',
-                            );
-                            return;
-                          }
-
-                          final confirm = confirmPassCtrl.text;
-                          if (pass != confirm) {
-                            controller.setError('Passwords do not match');
-                            return;
-                          }
-
-                          await _submitRegister(email, pass);
-                        },
+                  onPressed: busy ? null : _submit,
                   child: busy
                       ? const SizedBox(
                           height: 18,

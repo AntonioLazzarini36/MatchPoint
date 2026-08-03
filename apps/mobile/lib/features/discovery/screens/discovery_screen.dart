@@ -190,6 +190,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
 
     if (controller.stack.isEmpty) {
+      // Sin botón de "reintentar": el feed ya excluye a quien swipeaste,
+      // así que volver a pedirlo no trae nada nuevo salvo que aparezca
+      // gente de verdad — un botón ahí solo aparentaba tener función.
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -197,14 +200,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             Icon(Icons.search_off, size: 64, color: context.colors.outline),
             const SizedBox(height: 16),
             Text(
-              'No hay mas perfiles cerca',
+              'Por ahora no hay más perfiles cerca',
               style: context.textStyles.titleMedium?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
             ),
-            TextButton(
-              onPressed: controller.reload,
-              child: const Text('Reiniciar busqueda'),
+            const SizedBox(height: 8),
+            Text(
+              'Vuelve más tarde, se suman perfiles nuevos todo el tiempo',
+              textAlign: TextAlign.center,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -263,7 +270,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             : SwipeType.pass;
         _handleSwipe(user, type);
       },
-      background: _swipeOverlay(context, Alignment.centerLeft, Icons.favorite, Colors.green),
+      background: _swipeOverlay(context, Alignment.centerLeft, Icons.handshake, Colors.green),
       secondaryBackground: _swipeOverlay(context, Alignment.centerRight, Icons.close, Colors.red),
       child: DiscoveryMiniCard(
         user: user,

@@ -37,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingSports = false;
   bool _savingSkillLevels = false;
   bool _savingCredentials = false;
+  bool _savingPreferences = false;
 
   @override
   void initState() {
@@ -206,6 +207,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// A quien mostrar en Discovery mas adelante (edad, deportes que quiere
+  /// ver, genero) - independiente del radio (fila de arriba) y de los
+  /// deportes que juega (ver status.md, preferencias de Discovery).
+  Future<void> _changePreferences() async {
+    final chosen = await showModalBottomSheet<_PreferencesResult>(
+      context: context,
+      builder: (sheetContext) => _PreferencesSheet(
+        initialAgeMin: _preferences?.ageMin ?? 18,
+        initialAgeMax: _preferences?.ageMax ?? 60,
+        initialSportsWanted: _preferences?.sportsWanted.toSet() ?? const {},
+        initialGenderPreference: _preferences?.genderPreference ?? '',
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _savingPreferences = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updatePreferences(
+        ageMin: chosen.ageMin,
+        ageMax: chosen.ageMax,
+        sportsWanted: chosen.sportsWanted.toList(),
+        genderPreference: chosen.genderPreference,
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudieron actualizar las preferencias: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingPreferences = false);
+    }
+  }
+
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -267,6 +303,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         '${_profile!.achievements.length} logro(s)',
     ];
     return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
+  }
+
+  String get _preferencesSubtitle {
+    final prefs = _preferences;
+    if (prefs == null) return 'Sin definir';
+    final parts = <String>[
+      '${prefs.ageMin}-${prefs.ageMax} anos',
+      if (prefs.sportsWanted.isNotEmpty)
+        prefs.sportsWanted.map((s) => s.label).join(', '),
+      if ((prefs.genderPreference ?? '').isNotEmpty) prefs.genderPreference!,
+    ];
+    return parts.join(' · ');
   }
 
   @override
@@ -405,6 +453,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingCredentials ? null : _changeCredentials,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.tune,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Preferencias de Discovery',
+                      subtitle: _preferencesSubtitle,
+                      trailing: _savingPreferences
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingPreferences ? null : _changePreferences,
                     ),
                   ],
                 ),
@@ -947,6 +1015,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
               if (playsTennis) ...[
                 TextField(
                   controller: _yearsCtrl,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
                   decoration: const InputDecoration(
                     labelText: 'Años jugando al tenis',
                   ),
@@ -959,6 +1029,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _clubCtrl,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
                   decoration: const InputDecoration(labelText: 'Club'),
                 ),
                 const SizedBox(height: 12),
@@ -966,6 +1038,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
               if (playsRunning) ...[
                 TextField(
                   controller: _paceCtrl,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
                   decoration: const InputDecoration(
                     labelText: 'Ritmo medio (min:seg / km)',
                     hintText: 'Ej. 4:30',
@@ -978,6 +1052,8 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _distanceCtrl,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
                   decoration: const InputDecoration(
                     labelText: 'Distancia media (km)',
                     hintText: 'Ej. 10',
@@ -1046,6 +1122,171 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PreferencesResult {
+  final int ageMin;
+  final int ageMax;
+  final Set<Sport> sportsWanted;
+  final String genderPreference;
+
+  const _PreferencesResult({
+    required this.ageMin,
+    required this.ageMax,
+    required this.sportsWanted,
+    required this.genderPreference,
+  });
+}
+
+class _PreferencesSheet extends StatefulWidget {
+  final int initialAgeMin;
+  final int initialAgeMax;
+  final Set<Sport> initialSportsWanted;
+  final String initialGenderPreference;
+
+  const _PreferencesSheet({
+    required this.initialAgeMin,
+    required this.initialAgeMax,
+    required this.initialSportsWanted,
+    required this.initialGenderPreference,
+  });
+
+  @override
+  State<_PreferencesSheet> createState() => _PreferencesSheetState();
+}
+
+class _PreferencesSheetState extends State<_PreferencesSheet> {
+  late RangeValues _ageRange;
+  late Set<Sport> _sportsWanted;
+  late String _genderPreference;
+
+  @override
+  void initState() {
+    super.initState();
+    _ageRange = RangeValues(
+      widget.initialAgeMin.toDouble(),
+      widget.initialAgeMax.toDouble(),
+    );
+    _sportsWanted = {...widget.initialSportsWanted};
+    _genderPreference = widget.initialGenderPreference;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Preferencias de Discovery',
+              style: context.textStyles.titleMedium,
+            ),
+            const SizedBox(height: 16),
+
+            Text('Rango de edad', style: context.textStyles.titleSmall),
+            const SizedBox(height: 4),
+            Text(
+              '${_ageRange.start.round()} - ${_ageRange.end.round()} años',
+              style: context.textStyles.bodyMedium,
+            ),
+            RangeSlider(
+              values: _ageRange,
+              min: 18,
+              max: 100,
+              divisions: 82,
+              labels: RangeLabels(
+                '${_ageRange.start.round()}',
+                '${_ageRange.end.round()}',
+              ),
+              onChanged: (v) => setState(() => _ageRange = v),
+            ),
+
+            const SizedBox(height: 12),
+            Text('Deportes que te interesa ver', style: context.textStyles.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilterChip(
+                  label: const Text('Tenis'),
+                  avatar: const Icon(Icons.sports_tennis, size: 18),
+                  selected: _sportsWanted.contains(Sport.tennis),
+                  onSelected: (v) => setState(() {
+                    if (v) {
+                      _sportsWanted.add(Sport.tennis);
+                    } else {
+                      _sportsWanted.remove(Sport.tennis);
+                    }
+                  }),
+                  showCheckmark: false,
+                ),
+                FilterChip(
+                  label: const Text('Correr'),
+                  avatar: const Icon(Icons.directions_run, size: 18),
+                  selected: _sportsWanted.contains(Sport.running),
+                  onSelected: (v) => setState(() {
+                    if (v) {
+                      _sportsWanted.add(Sport.running);
+                    } else {
+                      _sportsWanted.remove(Sport.running);
+                    }
+                  }),
+                  showCheckmark: false,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+            Text('Preferencia de género', style: context.textStyles.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                ChoiceChip(
+                  label: const Text('Cualquiera'),
+                  selected: _genderPreference.isEmpty,
+                  onSelected: (_) => setState(() => _genderPreference = ''),
+                ),
+                ChoiceChip(
+                  label: const Text('Hombres'),
+                  selected: _genderPreference == 'Hombres',
+                  onSelected: (_) =>
+                      setState(() => _genderPreference = 'Hombres'),
+                ),
+                ChoiceChip(
+                  label: const Text('Mujeres'),
+                  selected: _genderPreference == 'Mujeres',
+                  onSelected: (_) =>
+                      setState(() => _genderPreference = 'Mujeres'),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(
+                  _PreferencesResult(
+                    ageMin: _ageRange.start.round(),
+                    ageMax: _ageRange.end.round(),
+                    sportsWanted: _sportsWanted,
+                    genderPreference: _genderPreference,
+                  ),
+                ),
+                child: const Text('Guardar'),
+              ),
+            ),
+          ],
         ),
       ),
     );

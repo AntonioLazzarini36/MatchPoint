@@ -128,6 +128,35 @@ class ProfileService {
     }
   }
 
+  /// Preferencias de a quien mostrar en Discovery (edad, deportes que
+  /// quiere ver, genero) - independiente del radio (ver
+  /// `updateDiscoveryRadius` arriba, que ya existia). Cualquier parametro
+  /// en `null` deja el valor existente sin tocar (mismo upsert parcial que
+  /// `updateCredentials`).
+  Future<void> updatePreferences({
+    int? ageMin,
+    int? ageMax,
+    List<Sport>? sportsWanted,
+    String? genderPreference,
+  }) async {
+    final res = await api.patch(
+      '/me/preferences',
+      body: {
+        'ageMin': ?ageMin,
+        'ageMax': ?ageMax,
+        'sportsWanted': ?sportsWanted?.map((s) => s.apiValue).toList(),
+        'genderPreference': ?genderPreference,
+      },
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'UpdatePreferences failed: ${res.statusCode} ${res.body}',
+      );
+    }
+  }
+
   Future<MeResponse> getMe() async {
     final res = await api.get('/me', auth: true);
 

@@ -8,6 +8,7 @@ class OnboardingProfileStep extends StatelessWidget {
 
   final Set<String> selectedSports;
   final void Function(String sport, bool selected) onSportToggle;
+  final VoidCallback? onNameSubmitted;
 
   const OnboardingProfileStep({
     super.key,
@@ -17,6 +18,7 @@ class OnboardingProfileStep extends StatelessWidget {
     required this.birthDateLabel,
     required this.selectedSports,
     required this.onSportToggle,
+    this.onNameSubmitted,
   });
 
   @override
@@ -38,6 +40,8 @@ class OnboardingProfileStep extends StatelessWidget {
 
           TextField(
             controller: displayNameCtrl,
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => onNameSubmitted?.call(),
             decoration: const InputDecoration(labelText: 'Display name'),
           ),
           const SizedBox(height: 12),

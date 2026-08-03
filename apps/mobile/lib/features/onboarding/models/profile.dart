@@ -105,10 +105,25 @@ class Preferences {
   final int ageMin;
   final int ageMax;
 
+  /// Deportes que quiere ver en Discovery — independiente de
+  /// `Profile.sports` (los que juega). Sin efecto todavia en el filtro de
+  /// `/discover` (que sigue usando `Profile.sports` del propio usuario, ver
+  /// discovery_controller.dart) - se guarda ya para poder usarlo mas
+  /// adelante sin tener que volver a pedir el dato.
+  final List<Sport> sportsWanted;
+
+  /// Texto libre en el backend (`Preferences.genderPreference`, sin enum
+  /// todavia) - null significa "cualquiera". Mismo caso que arriba: se
+  /// guarda para uso futuro, `/discover` todavia no filtra por esto (no
+  /// hay campo de genero en `Profile` para comparar contra).
+  final String? genderPreference;
+
   const Preferences({
     required this.distanceKm,
     required this.ageMin,
     required this.ageMax,
+    this.sportsWanted = const [],
+    this.genderPreference,
   });
 
   factory Preferences.fromJson(Map<String, dynamic> json) {
@@ -116,6 +131,10 @@ class Preferences {
       distanceKm: (json['distanceKm'] as num?)?.toInt() ?? 25,
       ageMin: (json['ageMin'] as num?)?.toInt() ?? 18,
       ageMax: (json['ageMax'] as num?)?.toInt() ?? 60,
+      sportsWanted: (json['sportsWanted'] as List<dynamic>? ?? const [])
+          .map((e) => SportApi.fromApi(e.toString()))
+          .toList(),
+      genderPreference: json['genderPreference']?.toString(),
     );
   }
 }

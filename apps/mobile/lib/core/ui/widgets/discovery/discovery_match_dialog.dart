@@ -31,7 +31,7 @@ Future<void> showDiscoveryMatchDialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.favorite, color: Colors.pink, size: 80),
+            Icon(Icons.handshake, color: context.colors.primary, size: 80),
             const SizedBox(height: 16),
             Text(
               '¡Es un Match!',
@@ -42,7 +42,7 @@ Future<void> showDiscoveryMatchDialog(
             ),
             const SizedBox(height: 8),
             Text(
-              'Tu y ${user.displayName} os habeis gustado.',
+              'Tú y ${user.displayName} podéis organizar un partido.',
               textAlign: TextAlign.center,
               style: context.textStyles.bodyLarge,
             ),

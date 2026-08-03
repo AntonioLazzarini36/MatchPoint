@@ -22,6 +22,28 @@
 - Flutter / Frontend:
   - `cd apps/mobile`
   - `flutter run -d chrome` (o el emulador que uses)
+## Probar en el móvil (no solo Chrome/emulador)
+
+Para correr la app en un móvil físico (Android o iOS) durante desarrollo, conectado
+por USB o por la misma red WiFi que el ordenador:
+
+1. Averigua la IP LAN del ordenador (Windows: `ipconfig`, busca el adaptador WiFi/
+   Ethernet activo — ej. `192.168.1.33`, no la de adaptadores virtuales tipo WSL/
+   Hyper-V que empiezan por `172.x`).
+2. El backend ya escucha en `0.0.0.0` (todas las interfaces), no hace falta tocar
+   nada ahí — pero la primera vez que un móvil se conecte, Windows puede mostrar
+   un popup de "Firewall de Windows Defender" pidiendo permitir la conexión: hay
+   que aceptarlo (o crear la regla a mano, `New-NetFirewallRule` para el puerto
+   3000, perfil "Private", requiere PowerShell como administrador).
+3. Levanta la app apuntando a esa IP en vez de `localhost`/`10.0.2.2`:
+   ```powershell
+   cd apps/mobile
+   flutter run --dart-define=API_BASE_URL=http://192.168.1.33:3000
+   ```
+   (cambia la IP por la tuya). `flutter devices` te lista el móvil conectado si
+   Flutter ya lo detecta (USB debugging activado en Android, o confiar el
+   ordenador desde el móvil en iOS).
+
 ## Generador de datos de prueba
 
 Para no tener que registrar usuarios a mano cada vez, hay un binario extra dentro del mismo crate (`src/bin/datagen.rs`, se detecta solo, no requiere tocar `Cargo.toml`):

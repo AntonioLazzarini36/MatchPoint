@@ -37,6 +37,7 @@ class OnboardingSkillStep extends StatefulWidget {
   final ValueChanged<double?> onAvgDistanceKmChanged;
   final List<String> achievements;
   final ValueChanged<List<String>> onAchievementsChanged;
+  final VoidCallback? onFieldSubmitted;
 
   const OnboardingSkillStep({
     super.key,
@@ -53,6 +54,7 @@ class OnboardingSkillStep extends StatefulWidget {
     required this.onAvgDistanceKmChanged,
     required this.achievements,
     required this.onAchievementsChanged,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -142,6 +144,8 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
           if (playsTennis) ...[
             TextFormField(
               controller: _yearsCtrl,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
               decoration: const InputDecoration(labelText: 'Años jugando al tenis'),
               keyboardType: TextInputType.number,
               inputFormatters: [
@@ -153,6 +157,8 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _clubCtrl,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
               decoration: const InputDecoration(labelText: 'Club'),
               onChanged: widget.onClubChanged,
             ),
@@ -161,6 +167,8 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
           if (playsRunning) ...[
             TextFormField(
               controller: _paceCtrl,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
               decoration: const InputDecoration(
                 labelText: 'Ritmo medio (min:seg / km)',
                 hintText: 'Ej. 4:30',
@@ -175,6 +183,8 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _distanceCtrl,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
               decoration: const InputDecoration(
                 labelText: 'Distancia media (km)',
                 hintText: 'Ej. 10',

@@ -17,7 +17,7 @@ use utoipa::ToSchema;
 
 use crate::chats::crypto;
 use crate::discover::service::{fetch_skill_levels, DiscoverProfile};
-use crate::models::Profile;
+use crate::models::{Profile, Sport};
 use crate::schema::{matches, messages, profiles};
 use crate::state::AppState;
 
@@ -69,6 +69,7 @@ pub struct LastMessagePreview {
 pub struct MatchListItem {
     pub match_id: String,
     pub created_at: DateTime<Utc>,
+    pub sport: Sport,
     pub other_user: OtherUserWithProfile,
     pub me: UserWithProfile,
     /// `None` when nobody has sent a message in this match yet.
@@ -96,15 +97,16 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
         .select((
             matches::id,
             matches::created_at,
+            matches::sport,
             matches::user_a_id,
             matches::user_b_id,
         ))
-        .load::<(String, DateTime<Utc>, String, String)>(&mut conn)
+        .load::<(String, DateTime<Utc>, Sport, String, String)>(&mut conn)
         .await?;
 
     let mut result = Vec::with_capacity(rows.len());
 
-    for (match_id, created_at, user_a_id, user_b_id) in rows {
+    for (match_id, created_at, sport, user_a_id, user_b_id) in rows {
         let is_a = user_a_id == user_id;
         let (me_id, other_id) = if is_a {
             (user_a_id, user_b_id)
@@ -156,6 +158,7 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
         result.push(MatchListItem {
             match_id,
             created_at,
+            sport,
             other_user: OtherUserWithProfile {
                 user_id: other_id,
                 profile: other_profile.map(|p| DiscoverProfile {

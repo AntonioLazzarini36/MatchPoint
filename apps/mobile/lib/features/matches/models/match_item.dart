@@ -1,8 +1,10 @@
 import 'package:match_point/features/onboarding/models/profile.dart';
+import 'package:match_point/features/discovery/models/sport.dart';
 
 class MatchItem {
   final String matchId;
   final DateTime createdAt;
+  final Sport sport;
   final MatchUser otherUser;
   final MatchUser me;
   final LastMessagePreview? lastMessage;
@@ -11,6 +13,7 @@ class MatchItem {
   const MatchItem({
     required this.matchId,
     required this.createdAt,
+    required this.sport,
     required this.otherUser,
     required this.me,
     required this.lastMessage,
@@ -20,6 +23,7 @@ class MatchItem {
   factory MatchItem.fromJson(Map<String, dynamic> json) => MatchItem(
     matchId: json['matchId'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String),
+    sport: SportApi.fromApi((json['sport'] ?? 'TENNIS').toString()),
     otherUser: MatchUser.fromJson(json['otherUser'] as Map<String, dynamic>),
     me: MatchUser.fromJson(json['me'] as Map<String, dynamic>),
     lastMessage: json['lastMessage'] == null

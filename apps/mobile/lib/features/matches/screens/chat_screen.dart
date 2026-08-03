@@ -15,6 +15,8 @@ import '../../../core/ui/dialogs/confirm_dialog.dart';
 import '../../../core/ui/dialogs/report_reason_dialog.dart';
 import '../../../core/ui/widgets/chat/chat_message_bubble.dart';
 import '../../../core/ui/widgets/chat/chat_input_bar.dart';
+import '../../../core/ui/widgets/proposal/running_proposal.dart';
+import '../../discovery/models/sport.dart';
 
 enum _ChatMenuAction { unmatch, report }
 
@@ -24,6 +26,7 @@ class ChatScreen extends StatefulWidget {
   final String otherUserId;
   final String otherName;
   final String? otherPhotoUrl;
+  final Sport sport;
 
   const ChatScreen({
     super.key,
@@ -31,6 +34,7 @@ class ChatScreen extends StatefulWidget {
     required this.myUserId,
     required this.otherUserId,
     required this.otherName,
+    required this.sport,
     this.otherPhotoUrl,
   });
 
@@ -171,6 +175,20 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           centerTitle: true,
           actions: [
+            // Tenis ya tiene su propia entrada (mapa de clubes desde
+            // Matches, ver TennisCourtsMapScreen) - esta es la equivalente
+            // para correr, sin club/mapa, directo desde el chat del match.
+            if (widget.sport == Sport.running)
+              IconButton(
+                tooltip: 'Proponer salir a correr',
+                icon: const Icon(Icons.directions_run),
+                onPressed: _busy
+                    ? null
+                    : () => proposeRunningSession(
+                        context,
+                        matchId: widget.matchId,
+                      ),
+              ),
             PopupMenuButton<_ChatMenuAction>(
               enabled: !_busy,
               onSelected: (action) {

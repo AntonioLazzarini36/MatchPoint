@@ -83,6 +83,7 @@ class AppRouter {
             otherUserId: match.otherUser.userId,
             otherName: match.otherUser.profile?.displayName ?? 'Sin nombre',
             otherPhotoUrl: otherPhotos.isNotEmpty ? otherPhotos.first : null,
+            sport: match.sport,
           );
         },
       ),
