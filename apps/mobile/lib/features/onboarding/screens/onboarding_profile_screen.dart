@@ -56,6 +56,7 @@ class OnboardingProfileScreen extends StatefulWidget {
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   static const _totalPages = 6;
   static const _skillStepIndex = 1;
+  static const _locationStepIndex = 3;
   static const _photoStepIndex = 4;
   static const _previewStepIndex = 5;
 
@@ -211,6 +212,13 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         );
         return;
       }
+    }
+
+    if (_currentPage == _locationStepIndex && _selectedLocation == null) {
+      controller.setError(
+        'Elige tu ubicación para poder mostrarte gente cerca tuyo',
+      );
+      return;
     }
 
     if (_currentPage < _previewStepIndex) {
