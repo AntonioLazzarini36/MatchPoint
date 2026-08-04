@@ -8,14 +8,12 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/network/api.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../matches/models/match_item.dart';
-import '../../matches/services/chat_service.dart';
 import '../../matches/services/matches_service.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../models/tennis_club.dart';
 import '../services/overpass_service.dart';
-import '../../../core/ui/widgets/proposal/week_calendar_picker.dart';
-import '../../../core/ui/widgets/proposal/time_slot_picker.dart';
-import '../../../core/utils/date_format_es.dart';
+import '../../../core/ui/widgets/proposal/propose_session.dart';
+import '../../discovery/models/sport.dart';
 
 /// Tennis clubs near a point, real OpenStreetMap data — see one on the
 /// map, tap it, and propose it (with a date/time) to whichever match you
@@ -155,27 +153,11 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     );
   }
 
+  /// Desde el mapa el sitio ya está elegido (el club), así que se salta
+  /// el paso de "¿dónde?" y solo queda a quién y cuándo. La propuesta que
+  /// se crea es la misma `Proposal` que desde el chat — antes esto
+  /// mandaba un mensaje de texto suelto que no se podía aceptar.
   Future<void> _proposeClub(TennisClub club) async {
-    final day = await _pickWeekDay();
-    if (day == null || !mounted) return;
-
-    final time = await pickTimeSlot(context);
-    if (time == null || !mounted) return;
-
-    final proposedAt = DateTime(day.year, day.month, day.day, time.hour, time.minute);
-    await _pickMatchAndSend(club, proposedAt);
-  }
-
-  /// Calendario semanal navegable (no un mes entero) — se puede pasar a
-  /// semanas siguientes, pero no a semanas anteriores a la actual.
-  Future<DateTime?> _pickWeekDay() {
-    return showModalBottomSheet<DateTime>(
-      context: context,
-      builder: (_) => const WeekCalendarPicker(),
-    );
-  }
-
-  Future<void> _pickMatchAndSend(TennisClub club, DateTime proposedAt) async {
     final matchesService = MatchesService(Api.client);
     List<MatchItem> matches;
     try {
@@ -229,36 +211,18 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
 
     if (chosen == null || !mounted) return;
 
-    final chatService = ChatService(Api.client);
-    try {
-      // Google Maps always works (built straight from lat/lng); the
-      // court's own website is a bonus when OSM happens to have one
-      // (rare in practice — checked, 0/40 near Madrid) so it's appended,
-      // not relied on as the only link.
-      final mapsLink =
-          'https://www.google.com/maps/search/?api=1&query=${club.latitude},${club.longitude}';
-      final websiteLine = club.website == null ? '' : '\n🌐 ${club.website}';
-
-      await chatService.sendMessage(
-        matchId: chosen.matchId,
-        text:
-            '¿Jugamos en ${club.name} el ${formatProposalDateTime(proposedAt)}? '
-            '📍 $mapsLink$websiteLine',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Propuesta enviada a ${chosen.otherUser.profile?.displayName ?? 'tu match'}',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('No se pudo enviar: $e')));
-    }
+    // El club queda como sitio de la propuesta (nombre + coordenadas), asi
+    // que `proposeSession` solo pregunta dia y hora. Las coordenadas dejan
+    // al otro lado abrir el sitio en un mapa sin depender de que OSM tenga
+    // web del club (raro: 0/40 cerca de Madrid, comprobado).
+    await proposeSession(
+      context,
+      matchId: chosen.matchId,
+      sport: Sport.tennis,
+      presetPlaceName: club.name,
+      presetPlaceLat: club.latitude,
+      presetPlaceLng: club.longitude,
+    );
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:match_point/core/theme/app_theme.dart';
 
 import '../../../core/network/api.dart';
 import '../../../core/storage/local_flags.dart';
+import '../../onboarding/models/profile.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../discovery_controller.dart';
 import '../models/discover_profile.dart';
@@ -11,6 +12,7 @@ import '../services/discovery_service.dart';
 import 'package:match_point/features/discovery/models/swipe_type.dart';
 import '../../../core/ui/widgets/discovery/discovery_intro_banner.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
+import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
 import '../../../core/ui/widgets/discovery/discovery_mini_card.dart';
 import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
 
@@ -34,6 +36,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   DiscoveryController? controller;
   bool _showIntro = false;
 
+  /// Guardadas para poder abrir la hoja de filtros ya rellena sin volver a
+  /// pedir `/me`, y para saber qué deportes pedirle al backend.
+  Preferences? _preferences;
+  List<Sport> _mySports = const [];
+
   @override
   void initState() {
     super.initState();
@@ -52,27 +59,52 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     await LocalFlags.setSeenDiscoveryIntro();
   }
 
-  /// El feed depende de los deportes reales del usuario (`Profile.sports`),
-  /// así que hay que leer `/me` antes de poder crear el controller — ya no
-  /// se puede asumir tenis fijo (ver discovery_controller.dart). Si `/me`
-  /// falla o el perfil no tiene deportes marcados, el controller cae solo
-  /// a tenis (mismo fallback de antes) en vez de dejar la pantalla rota.
+  /// El feed depende de las preferencias del usuario, así que hay que leer
+  /// `/me` antes de poder crear el controller. Qué deportes se piden sale
+  /// de `Preferences.sportsWanted` (lo que quiere ver); si nunca lo ha
+  /// tocado, se usan sus propios `Profile.sports` como valor por defecto —
+  /// ya los eligió en el onboarding. Si `/me` falla, el controller cae a
+  /// tenis (mismo fallback de siempre) en vez de dejar la pantalla rota.
   Future<void> _init() async {
     List<Sport> mySports = const [];
+    Preferences? prefs;
     try {
       final me = await ProfileService(Api.client).getMe();
       mySports = me.profile?.sports ?? const [];
+      prefs = me.preferences;
     } catch (_) {
-      // sigue con mySports vacío -> el controller cae a [Sport.tennis]
+      // sigue con lo que haya -> el controller cae a [Sport.tennis]
     }
 
     if (!mounted) return;
     final created = DiscoveryController(
       DiscoveryService(Api.client),
-      mySports: mySports,
+      sports: _sportsToFetch(prefs, mySports),
     );
-    setState(() => controller = created);
+    setState(() {
+      _preferences = prefs;
+      _mySports = mySports;
+      controller = created;
+    });
     await created.init();
+  }
+
+  static List<Sport> _sportsToFetch(Preferences? prefs, List<Sport> mySports) {
+    final wanted = prefs?.sportsWanted ?? const <Sport>[];
+    return wanted.isEmpty ? mySports : wanted;
+  }
+
+  /// Abre los filtros y, si se guardaron, vuelve a montar el feed desde
+  /// cero — cambiar edad/deportes/género cambia quién es candidato, así
+  /// que quedarse con el stack anterior mostraría gente ya filtrada.
+  Future<void> _openFilters() async {
+    final saved = await showDiscoveryPreferencesSheet(
+      context,
+      current: _preferences,
+      mySports: _mySports,
+    );
+    if (!saved || !mounted) return;
+    await _init();
   }
 
   @override
@@ -116,10 +148,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                // Top bar: solo el título y el acceso a filtros (deshabilitado
-                // hasta que haya una UI de preferencias que editar, ver
-                // status.md) — sin selector de deporte ni el toggle
-                // "Partner"/"Match" que no hacía nada.
+                // Top bar: solo el título y el acceso a filtros — sin
+                // selector de deporte ni el toggle "Partner"/"Match" que no
+                // hacía nada. Qué deportes se piden sale de los filtros,
+                // no de un control aparte aquí arriba.
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
@@ -130,9 +162,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     children: [
                       Text('Descubrir', style: context.textStyles.titleLarge),
                       IconButton(
-                        onPressed: () {
-                          // TODO filtros (prefs)
-                        },
+                        onPressed: _openFilters,
+                        tooltip: 'Filtros',
                         icon: Icon(Icons.tune, color: context.colors.onSurface),
                       ),
                     ],

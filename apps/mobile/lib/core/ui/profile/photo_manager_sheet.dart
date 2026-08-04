@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../features/onboarding/services/profile_service.dart';
 import '../../theme/app_theme.dart';
 import 'photo_grid_editor.dart';
+import 'photo_crop_preview.dart';
 
 /// Bottom sheet para gestionar las fotos del propio perfil: grid de fotos
 /// actuales + tile para añadir (abre el selector de imagen) + borrar por
@@ -49,17 +50,24 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
     );
     if (picked == null) return;
 
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    // Mismo recorte a 16:9 con vista previa que en el onboarding — las
+    // fotos tienen que verse igual se suban desde donde se suban.
+    final cropped = await showPhotoCropPreview(context, original: bytes);
+    if (cropped == null || !mounted) return;
+
     setState(() {
       _busy = true;
       _error = null;
     });
 
     try {
-      final bytes = await picked.readAsBytes();
       final profile = await widget.service.uploadPhoto(
-        bytes: bytes,
-        filename: picked.name,
-        contentType: picked.mimeType ?? guessPhotoContentType(picked.name),
+        bytes: cropped,
+        // El recorte re-codifica a PNG (ver landscape_crop.dart).
+        filename: '${DateTime.now().millisecondsSinceEpoch}.png',
+        contentType: 'image/png',
       );
       if (!mounted) return;
       setState(() => _photos = profile.photos);

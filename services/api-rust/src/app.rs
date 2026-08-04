@@ -15,7 +15,9 @@ use crate::app;
 use crate::discover;
 use crate::matches;
 use crate::me;
+use crate::notifications;
 use crate::openapi::ApiDoc;
+use crate::proposals;
 use crate::state::AppState;
 use crate::swipes;
 use crate::{auth, chats, users};
@@ -33,6 +35,8 @@ pub fn build_router(state: AppState) -> Router {
         .merge(auth::controller::router(state.clone())) // next: AuthModule
         .merge(swipes::controller::router()) // next: SwipesModule
         .merge(matches::controller::router()) // next: MatchesModule
+        .merge(proposals::controller::router())
+        .merge(notifications::controller::router())
         .merge(chats::controller::router()) // next: ChatsModule
         .merge(users::controller::router()) // next: UsersModule
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))

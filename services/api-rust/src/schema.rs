@@ -20,6 +20,14 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
     #[diesel(postgres_type(name = "SkillLevelValue"))]
     pub struct SkillLevelValue;
+
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "Gender"))]
+    pub struct Gender;
+
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "ProposalStatus"))]
+    pub struct ProposalStatus;
 }
 
 diesel::table! {
@@ -38,7 +46,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Sport;
+    use super::sql_types::{Gender, Sport};
 
     #[sql_name = "Profile"]
     profiles (id) {
@@ -49,6 +57,7 @@ diesel::table! {
         display_name -> Text,
         #[sql_name = "birthDate"]
         birth_date -> Timestamptz,
+        gender -> Nullable<Gender>,
         city -> Nullable<Text>,
         bio -> Nullable<Text>,
         photos -> Array<Text>,
@@ -72,7 +81,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Sport;
+    use super::sql_types::{Gender, Sport};
 
     #[sql_name = "Preferences"]
     preferences (id) {
@@ -88,7 +97,7 @@ diesel::table! {
         #[sql_name = "ageMax"]
         age_max -> Int4,
         #[sql_name = "genderPreference"]
-        gender_preference -> Nullable<Text>,
+        gender_preference -> Nullable<Gender>,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
         #[sql_name = "updatedAt"]
@@ -195,6 +204,34 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::{ProposalStatus, Sport};
+
+    #[sql_name = "Proposal"]
+    proposals (id) {
+        id -> Text,
+        #[sql_name = "matchId"]
+        match_id -> Text,
+        #[sql_name = "proposedById"]
+        proposed_by_id -> Text,
+        sport -> Sport,
+        #[sql_name = "placeName"]
+        place_name -> Nullable<Text>,
+        #[sql_name = "placeLat"]
+        place_lat -> Nullable<Double>,
+        #[sql_name = "placeLng"]
+        place_lng -> Nullable<Double>,
+        #[sql_name = "scheduledAt"]
+        scheduled_at -> Timestamptz,
+        status -> ProposalStatus,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
+        #[sql_name = "updatedAt"]
+        updated_at -> Timestamptz,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     users,
     profiles,
@@ -205,4 +242,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     messages,
     reports,
     skill_levels,
+    proposals,
 );

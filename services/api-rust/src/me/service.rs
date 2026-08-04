@@ -130,11 +130,9 @@ fn validate_preferences_dto(dto: &UpdatePreferencesDto) -> Result<(), MeError> {
             return Err(bad("La edad máxima debe estar entre 18 y 100"));
         }
     }
-    if let Some(g) = &dto.gender_preference {
-        if g.chars().count() > 50 {
-            return Err(bad("Preferencia de género inválida"));
-        }
-    }
+    // `gender_preference` needs no length check any more — it's a typed
+    // enum now (was free text), so serde rejects anything that isn't one
+    // of the known variants before this ever runs.
     Ok(())
 }
 
@@ -228,6 +226,13 @@ pub async fn update_profile(
         .or_else(|| existing.as_ref().map(|p| p.birth_date))
         .unwrap_or_else(|| parse_date("2000-01-01"));
 
+    // `Option<Option<_>>`: absent means "leave it", explicit null means
+    // "clear it" (see `double_option` in dto.rs) — a user has to be able
+    // to go back to not stating a gender, not just pick a different one.
+    let gender = match dto.gender {
+        Some(value) => value,
+        None => existing.as_ref().and_then(|p| p.gender),
+    };
     let city = dto
         .city
         .or_else(|| existing.as_ref().and_then(|p| p.city.clone()));
@@ -272,6 +277,7 @@ pub async fn update_profile(
             user_id: user_id.to_string(),
             display_name: display_name.clone(),
             birth_date,
+            gender,
             city: city.clone(),
             bio: bio.clone(),
             photos: photos.clone(),
@@ -290,6 +296,7 @@ pub async fn update_profile(
         .set((
             profiles::display_name.eq(display_name),
             profiles::birth_date.eq(birth_date),
+            profiles::gender.eq(gender),
             profiles::city.eq(city),
             profiles::bio.eq(bio),
             profiles::photos.eq(photos),
@@ -383,9 +390,13 @@ pub async fn update_preferences(
         .age_max
         .or_else(|| existing.as_ref().map(|p| p.age_max))
         .unwrap_or(60);
-    let gender_preference = dto
-        .gender_preference
-        .or_else(|| existing.as_ref().and_then(|p| p.gender_preference.clone()));
+    // Same absent-vs-null distinction as `gender` above: explicit null is
+    // the user choosing "cualquiera", which has to be reachable again
+    // after having picked something.
+    let gender_preference = match dto.gender_preference {
+        Some(value) => value,
+        None => existing.as_ref().and_then(|p| p.gender_preference),
+    };
 
     // Checked post-merge (not just against the raw DTO) since this is a
     // partial update — a request that only sends `ageMin` still has to be
@@ -404,7 +415,7 @@ pub async fn update_preferences(
             distance_km,
             age_min,
             age_max,
-            gender_preference: gender_preference.clone(),
+            gender_preference,
             updated_at: Utc::now(),
         })
         .on_conflict(preferences::user_id)

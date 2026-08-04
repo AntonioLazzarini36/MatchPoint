@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../utils/landscape_crop.dart';
 
 /// Fallback para cuando `XFile.mimeType` viene vacío (pasa en algunas
 /// plataformas nativas; en web `image_picker` sí lo rellena). Debe cubrir
@@ -57,10 +58,15 @@ class PhotoGridEditor extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      // Dos columnas en 16:9 en vez de tres cuadradas: las fotos se
+      // guardan ya recortadas a horizontal (ver landscape_crop.dart), asi
+      // que una rejilla cuadrada las volvia a recortar en pantalla y no se
+      // parecia a lo que el usuario habia aceptado al subirlas.
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+        crossAxisCount: 2,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
+        childAspectRatio: kPhotoAspectRatio,
       ),
       itemCount: photos.length + (photos.length < maxPhotos ? 1 : 0),
       itemBuilder: (context, index) {

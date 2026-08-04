@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../../../core/location/location_result.dart';
 import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
+import '../models/gender.dart';
 import '../models/profile.dart';
 import '../../discovery/models/discover_profile.dart';
 import '../../discovery/models/skill_level.dart';
@@ -45,8 +46,8 @@ class ProfileService {
 
   /// Deportes que juega el usuario (`Profile.sports`) — editable desde
   /// Settings en cualquier momento, no solo en el onboarding. Distinto de
-  /// `Preferences.sportsWanted` (qué deportes busca en otros, sin UI
-  /// todavía, ver status.md).
+  /// `Preferences.sportsWanted` (qué deportes busca en otros), que se
+  /// edita en la hoja de preferencias de Discovery.
   Future<void> updateSports(List<Sport> sports) async {
     final res = await api.patch(
       '/me/profile',
@@ -56,6 +57,24 @@ class ProfileService {
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('UpdateSports failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  /// Género del propio perfil. A diferencia del resto de PATCH parciales
+  /// de aquí, manda la clave SIEMPRE (incluso como null): el backend
+  /// distingue "omitido" de "null explícito" para que se pueda volver a
+  /// "prefiero no decirlo" tras haber elegido algo (`double_option` en
+  /// `me/dto.rs`). Por eso no usa el idiom `'clave': ?valor`, que borraría
+  /// la clave justo en el caso que hay que poder expresar.
+  Future<void> updateGender(Gender? gender) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {'gender': gender?.apiValue},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UpdateGender failed: ${res.statusCode} ${res.body}');
     }
   }
 
@@ -111,9 +130,9 @@ class ProfileService {
     return skillLevelsFromJson(jsonDecode(res.body));
   }
 
-  /// Solo el radio de descubrimiento por ahora (`distanceKm`) — editar
-  /// edad/género buscados es una pantalla de filtros aparte, sin alcance
-  /// definido todavía (ver status.md).
+  /// Solo el radio de descubrimiento (`distanceKm`) — el resto de filtros
+  /// (edad, deportes, género) van por `updatePreferences`, y se editan
+  /// desde la hoja de preferencias de Discovery.
   Future<void> updateDiscoveryRadius(int distanceKm) async {
     final res = await api.patch(
       '/me/preferences',
@@ -128,16 +147,17 @@ class ProfileService {
     }
   }
 
-  /// Preferencias de a quien mostrar en Discovery (edad, deportes que
-  /// quiere ver, genero) - independiente del radio (ver
-  /// `updateDiscoveryRadius` arriba, que ya existia). Cualquier parametro
-  /// en `null` deja el valor existente sin tocar (mismo upsert parcial que
-  /// `updateCredentials`).
+  /// Preferencias de a quién mostrar en Discovery (edad, deportes que
+  /// quiere ver, género) — independiente del radio (ver
+  /// `updateDiscoveryRadius` arriba). Los parámetros en `null` no se tocan,
+  /// salvo `genderPreference`, que se manda siempre (por eso es `required`
+  /// aunque sea nullable): null ahí es la opción real "cualquiera", no
+  /// "déjalo como estaba" — misma razón que en `updateGender`.
   Future<void> updatePreferences({
     int? ageMin,
     int? ageMax,
     List<Sport>? sportsWanted,
-    String? genderPreference,
+    required Gender? genderPreference,
   }) async {
     final res = await api.patch(
       '/me/preferences',
@@ -145,7 +165,7 @@ class ProfileService {
         'ageMin': ?ageMin,
         'ageMax': ?ageMax,
         'sportsWanted': ?sportsWanted?.map((s) => s.apiValue).toList(),
-        'genderPreference': ?genderPreference,
+        'genderPreference': genderPreference?.apiValue,
       },
       auth: true,
     );

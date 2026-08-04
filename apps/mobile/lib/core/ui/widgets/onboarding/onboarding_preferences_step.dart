@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:match_point/features/onboarding/models/gender.dart';
+
 /// Antes era solo el paso de "objetivo" (3 tarjetas, guardado como `bio`).
 /// Ahora ademas es donde se setean las preferencias reales de a quien
 /// mostrar en Discovery mas adelante (edad, genero) - el objetivo sigue
@@ -16,11 +18,12 @@ class OnboardingPreferencesStep extends StatelessWidget {
   final RangeValues ageRange;
   final ValueChanged<RangeValues> onAgeRangeChanged;
 
-  /// '' significa "Cualquiera" (sin preferencia) - nunca null, para poder
-  /// distinguir "no toques este campo" (omitido del todo) de "vaciarlo"
-  /// cuando se manda al backend (ver profile_service.dart).
-  final String genderPreference;
-  final ValueChanged<String> onGenderPreferenceChanged;
+  /// null = "Cualquiera". Se manda siempre al backend (incluso como null
+  /// explícito), así que no hace falta un centinela tipo '' para
+  /// distinguirlo de "no lo toques" — ver `updatePreferences` en
+  /// profile_service.dart.
+  final Gender? genderPreference;
+  final ValueChanged<Gender?> onGenderPreferenceChanged;
 
   const OnboardingPreferencesStep({
     super.key,
@@ -105,7 +108,12 @@ class OnboardingPreferencesStep extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 20),
 
-          Text('Preferencia de genero', style: t.titleMedium),
+          Text('Quiero ver', style: t.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Quien no haya dicho su género te seguirá apareciendo.',
+            style: t.bodySmall,
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
@@ -113,19 +121,15 @@ class OnboardingPreferencesStep extends StatelessWidget {
             children: [
               ChoiceChip(
                 label: const Text('Cualquiera'),
-                selected: genderPreference.isEmpty,
-                onSelected: (_) => onGenderPreferenceChanged(''),
+                selected: genderPreference == null,
+                onSelected: (_) => onGenderPreferenceChanged(null),
               ),
-              ChoiceChip(
-                label: const Text('Hombres'),
-                selected: genderPreference == 'Hombres',
-                onSelected: (_) => onGenderPreferenceChanged('Hombres'),
-              ),
-              ChoiceChip(
-                label: const Text('Mujeres'),
-                selected: genderPreference == 'Mujeres',
-                onSelected: (_) => onGenderPreferenceChanged('Mujeres'),
-              ),
+              for (final option in Gender.values)
+                ChoiceChip(
+                  label: Text(option.pluralLabel),
+                  selected: genderPreference == option,
+                  onSelected: (_) => onGenderPreferenceChanged(option),
+                ),
             ],
           ),
           const SizedBox(height: 8),

@@ -2,10 +2,23 @@
 //! optional, and `service.rs` only touches the fields that actually
 //! came through (same as `dto.city ?? undefined` in the TS version).
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use utoipa::ToSchema;
 
-use crate::models::{SkillLevel, Sport};
+use crate::models::{Gender, SkillLevel, Sport};
+
+/// Distinguishes "field absent" (`None` — leave whatever is stored) from
+/// "field present and explicitly null" (`Some(None)` — clear it). Plain
+/// `Option<T>` collapses both into `None`, which is fine for fields you
+/// only ever set, but not for the ones a user has to be able to *unset*
+/// (gender, gender preference — "prefiero no decirlo" / "cualquiera").
+fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +28,10 @@ pub struct UpdateProfileDto {
     /// Nombre mostrado del lugar elegido a mano (p.ej. "Málaga, España"),
     /// estilo Hinge — no viene de GPS. Se manda junto a `latitude`/
     /// `longitude`, elegidos en un buscador (Nominatim) en el cliente.
+    /// See `double_option` — omitted leaves the stored value alone, an
+    /// explicit `null` clears it back to "prefiero no decirlo".
+    #[serde(default, deserialize_with = "double_option")]
+    pub gender: Option<Option<Gender>>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub latitude: Option<f64>,
@@ -61,7 +78,10 @@ pub struct UpdatePreferencesDto {
     pub distance_km: Option<i32>,
     pub age_min: Option<i32>,
     pub age_max: Option<i32>,
-    pub gender_preference: Option<String>,
+    /// See `double_option` — an explicit `null` means "cualquiera", which
+    /// is a real choice a user can go back to, not just "don't touch".
+    #[serde(default, deserialize_with = "double_option")]
+    pub gender_preference: Option<Option<Gender>>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

@@ -7,16 +7,22 @@ import 'services/discovery_service.dart';
 class DiscoveryController extends ChangeNotifier {
   final DiscoveryService service;
 
-  /// Deportes reales del usuario (`Profile.sports`), pasados por quien crea
-  /// el controller (ver discovery_screen.dart, que los lee de `/me` antes
-  /// de instanciar esto). Ya no se asume tenis fijo: si el usuario eligió
-  /// solo "Correr", o ambos, el feed respeta esa elección. Si por lo que
-  /// sea viene vacío (perfil sin deportes marcados, no debería pasar tras
-  /// onboarding), cae a tenis para no dejar el feed permanentemente vacío.
-  final List<Sport> mySports;
+  /// Qué deportes pedirle al backend, en orden de preferencia.
+  ///
+  /// Es `Preferences.sportsWanted` (lo que el usuario quiere *ver*), con
+  /// `Profile.sports` (lo que *juega*) como valor por defecto cuando no ha
+  /// tocado esa preferencia — ver `discovery_screen.dart`, que resuelve
+  /// las dos cosas contra `/me` antes de instanciar esto. Hasta
+  /// 2026-08-04 esto miraba solo `Profile.sports` y `sportsWanted` se
+  /// guardaba sin que nadie lo leyera nunca: la preferencia existía en
+  /// Ajustes pero no hacía absolutamente nada.
+  ///
+  /// Si acaba vacío (perfil sin deportes, no debería pasar tras el
+  /// onboarding) cae a tenis, para no dejar el feed vacío para siempre.
+  final List<Sport> sports;
 
-  DiscoveryController(this.service, {required List<Sport> mySports})
-    : mySports = mySports.isEmpty ? const [Sport.tennis] : mySports;
+  DiscoveryController(this.service, {required List<Sport> sports})
+    : sports = sports.isEmpty ? const [Sport.tennis] : sports;
 
   bool loading = false;
   String? error;
@@ -35,15 +41,15 @@ class DiscoveryController extends ChangeNotifier {
 
   /// El backend solo filtra por un deporte a la vez (`?sport=`), así que
   /// para "varios deportes a la vez" pedimos un feed por cada deporte
-  /// propio y los unimos por `userId` — un candidato que comparte más de
-  /// uno de mis deportes solo aparece una vez.
+  /// buscado y los unimos por `userId` — un candidato que encaja en más
+  /// de uno solo aparece una vez.
   Future<void> reload() async {
     loading = true;
     error = null;
     notifyListeners();
     try {
       final feeds = await Future.wait(
-        mySports.map((sport) => service.fetchFeed(sport: sport)),
+        sports.map((sport) => service.fetchFeed(sport: sport)),
       );
       final merged = <String, DiscoverProfile>{};
       for (final feed in feeds) {
@@ -62,15 +68,15 @@ class DiscoveryController extends ChangeNotifier {
     }
   }
 
-  /// Un candidato puede compartir más de uno de mis deportes con
-  /// `mySports` — el swipe (y un eventual match) es por deporte, así que
-  /// hay que elegir uno solo. Usamos el primero en común, en el orden de
-  /// `mySports`, para que sea determinista.
+  /// Un candidato puede encajar en más de uno de los deportes buscados —
+  /// el swipe (y un eventual match) es por deporte, así que hay que elegir
+  /// uno solo. Usamos el primero en común, en el orden de `sports`, para
+  /// que sea determinista.
   Sport _sportFor(DiscoverProfile user) {
-    for (final sport in mySports) {
+    for (final sport in sports) {
       if (user.sports.contains(sport)) return sport;
     }
-    return mySports.first;
+    return sports.first;
   }
 
   /// Swipea un perfil concreto — cualquiera de las tarjetas visibles en la

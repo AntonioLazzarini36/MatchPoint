@@ -2,7 +2,7 @@
 
 > Documento vivo. Edítalo cuando quieras cambiar prioridades, tachar cosas o
 > añadir contexto — lo uso como referencia al arrancar en otros chats.
-> Última actualización: 2026-08-03.
+> Última actualización: 2026-08-04.
 
 ## Contexto de branches
 
@@ -362,15 +362,107 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   `inputFormatters` para restringir caracteres, sin contador visible;
   no hizo falta tocarlos. Verificado: analyze/test mobile en verde.
 
+- **Propuestas de partido reales + arreglo de "controles falsos" (2026-08-04)**
+  — el análisis del día encontró que dos ajustes que la app ofrecía **no
+  hacían literalmente nada**, y que la promesa central del producto
+  ("organizar el partido") no existía como tal. Todo arreglado:
+  - 🔴 **`Preferences.sportsWanted` se guardaba y nadie lo leía jamás.**
+    `DiscoveryController` pedía feeds por `Profile.sports` (lo que juegas),
+    no por lo que querías ver. Ahora Discovery se alimenta de
+    `sportsWanted`, con `Profile.sports` como valor por defecto si nunca lo
+    has tocado.
+  - 🔴 **`genderPreference` tampoco filtraba nada** — no existía campo de
+    género en `Profile` contra el que comparar. Se añadió enum `Gender`
+    (MALE/FEMALE/OTHER, nullable = "prefiero no decirlo"),
+    `Profile.gender`, paso de género en el onboarding, y el filtro real en
+    `/discover`. Quien no ha declarado género **no** se excluye (mismo
+    criterio que el filtro de distancia: vaciar el feed de alguien en
+    cuanto pone una preferencia es peor fallo que enseñar perfiles sin
+    etiquetar). `datagen` ahora siembra géneros.
+  - Para poder *desmarcar* esos dos campos hizo falta distinguir "omitido"
+    de "null explícito" en los PATCH parciales — nuevo helper
+    `double_option` en `me/dto.rs` y métodos dedicados en el cliente
+    (`updateGender`, `genderPreference` como parámetro `required`).
+  - **El icono de filtros de Discovery era un `// TODO` inerte.** La hoja
+    de preferencias vivía como widget privado dentro de `settings_screen`.
+    Extraída a `core/ui/widgets/discovery/discovery_preferences_sheet.dart`,
+    se guarda sola, y la usan tanto Ajustes como el botón de Discovery (que
+    ahora recarga el feed al guardar, porque cambian los candidatos).
+  - **Propuestas de partido con estado (lo grande).** Antes "proponer un
+    partido" era un mensaje de chat en texto plano: nada que aceptar, sin
+    estado, y se perdía scrolleando. Ahora hay tabla `Proposal` +
+    `ProposalStatus`, cuatro endpoints, y reglas de verdad: crear una
+    cancela cualquier pendiente del match; solo quien la recibe acepta/
+    rechaza y solo quien la hizo cancela; solo se transiciona desde
+    PENDING. En el móvil: tarjeta accionable **fijada arriba del chat** (no
+    una burbuja más, que es justo el problema que resolvía), flujo único
+    `proposeSession` compartido por tenis (con el club preseleccionado
+    desde el mapa) y correr, y pantalla nueva **"Próximos partidos"**.
+  - **Cuarta pestaña + badges.** La barra de navegación pasó a 4 pestañas
+    (Discovery / Matches / Partidos / Profile) con badges reales de
+    mensajes sin leer y propuestas esperando tu respuesta, vía
+    `GET /me/notifications` (módulo propio, solo contadores, sondeado cada
+    15s). **No es push de verdad** — sin FCM la app solo se entera en
+    primer plano; lo que arregla es que antes solo te enterabas si entrabas
+    tú a mirar esa pestaña.
+  - Verificado: fmt/clippy/build/test backend en verde, migraciones
+    corridas contra la DB real, y curl end-to-end de todo el ciclo
+    (crear → aceptar propio = 403 → aceptar el otro = 200 → re-responder =
+    400 → fecha pasada = 400 → deporte que no cuadra = 400 → supersede dejando
+    una sola PENDING → filtro de género recortando el feed de 13 a 10 →
+    null explícito devolviendo a "cualquiera" → contadores asimétricos).
+    analyze/test mobile en verde; desplegado en el Xiaomi.
+
+- **Segunda tanda del 2026-08-04 (feedback en vivo tras probar lo de
+  arriba en el móvil):**
+  - **Tocar un partido llevaba al chat.** Ahora abre una ficha real
+    (`SessionDetailScreen`): cuándo + cuenta atrás ("dentro de 3 días"),
+    dónde con **mini-mapa embebido** (no un enlace a Google Maps: se ve si
+    cae cerca sin salir de la app), y el rival con las señales que
+    responden "¿juega a mi nivel?" (nivel, años, club, logros). El chat
+    pasa a ser una acción más, no el destino.
+  - **Cancelar un partido ya aceptado.** El backend solo permitía
+    transiciones desde PENDING, así que una vez confirmado no había forma
+    de echarse atrás salvo no presentarse. Ahora `CANCEL` también funciona
+    desde `ACCEPTED`, y puede hacerlo cualquiera de los dos (mientras solo
+    está propuesto, sigue siendo solo quien la hizo — la otra parte
+    "rechaza", no "cancela").
+  - **Punto de encuentro en mapa, no escribiendo el municipio.** Nuevo
+    `MapPointPicker`: pin fijo en el centro y el mapa se mueve debajo
+    (patrón Uber/Glovo — arrastrar un marcador con el dedo encima lo tapa),
+    centrado en la ubicación del perfil, con campo de referencia opcional
+    ("junto a la fuente"). Es la opción principal ahora; buscar por nombre
+    queda como secundaria. El caso real es "en esta esquina del parque",
+    que un buscador de municipios no sabe expresar.
+  - **El icono de pistas de tenis salía a todo el mundo**, incluida gente
+    que solo corre — desde el chat de un match de correr llevaba a una
+    pantalla de clubes inútil. Ahora solo aparece si juegas al tenis.
+  - **Fotos en horizontal (16:9) en toda la app.** Nuevo
+    `core/utils/landscape_crop.dart` (recorte al centro con `dart:ui`, sin
+    añadir dependencia: funciona igual en móvil y web y usa GPU en vez de
+    recorrer píxeles en Dart) + diálogo de vista previa "Así se verá"
+    antes de aceptar la foto, en los dos sitios donde se suben (onboarding
+    y gestor de fotos). La rejilla pasó de 3 columnas cuadradas a 2 en
+    16:9, que es lo que el usuario acabó aceptando al subirla.
+  - **Paleta nueva de pista de tenis** (verde profundo + lima de pelota)
+    en vez del naranja-rojo heredado de cuando la app parecía de citas —
+    encaja con el reposicionamiento. Además se extrajeron los
+    `ColorScheme` a constantes y se añadieron temas de componentes
+    compartidos (navegación, chips, hojas, snackbars, diálogos, divisores)
+    que antes no existían: solo estaban estilados botones e inputs, así que
+    el resto salía con el aspecto por defecto de Material y desentonaba.
+  - Verificado: fmt/clippy/build/test backend en verde; analyze/test mobile
+    en verde; `flutter build web --release` limpio y la app arranca en
+    Chrome sin excepciones. **Sin repaso visual pantalla por pantalla** —
+    las herramientas de navegador estaban bloqueadas en la sesión, así que
+    esta tanda queda pendiente de tu revisión visual.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión
 - **`redesign/ui-overhaul`** — falta definir alcance/estilo.
 - **`test/full-app-suite`** — para que la escribas vos.
-- **UI de preferencias de Discovery** (filtros de edad/distancia/deporte):
-  no existe ninguna pantalla ni modelo en el móvil para esto. El backend ya
-  filtra por edad (`/discover`), pero no hay forma de cambiarla desde la
-  app fuera del registro. Necesita diseño, no lo inventé.
+- ~~**UI de preferencias de Discovery**~~ — hecha el 2026-08-04 (ver arriba).
 - **Rating calculado** (Elo vs Glicko-2), a partir de resultados de
   partidos reales — el nivel *auto-declarado* por deporte ya existe
   (`feat/skill-level-and-credentials`, ver "Hecho"), esto es la parte
@@ -379,9 +471,7 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   para emparejar.
 - ~~**Distancia real**~~ — resuelto en `feat/manual-location` (ver
   "Hecho"), pendiente de que la revises y mergees.
-- **Campo de género**: `Preferences.genderPreference` existe pero
-  `Profile` no tiene ningún campo de género que filtrar — mismo problema
-  que distancia, necesita schema + UI.
+- ~~**Campo de género**~~ — hecho el 2026-08-04 (ver arriba).
 - **Super-like**: el propio TODO en el código dice que depende de una
   feature de backend que no existe (`SwipeType` solo tiene LIKE/PASS).
 
@@ -549,8 +639,7 @@ Cosas que noté mientras trabajaba en lo de arriba y que no estaban
 anotadas en ningún lado. Ninguna la empecé — son solo ideas para cuando
 quieras priorizar:
 
-1. **Con el rediseño de Discovery, el feed no se re-pide solo cuando
-   quedan pocas tarjetas.** `reload()` solo se llama a mano ("Reiniciar
+1. **El feed no se re-pide solo cuando quedan pocas tarjetas.** `reload()` solo se llama a mano ("Reiniciar
    búsqueda") cuando el stack llega a 0. Con el deck viejo (una tarjeta a
    la vez) no se notaba, pero con la columna de hasta 4 huecos fijos,
    bajar a 1-2 perfiles deja 2-3 espacios vacíos visibles antes de llegar
@@ -567,10 +656,14 @@ quieras priorizar:
    `DiscoverProfile.mainPhoto` es siempre `photos.first`, o sea "la
    primera que subiste", sin forma de cambiarla después sin borrar y
    resubir en el orden que querés.
-5. **Sin notificaciones push.** El chat usa polling (4s) mientras estás
-   en esa pantalla, pero no hay nada si la app está en segundo plano o en
-   otra pantalla — te enterás de un match/mensaje nuevo solo si volvés a
-   abrir la pestaña correspondiente.
+5. **Push de verdad (FCM/APNs) sigue sin existir.** Parcialmente
+   mitigado el 2026-08-04: badges en la barra de navegación con contadores
+   reales (`GET /me/notifications`, sondeado cada 15s), así que ya no hace
+   falta entrar a mirar para enterarte. Pero con la app cerrada o en
+   segundo plano no llega nada. Push real necesita un proyecto de Firebase
+   (`google-services.json`) y credenciales que hay que crear — mismo
+   bloqueo "necesito que consigas algo externo" que OAuth y el envío de
+   emails.
 
 ## Reposicionamiento de producto (pedido el 2026-08-02)
 

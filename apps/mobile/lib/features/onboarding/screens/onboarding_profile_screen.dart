@@ -26,6 +26,8 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_preferences_st
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
+import 'package:match_point/features/onboarding/models/gender.dart';
+import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 
 class _PickedPhoto {
   final Uint8List bytes;
@@ -79,7 +81,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   // mano en cada cambio de _selectedSports.
   RangeValues _ageRange = const RangeValues(18, 60);
   final Set<Sport> _sportsWanted = {};
-  String _genderPreference = '';
+  Gender? _gender;
+  Gender? _genderPreference;
 
   Map<Sport, SkillLevel> _skillLevels = {};
   // Tenis: años jugando + club. Correr: ritmo/distancia media. Se
@@ -293,6 +296,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         longitude: _selectedLocation?.longitude,
       );
       await controller.service.updateProfile(req);
+      // Aparte de `updateProfile` porque el género tiene que poder
+      // mandarse como null explícito ("prefiero no decirlo") y
+      // `UpdateProfileRequest` omite los nulos — ver `updateGender`.
+      await controller.service.updateGender(_gender);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
       await controller.service.updatePreferences(
         ageMin: _ageRange.start.round(),
@@ -356,13 +363,19 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     try {
       final bytes = await picked.readAsBytes();
       if (!mounted) return;
+      // Recorte a 16:9 con vista previa: la app enseña las fotos siempre
+      // en horizontal, así que es mejor que el usuario vea el encuadre
+      // final ahora que descubra después que le cortó la cabeza.
+      final cropped = await showPhotoCropPreview(context, original: bytes);
+      if (cropped == null || !mounted) return;
       setState(() {
         _localPhotos.add(
           _PickedPhoto(
-            bytes: bytes,
-            filename: picked.name,
-            contentType:
-                picked.mimeType ?? guessPhotoContentType(picked.name),
+            bytes: cropped,
+            // El recorte re-codifica a PNG (ver landscape_crop.dart), así
+            // que el nombre/tipo originales ya no describen los bytes.
+            filename: '${DateTime.now().millisecondsSinceEpoch}.png',
+            contentType: 'image/png',
           ),
         );
       });
@@ -468,6 +481,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 birthDateLabel: birthDate == null
                     ? 'Select date'
                     : _formatDate(birthDate!),
+                gender: _gender,
+                onGenderChanged: (g) => setState(() => _gender = g),
                 selectedSports: _selectedSports,
                 onSportToggle: (sport, selected) {
                   setState(() {

@@ -19,7 +19,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::models::{SkillLevel, Sport};
+use crate::models::{Gender, SkillLevel, Sport};
 use crate::schema::{preferences, profiles, skill_levels, swipes};
 use crate::state::AppState;
 
@@ -94,6 +94,9 @@ pub struct DiscoverProfile {
     pub user_id: String,
     pub display_name: String,
     pub age: i32,
+    /// Stating it is optional, so `None` genuinely means "prefiero no
+    /// decirlo" and the client shows nothing rather than guessing.
+    pub gender: Option<Gender>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,
@@ -120,6 +123,7 @@ impl From<crate::models::Profile> for DiscoverProfile {
             user_id: p.user_id,
             display_name: p.display_name,
             age: age_from_birth_date(p.birth_date),
+            gender: p.gender,
             city: p.city,
             bio: p.bio,
             photos: p.photos,
@@ -203,21 +207,23 @@ pub async fn discover(
         .load(&mut conn)
         .await?;
 
-    // `gender_preference` still isn't applied — no gender field on
-    // `Profile` to filter against yet (tracked in status.md). `distance_km`
-    // *is* now applied, against the viewer's own hand-picked coordinates
-    // (see `me/dto.rs` — Hinge-style, not device GPS).
+    // `distance_km` is applied against the viewer's own hand-picked
+    // coordinates (see `me/dto.rs` — Hinge-style, not device GPS), and
+    // `gender_preference` is applied against `Profile.gender` (added
+    // 2026-08-04 — before that this setting existed but silently did
+    // nothing, since there was no gender stored to compare against).
     let prefs = preferences::table
         .filter(preferences::user_id.eq(current_user_id))
         .select((
             preferences::age_min,
             preferences::age_max,
             preferences::distance_km,
+            preferences::gender_preference,
         ))
-        .first::<(i32, i32, i32)>(&mut conn)
+        .first::<(i32, i32, i32, Option<Gender>)>(&mut conn)
         .await
         .optional()?;
-    let (age_min, age_max, distance_km) = prefs.unwrap_or((18, 60, 25));
+    let (age_min, age_max, distance_km, gender_preference) = prefs.unwrap_or((18, 60, 25, None));
 
     // No coordinates set -> nothing to filter by distance with, so every
     // candidate passes regardless of `distance_km` (same "not enforceable
@@ -245,6 +251,15 @@ pub async fn discover(
         .filter(profiles::birth_date.gt(min_birth_date))
         .into_boxed();
 
+    if let Some(wanted) = gender_preference {
+        // Candidates who never stated a gender are deliberately kept in.
+        // Same call as the distance filter's "no coordinates -> not
+        // filtered": most profiles predate this column, and silently
+        // emptying someone's feed the moment they set a preference is a
+        // worse failure than showing a few unlabelled profiles.
+        query = query.filter(profiles::gender.eq(wanted).or(profiles::gender.is_null()));
+    }
+
     if let Some(sport) = sport {
         // Postgres `@>` ("contains") — equivalent of Prisma's
         // `sports: { has: sport }` for an array column.
@@ -262,6 +277,7 @@ pub async fn discover(
             profiles::user_id,
             profiles::display_name,
             profiles::birth_date,
+            profiles::gender,
             profiles::city,
             profiles::bio,
             profiles::photos,
@@ -279,6 +295,7 @@ pub async fn discover(
             String,
             String,
             chrono::DateTime<chrono::Utc>,
+            Option<Gender>,
             Option<String>,
             Option<String>,
             Vec<String>,
@@ -295,7 +312,7 @@ pub async fn discover(
 
     let mut result: Vec<DiscoverProfile> = rows
         .into_iter()
-        .filter(|(_, _, _, _, _, _, _, lat, lng, _, _, _, _, _)| {
+        .filter(|(_, _, _, _, _, _, _, _, lat, lng, _, _, _, _, _)| {
             let Some((my_lat, my_lng)) = my_location else {
                 return true;
             };
@@ -313,6 +330,7 @@ pub async fn discover(
                 user_id,
                 display_name,
                 birth_date,
+                gender,
                 city,
                 bio,
                 photos,
@@ -329,6 +347,7 @@ pub async fn discover(
                     user_id,
                     display_name,
                     age: age_from_birth_date(birth_date),
+                    gender,
                     city,
                     bio,
                     photos,

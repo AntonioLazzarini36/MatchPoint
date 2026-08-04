@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'package:match_point/features/onboarding/models/gender.dart';
+
 class OnboardingProfileStep extends StatelessWidget {
   final TextEditingController displayNameCtrl;
   final DateTime? birthDate;
   final VoidCallback onPickBirthDate;
   final String birthDateLabel;
+
+  /// null = "prefiero no decirlo", que es una respuesta válida y no
+  /// bloquea el paso. Se pregunta aquí (y no en el paso de preferencias)
+  /// porque es parte de quién eres, no de a quién buscas.
+  final Gender? gender;
+  final ValueChanged<Gender?> onGenderChanged;
 
   final Set<String> selectedSports;
   final void Function(String sport, bool selected) onSportToggle;
@@ -16,6 +24,8 @@ class OnboardingProfileStep extends StatelessWidget {
     required this.birthDate,
     required this.onPickBirthDate,
     required this.birthDateLabel,
+    required this.gender,
+    required this.onGenderChanged,
     required this.selectedSports,
     required this.onSportToggle,
     this.onNameSubmitted,
@@ -56,6 +66,33 @@ class OnboardingProfileStep extends StatelessWidget {
               ),
               child: Text(birthDateLabel),
             ),
+          ),
+
+          const SizedBox(height: 24),
+
+          Text('Género', style: t.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Opcional. Ayuda a quien filtra por esto a encontrarte — y a '
+            'que a ti no te aparezca quien no buscas.',
+            style: t.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final option in Gender.values)
+                ChoiceChip(
+                  label: Text(option.label),
+                  selected: gender == option,
+                  // Volver a tocar el que ya está elegido lo deselecciona:
+                  // es la única forma de volver a "prefiero no decirlo"
+                  // sin añadir un cuarto chip que diga eso mismo.
+                  onSelected: (selected) =>
+                      onGenderChanged(selected ? option : null),
+                ),
+            ],
           ),
 
           const SizedBox(height: 28),

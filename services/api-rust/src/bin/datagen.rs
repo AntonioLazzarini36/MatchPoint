@@ -25,7 +25,7 @@ use diesel_async::{AsyncConnection, AsyncPgConnection};
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::db;
 use matchpoint_api::models::{
-    NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
+    Gender, NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
 };
 use matchpoint_api::schema::{preferences, profiles, skill_levels, users};
 
@@ -44,7 +44,10 @@ struct FakeProfile {
     bio: &'static str,
     sports: &'static [Sport],
     sports_wanted: &'static [Sport],
-    gender_preference: Option<&'static str>,
+    // Seeded for real (not None) so /discover's gender filter has data to
+    // actually filter against when testing it.
+    gender: Option<Gender>,
+    gender_preference: Option<Gender>,
     // Tennis-oriented credentials — left None for running-only profiles.
     years_playing: Option<i32>,
     club: Option<&'static str>,
@@ -69,6 +72,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Tenis los fines de semana, nivel intermedio. Busco rival constante.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
+        gender: Some(Gender::Female),
         gender_preference: None,
         years_playing: Some(5),
         club: None,
@@ -87,6 +91,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Corro 10k tres veces por semana. Busco gente para rodajes largos.",
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
+        gender: Some(Gender::Male),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -105,6 +110,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Tenis y running, un poco de todo. Recién llegada a la ciudad.",
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
+        gender: Some(Gender::Female),
         gender_preference: None,
         years_playing: Some(2),
         club: None,
@@ -123,6 +129,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Juego en el club desde hace años. Nivel avanzado, busco reto.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
+        gender: Some(Gender::Male),
         gender_preference: None,
         years_playing: Some(12),
         club: Some("Club de Tenis Torremolinos"),
@@ -141,6 +148,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Preparando media maratón. Ritmos suaves entre semana.",
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
+        gender: Some(Gender::Female),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -159,6 +167,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Tenis casual los sábados por la mañana, sin presión.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
+        gender: Some(Gender::Male),
         gender_preference: None,
         years_playing: Some(1),
         club: None,
@@ -177,6 +186,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Más de trail que de asfalto, pero acepto rodajes urbanos.",
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
+        gender: Some(Gender::Female),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -195,6 +205,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Compito en torneos locales. Busco sparring de nivel alto.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
+        gender: Some(Gender::Male),
         gender_preference: None,
         years_playing: Some(15),
         club: Some("Club de Tenis Málaga"),
@@ -216,6 +227,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Empezando en esto del running, busco gente paciente.",
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
+        gender: Some(Gender::Female),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -234,6 +246,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         bio: "Tenis en invierno, running en verano. Abierto a ambos.",
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
+        gender: Some(Gender::Male),
         gender_preference: None,
         years_playing: Some(7),
         club: None,
@@ -267,7 +280,8 @@ async fn seed_one(
     bio: Option<&str>,
     sports: Vec<Sport>,
     sports_wanted: Vec<Sport>,
-    gender_preference: Option<&str>,
+    gender: Option<Gender>,
+    gender_preference: Option<Gender>,
     years_playing: Option<i32>,
     club: Option<&str>,
     avg_pace_min_per_km: Option<f64>,
@@ -295,7 +309,6 @@ async fn seed_one(
     let tx_display_name = display_name.to_string();
     let tx_city = city.map(|c| c.to_string());
     let tx_bio = bio.map(|b| b.to_string());
-    let tx_gender_preference = gender_preference.map(|g| g.to_string());
     let tx_club = club.map(|c| c.to_string());
 
     conn.transaction::<_, anyhow::Error, _>(|conn| {
@@ -316,6 +329,7 @@ async fn seed_one(
                     user_id: tx_user_id.clone(),
                     display_name: tx_display_name,
                     birth_date,
+                    gender,
                     city: tx_city,
                     bio: tx_bio,
                     photos: vec![],
@@ -340,7 +354,7 @@ async fn seed_one(
                     distance_km: 25,
                     age_min: 18,
                     age_max: 60,
-                    gender_preference: tx_gender_preference,
+                    gender_preference,
                     updated_at: Utc::now(),
                 })
                 .execute(conn)
@@ -393,6 +407,7 @@ async fn seed_fakes(conn: &mut AsyncPgConnection) -> anyhow::Result<()> {
             Some(p.bio),
             p.sports.to_vec(),
             p.sports_wanted.to_vec(),
+            p.gender,
             p.gender_preference,
             p.years_playing,
             p.club,
@@ -438,7 +453,8 @@ async fn seed_me(
         None,
         vec![Sport::Tennis, Sport::Running],
         vec![Sport::Tennis, Sport::Running],
-        None,
+        None, // gender — se elige luego desde la app
+        None, // gender_preference
         None, // years_playing — se completa luego desde la app
         None,
         None,

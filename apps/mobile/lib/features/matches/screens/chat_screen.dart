@@ -15,7 +15,10 @@ import '../../../core/ui/dialogs/confirm_dialog.dart';
 import '../../../core/ui/dialogs/report_reason_dialog.dart';
 import '../../../core/ui/widgets/chat/chat_message_bubble.dart';
 import '../../../core/ui/widgets/chat/chat_input_bar.dart';
-import '../../../core/ui/widgets/proposal/running_proposal.dart';
+import '../../../core/ui/widgets/proposal/propose_session.dart';
+import '../../../core/ui/widgets/proposal/proposal_card.dart';
+import '../models/proposal.dart';
+import '../services/proposal_service.dart';
 import '../../discovery/models/sport.dart';
 
 enum _ChatMenuAction { unmatch, report }
@@ -52,6 +55,13 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _busy = false;
   Timer? _pollTimer;
 
+  /// La propuesta más reciente del match, fijada arriba del chat. null
+  /// mientras no haya ninguna. Se refresca junto con los mensajes: la otra
+  /// persona puede aceptarla desde su móvil mientras miras la pantalla.
+  Proposal? _proposal;
+  bool _proposalBusy = false;
+  late final ProposalService proposalService;
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +71,9 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     matchesService = MatchesService(Api.client);
     profileService = ProfileService(Api.client);
+    proposalService = ProposalService(Api.client);
     controller.init().then((_) => _scrollToBottom());
+    _loadProposal();
 
     // No websocket/push here — short-interval polling is enough for this
     // app's scale, and far less machinery than standing up a socket.
@@ -73,7 +85,58 @@ class _ChatScreenState extends State<ChatScreen> {
       if (controller.messages.length > before && wasNearBottom) {
         _scrollToBottom();
       }
+      await _loadProposal();
     });
+  }
+
+  /// Silenciosa a propósito: si falla (red intermitente), el chat sigue
+  /// siendo perfectamente usable, y el siguiente tick lo reintenta. No
+  /// merece un banner de error encima de la conversación.
+  Future<void> _loadProposal() async {
+    try {
+      final all = await proposalService.listForMatch(widget.matchId);
+      if (!mounted) return;
+      setState(() => _proposal = all.isEmpty ? null : all.first);
+    } catch (_) {
+      // se reintenta en el siguiente poll
+    }
+  }
+
+  Future<void> _respondToProposal(String action) async {
+    final proposal = _proposal;
+    if (proposal == null) return;
+
+    setState(() => _proposalBusy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final updated = await proposalService.respond(
+        proposalId: proposal.id,
+        action: action,
+      );
+      if (!mounted) return;
+      setState(() => _proposal = updated);
+      if (updated.status == ProposalStatus.accepted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('¡Confirmado! Ya está en tus partidos')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _proposalBusy = false);
+    }
+  }
+
+  Future<void> _propose() async {
+    final created = await proposeSession(
+      context,
+      matchId: widget.matchId,
+      sport: widget.sport,
+    );
+    if (created && mounted) await _loadProposal();
   }
 
   bool _isNearBottom() {
@@ -175,20 +238,20 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           centerTitle: true,
           actions: [
-            // Tenis ya tiene su propia entrada (mapa de clubes desde
-            // Matches, ver TennisCourtsMapScreen) - esta es la equivalente
-            // para correr, sin club/mapa, directo desde el chat del match.
-            if (widget.sport == Sport.running)
-              IconButton(
-                tooltip: 'Proponer salir a correr',
-                icon: const Icon(Icons.directions_run),
-                onPressed: _busy
-                    ? null
-                    : () => proposeRunningSession(
-                        context,
-                        matchId: widget.matchId,
-                      ),
+            // Ambos deportes proponen desde aquí. Tenis además tiene la
+            // entrada por el mapa de clubes (desde Matches), que lleva al
+            // mismo sitio con el club ya elegido.
+            IconButton(
+              tooltip: widget.sport == Sport.running
+                  ? 'Proponer salir a correr'
+                  : 'Proponer un partido',
+              icon: Icon(
+                widget.sport == Sport.running
+                    ? Icons.directions_run
+                    : Icons.sports_tennis,
               ),
+              onPressed: _busy ? null : _propose,
+            ),
             PopupMenuButton<_ChatMenuAction>(
               enabled: !_busy,
               onSelected: (action) {
@@ -214,6 +277,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           body: Column(
             children: [
+              // Fijada arriba, no como una burbuja más: el problema que
+              // resuelve es justo que antes la propuesta se perdía
+              // scrolleando entre los mensajes.
+              if (_proposal != null)
+                ProposalCard(
+                  proposal: _proposal!,
+                  busy: _proposalBusy,
+                  onAccept: () => _respondToProposal('ACCEPT'),
+                  onDecline: () => _respondToProposal('DECLINE'),
+                  onCancel: () => _respondToProposal('CANCEL'),
+                ),
               Expanded(child: _buildMessages(context)),
               ChatInputBar(
                 controller: input,

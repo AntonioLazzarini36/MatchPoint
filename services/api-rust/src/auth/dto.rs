@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::models::Sport;
+use crate::models::{Gender, Sport};
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -11,6 +11,7 @@ pub struct RegisterDto {
 
     pub display_name: Option<String>,
     pub birth_date: Option<String>, // ISO o "YYYY-MM-DD", igual que en TS
+    pub gender: Option<Gender>,
 
     pub city: Option<String>,
     pub bio: Option<String>,
@@ -22,7 +23,7 @@ pub struct RegisterDto {
     pub distance_km: Option<i32>,
     pub age_min: Option<i32>,
     pub age_max: Option<i32>,
-    pub gender_preference: Option<String>,
+    pub gender_preference: Option<Gender>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

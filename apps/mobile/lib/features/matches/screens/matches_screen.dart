@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../matches_controller.dart';
 import '../models/match_item.dart';
 import '../services/matches_service.dart';
+import '../../discovery/models/sport.dart';
+import '../../onboarding/services/profile_service.dart';
 import '../../../core/ui/dialogs/confirm_dialog.dart';
 import '../../../core/ui/widgets/matches/matches_section_title.dart';
 import '../../../core/ui/widgets/matches/new_match_avatar_item.dart';
@@ -26,14 +28,33 @@ class _MatchesScreenState extends State<MatchesScreen> {
   final _searchCtrl = TextEditingController();
   String _query = '';
 
+  /// El mapa de clubes es exclusivo de tenis, asi que a quien solo corre
+  /// no se le enseña: antes aparecia siempre, y desde el chat de un match
+  /// de correr llevaba a una pantalla de pistas que no le sirve de nada.
+  bool _playsTennis = false;
+
   @override
   void initState() {
     super.initState();
     controller = MatchesController(MatchesService(Api.client));
     controller.init();
+    _loadSports();
     _searchCtrl.addListener(() {
       setState(() => _query = _searchCtrl.text.trim().toLowerCase());
     });
+  }
+
+  Future<void> _loadSports() async {
+    try {
+      final me = await ProfileService(Api.client).getMe();
+      if (!mounted) return;
+      setState(() {
+        _playsTennis = me.profile?.sports.contains(Sport.tennis) ?? false;
+      });
+    } catch (_) {
+      // Sin dato, se queda oculto: mejor no ofrecer una pantalla que
+      // quiza no aplique que ofrecerla siempre por si acaso.
+    }
   }
 
   @override
@@ -103,7 +124,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   )
                 : const Text('Mensajes'),
             actions: [
-              if (!_searching)
+              if (!_searching && _playsTennis)
                 IconButton(
                   icon: const Icon(Icons.sports_tennis),
                   tooltip: 'Pistas cerca',

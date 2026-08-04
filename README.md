@@ -100,18 +100,24 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 #### Me (perfil + preferencias, autenticado)
 - GET /me
 - PATCH /me/profile (ya no acepta `photos` — eso solo se gestiona por los endpoints de abajo; incluye `yearsPlaying`/`club`/`achievements`/`avgPaceMinPerKm`/`avgDistanceKm`)
-- PATCH /me/preferences
+- PATCH /me/preferences (`genderPreference` se manda como null explícito para volver a "cualquiera" — omitirlo significa "no lo toques")
+- GET /me/notifications → `{ unreadMessages, pendingProposals }`, contadores para los badges de la barra de navegación
 - PATCH /me/skill-levels (upsert de nivel por deporte — `{ levels: [{ sport, level }] }`, no toca los deportes no incluidos)
 - POST /me/photos (multipart, máx. 6 fotos, valida tipo/tamaño)
 - DELETE /me/photos (no deja borrar la última foto)
 #### Discover
 - GET /discover?sport=TENNIS|RUNNING
-  (excluye a quien ya swipeaste y filtra por `ageMin`/`ageMax` y `distanceKm` reales de tus preferencias — distancia por Haversine contra `Profile.latitude/longitude`, sin PostGIS; ni viewer ni candidato sin ubicación seteada se ven afectados por el filtro. `genderPreference` todavía no se aplica — no hay campo de género guardado en `Profile`)
+  (excluye a quien ya swipeaste y filtra por `ageMin`/`ageMax`, `distanceKm` y `genderPreference` reales de tus preferencias — distancia por Haversine contra `Profile.latitude/longitude`, sin PostGIS; ni viewer ni candidato sin ubicación seteada se ven afectados por el filtro, y quien no ha declarado género tampoco se excluye al filtrar por género. Qué deporte pedir lo decide el cliente a partir de `Preferences.sportsWanted`)
 #### Swipes + match
 - POST /swipes { toUserId, sport, type: LIKE|PASS } → { match, matchId?, swipeId }
 #### Matches
-- GET /matches → array de matches con info del otro usuario, último mensaje (desencriptado) y contador real de no-leídos
+- GET /matches → array de matches con info del otro usuario, deporte, último mensaje (desencriptado) y contador real de no-leídos
 - DELETE /matches/:matchId → deshace el match (borra match + chat; solo un miembro del match puede hacerlo)
+#### Proposals (quedar de verdad)
+- POST /matches/:matchId/proposals { sport, scheduledAt, placeName?, placeLat?, placeLng? } → crea la propuesta y **cancela cualquier otra que siguiera pendiente en ese match** (dos ofertas vivas a la vez dejan a ambas partes sin saber cuál aceptan)
+- GET /matches/:matchId/proposals → historial de propuestas del match, más reciente primero
+- PATCH /proposals/:proposalId { action: ACCEPT|DECLINE|CANCEL } → aceptar/rechazar solo lo puede hacer quien la recibió, y solo mientras está PENDING. `CANCEL` funciona también sobre una ya ACCEPTED (los planes cambian) y en ese caso puede hacerlo cualquiera de los dos; mientras solo está propuesta, cancelar es cosa de quien la hizo
+- GET /me/proposals → sesiones aceptadas y aún por jugar, de todos tus matches, con lo justo del otro usuario para pintar la fila
 #### Chats
 - GET /chats/:matchId/messages
 - POST /chats/:matchId/messages
@@ -124,10 +130,11 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 
 Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al migrar a Diesel).
 
-- Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS), `SkillLevelValue` (BEGINNER, INTERMEDIATE, ADVANCED, COMPETITIVE)
+- Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS), `SkillLevelValue` (BEGINNER, INTERMEDIATE, ADVANCED, COMPETITIVE), `Gender` (MALE, FEMALE, OTHER), `ProposalStatus` (PENDING, ACCEPTED, DECLINED, CANCELLED)
 - **User**: id, email(unique), passwordHash, createdAt, updatedAt
-- **Profile**: id, userId(unique FK), displayName, birthDate, city?, bio?, photos[], sports[], latitude?, longitude?, yearsPlaying?, club?, achievements[], avgPaceMinPerKm?, avgDistanceKm?, timestamps
-- **Preferences**: id, userId(unique FK), sportsWanted[], distanceKm, ageMin, ageMax, genderPreference?, timestamps
+- **Profile**: id, userId(unique FK), displayName, birthDate, gender?, city?, bio?, photos[], sports[], latitude?, longitude?, yearsPlaying?, club?, achievements[], avgPaceMinPerKm?, avgDistanceKm?, timestamps
+- **Preferences**: id, userId(unique FK), sportsWanted[], distanceKm, ageMin, ageMax, genderPreference?(`Gender`), timestamps
+- **Proposal**: id, matchId(FK), proposedById(FK), sport, placeName?, placeLat?, placeLng?, scheduledAt, status, timestamps — un plan concreto para jugar, colgado de un match
 - **SkillLevel**: id, userId(FK), sport, level, timestamps — unique(userId,sport). Nivel auto-declarado, no un rating calculado — ver punto 3 abajo.
 - **RefreshToken**: id, userId(FK), tokenHash, revokedAt?, createdAt
 - **Swipe**: id, fromUserId(FK), toUserId(FK), sport, type, createdAt — unique(fromUserId,toUserId,sport)

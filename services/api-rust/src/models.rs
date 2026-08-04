@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::schema::{
-    matches, messages, preferences, profiles, refresh_tokens, reports, skill_levels, swipes, users,
+    matches, messages, preferences, profiles, proposals, refresh_tokens, reports, skill_levels,
+    swipes, users,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
@@ -56,6 +57,45 @@ pub enum SkillLevel {
     Competitive,
 }
 
+/// Who the user is, as opposed to `Preferences.gender_preference` (who
+/// they want to see). Nullable everywhere: stating it is optional, and
+/// profiles predating the column have none. `/discover` only applies the
+/// preference filter to candidates who did state one -- see
+/// `discover::service` for why hiding the silent ones would be worse.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+#[ExistingTypePath = "crate::schema::sql_types::Gender"]
+pub enum Gender {
+    #[db_rename = "MALE"]
+    #[serde(rename = "MALE")]
+    Male,
+    #[db_rename = "FEMALE"]
+    #[serde(rename = "FEMALE")]
+    Female,
+    #[db_rename = "OTHER"]
+    #[serde(rename = "OTHER")]
+    Other,
+}
+
+/// Lifecycle of a `Proposal`. `Cancelled` is the proposer withdrawing;
+/// `Declined` is the other side saying no -- kept apart so the chat can
+/// word them differently.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+#[ExistingTypePath = "crate::schema::sql_types::ProposalStatus"]
+pub enum ProposalStatus {
+    #[db_rename = "PENDING"]
+    #[serde(rename = "PENDING")]
+    Pending,
+    #[db_rename = "ACCEPTED"]
+    #[serde(rename = "ACCEPTED")]
+    Accepted,
+    #[db_rename = "DECLINED"]
+    #[serde(rename = "DECLINED")]
+    Declined,
+    #[db_rename = "CANCELLED"]
+    #[serde(rename = "CANCELLED")]
+    Cancelled,
+}
+
 #[derive(Debug, Clone, Queryable, Selectable, Serialize)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -87,6 +127,7 @@ pub struct Profile {
     pub user_id: String,
     pub display_name: String,
     pub birth_date: DateTime<Utc>,
+    pub gender: Option<Gender>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,
@@ -119,6 +160,7 @@ pub struct NewProfile {
     pub user_id: String,
     pub display_name: String,
     pub birth_date: DateTime<Utc>,
+    pub gender: Option<Gender>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,
@@ -144,7 +186,7 @@ pub struct Preferences {
     pub distance_km: i32,
     pub age_min: i32,
     pub age_max: i32,
-    pub gender_preference: Option<String>,
+    pub gender_preference: Option<Gender>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -158,7 +200,7 @@ pub struct NewPreferences {
     pub distance_km: i32,
     pub age_min: i32,
     pub age_max: i32,
-    pub gender_preference: Option<String>,
+    pub gender_preference: Option<Gender>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -290,5 +332,44 @@ pub struct NewUserSkillLevel {
     pub user_id: String,
     pub sport: Sport,
     pub level: SkillLevel,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// A concrete plan to play, hanging off an existing `Match`. Before this
+/// existed, "proposing a match" was a plain chat message — nothing to
+/// accept, no state, and it scrolled away like any other text.
+#[derive(Debug, Clone, Queryable, Selectable, Serialize)]
+#[diesel(table_name = proposals)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[serde(rename_all = "camelCase")]
+pub struct Proposal {
+    pub id: String,
+    pub match_id: String,
+    pub proposed_by_id: String,
+    pub sport: Sport,
+    /// Optional: a club picked from the map has a name and coordinates, a
+    /// hand-typed "en el parque de al lado" has just the name, and "ya
+    /// vemos dónde" has neither.
+    pub place_name: Option<String>,
+    pub place_lat: Option<f64>,
+    pub place_lng: Option<f64>,
+    pub scheduled_at: DateTime<Utc>,
+    pub status: ProposalStatus,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = proposals)]
+pub struct NewProposal {
+    pub id: String,
+    pub match_id: String,
+    pub proposed_by_id: String,
+    pub sport: Sport,
+    pub place_name: Option<String>,
+    pub place_lat: Option<f64>,
+    pub place_lng: Option<f64>,
+    pub scheduled_at: DateTime<Utc>,
+    pub status: ProposalStatus,
     pub updated_at: DateTime<Utc>,
 }

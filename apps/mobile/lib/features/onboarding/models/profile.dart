@@ -1,3 +1,4 @@
+import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 
@@ -11,6 +12,9 @@ class Profile {
   /// por privacidad). Cuando esto viene seteado tiene prioridad sobre
   /// calcular la edad a partir de `birthDate`.
   final int? _explicitAge;
+
+  /// Opcional — null es "prefiero no decirlo", no "sin rellenar".
+  final Gender? gender;
 
   final String? city;
   final String? bio;
@@ -44,6 +48,7 @@ class Profile {
     required this.sports,
     this.birthDate,
     int? age,
+    this.gender,
     this.city,
     this.bio,
     this.latitude,
@@ -79,6 +84,7 @@ class Profile {
           ? null
           : DateTime.tryParse(json['birthDate'].toString()),
       age: json['age'] is int ? json['age'] as int : null,
+      gender: GenderApi.fromApi(json['gender']),
       city: json['city']?.toString(),
       bio: json['bio']?.toString(),
       photos: (json['photos'] as List<dynamic>? ?? const [])
@@ -106,17 +112,15 @@ class Preferences {
   final int ageMax;
 
   /// Deportes que quiere ver en Discovery — independiente de
-  /// `Profile.sports` (los que juega). Sin efecto todavia en el filtro de
-  /// `/discover` (que sigue usando `Profile.sports` del propio usuario, ver
-  /// discovery_controller.dart) - se guarda ya para poder usarlo mas
-  /// adelante sin tener que volver a pedir el dato.
+  /// `Profile.sports` (los que juega). Es lo que decide qué feeds pide
+  /// Discovery (ver `discovery_controller.dart`); vacío significa "los
+  /// mismos que juego".
   final List<Sport> sportsWanted;
 
-  /// Texto libre en el backend (`Preferences.genderPreference`, sin enum
-  /// todavia) - null significa "cualquiera". Mismo caso que arriba: se
-  /// guarda para uso futuro, `/discover` todavia no filtra por esto (no
-  /// hay campo de genero en `Profile` para comparar contra).
-  final String? genderPreference;
+  /// A quién quiere ver, por género. null = "cualquiera". `/discover` sí
+  /// lo aplica desde 2026-08-04, contra `Profile.gender` del candidato
+  /// (los que no lo han declarado no se excluyen — ver `discover/service.rs`).
+  final Gender? genderPreference;
 
   const Preferences({
     required this.distanceKm,
@@ -134,7 +138,7 @@ class Preferences {
       sportsWanted: (json['sportsWanted'] as List<dynamic>? ?? const [])
           .map((e) => SportApi.fromApi(e.toString()))
           .toList(),
-      genderPreference: json['genderPreference']?.toString(),
+      genderPreference: GenderApi.fromApi(json['genderPreference']),
     );
   }
 }
