@@ -84,6 +84,25 @@ pub struct AppConfig {
     pub email_from: String,
 }
 
+/// Lee una duracion en **segundos**, como numero pelado.
+///
+/// Aborta si el valor esta puesto pero no se puede leer. Antes se caia
+/// silenciosamente al valor por defecto, asi que escribir `900s` o `15m`
+/// (los formatos del backend NestJS viejo, que aun asoman en algun `.env`
+/// antiguo) se ignoraba sin decir nada y la sesion duraba lo que el codigo
+/// quisiera, no lo que ponia la config. Una config que miente es peor que
+/// una que no arranca.
+fn seconds_from_env(name: &str, default: i64) -> i64 {
+    match env::var(name) {
+        Err(_) => default,
+        Ok(raw) => raw.trim().parse().unwrap_or_else(|_| {
+            panic!(
+                "{name}={raw:?} no es valido: tiene que ser un numero de segundos, sin sufijo (por ejemplo 900, no \"900s\" ni \"15m\")"
+            )
+        }),
+    }
+}
+
 impl AppConfig {
     /// Reads all env vars once. Panics on startup if something required
     /// is missing, same spirit as Nest failing fast on bad config.
@@ -111,15 +130,10 @@ impl AppConfig {
         let jwt_refresh_secret =
             env::var("JWT_REFRESH_SECRET").expect("JWT_REFRESH_SECRET must be set");
 
-        let jwt_access_expires_in_seconds = env::var("JWT_ACCESS_EXPIRES_IN_SECONDS")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(900); // 15 min, same default as auth.service.ts
-
-        let jwt_refresh_expires_in_seconds = env::var("JWT_REFRESH_EXPIRES_IN_SECONDS")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(2_592_000); // 30 days, same default as auth.service.ts
+        // 15 min y 30 dias, mismos valores por defecto que auth.service.ts.
+        let jwt_access_expires_in_seconds = seconds_from_env("JWT_ACCESS_EXPIRES_IN_SECONDS", 900);
+        let jwt_refresh_expires_in_seconds =
+            seconds_from_env("JWT_REFRESH_EXPIRES_IN_SECONDS", 2_592_000);
 
         let message_key_base64 = env::var("MESSAGE_KEY_BASE64")
             .expect("MESSAGE_KEY_BASE64 must be set (used by chats/crypto)");
