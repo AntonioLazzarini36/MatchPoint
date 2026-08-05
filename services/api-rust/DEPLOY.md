@@ -70,7 +70,7 @@ En el servicio → **Variables**.
 | `MESSAGE_KEY_BASE64` | el que generaste |
 | `TRUST_PROXY` | `true` |
 | `PUBLIC_BASE_URL` | la URL pública del servicio (paso 5) |
-| `CORS_ALLOWED_ORIGINS` | de dónde se usa la app (paso 6) |
+| `CORS_ALLOWED_ORIGINS` | `none` mientras sólo exista la app móvil (paso 6) |
 | `PHOTOS_DIR` | `/app/uploads` |
 | `RESEND_API_KEY` | tu key de Resend |
 | `EMAIL_FROM` | `MatchPoint <onboarding@resend.dev>` |
@@ -92,15 +92,17 @@ móvil intentará cargarlas de sí mismo y no se verá ninguna.
 
 ## 6. `CORS_ALLOWED_ORIGINS`
 
-Sólo importa para la versión web. Separado por comas, sin barra final:
+Sólo importa para la versión web: CORS es una regla que aplican **los
+navegadores**, y la app móvil no pasa por ella.
 
-```
-https://tu-web.pages.dev
-```
+- Si aún no hay web publicada: **`none`**. Es la respuesta correcta — no
+  autoriza a ningún navegador, que es justo lo que quieres.
+- Cuando publiques la web, su URL, separadas por comas y sin barra final:
+  `https://tu-web.pages.dev`
 
-Si de momento sólo usas la app móvil, pon ahí la URL del propio backend:
-CORS no aplica a peticiones que no vienen de un navegador, pero la
-variable no puede quedar vacía en producción.
+Dejarla vacía del todo no vale en producción: el proceso no arranca. "Sin
+declarar" y "declarado como ninguno" se parecen, pero uno es un descuido y
+el otro una decisión, y la config tiene que poder distinguirlos.
 
 ## 7. Volumen para las fotos ⚠️
 

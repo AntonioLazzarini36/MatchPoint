@@ -102,11 +102,18 @@ pub async fn run() {
     // token del navegador — pero no hay motivo para dejarlo abierto una
     // vez se sabe desde donde se va a usar.
     let origins = &state.config.cors_allowed_origins;
-    let cors = if origins.is_empty() {
+    let cors = if origins.is_empty() && !state.config.cors_declared {
+        // Sin declarar: cualquiera. `AppConfig::validate` no deja llegar
+        // aqui en produccion.
         CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
             .allow_headers(Any)
+    } else if origins.is_empty() {
+        // Declarado como `none`: ningun origen de navegador. La app movil
+        // no se ve afectada, CORS solo lo aplican los navegadores.
+        tracing::info!("CORS: ningun origen de navegador permitido (none)");
+        CorsLayer::new()
     } else {
         let parsed: Vec<HeaderValue> = origins
             .iter()

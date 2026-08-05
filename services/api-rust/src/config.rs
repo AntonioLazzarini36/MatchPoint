@@ -51,10 +51,24 @@ pub struct AppConfig {
     /// en un despliegue real habría que apuntarlo al dominio/proxy público.
     pub public_base_url: String,
 
-    /// Orígenes permitidos por CORS. Vacío = permitir cualquiera, que es
-    /// lo cómodo en dev (Flutter web arranca en un puerto distinto cada
-    /// vez) y lo que **no** se permite en producción.
+    /// Orígenes permitidos por CORS.
+    ///
+    /// Vacío = permitir cualquiera: cómodo en dev (Flutter web arranca en un
+    /// puerto distinto cada vez) y rechazado en producción.
+    ///
+    /// `CORS_ALLOWED_ORIGINS=none` = **ningún** origen de navegador. Es la
+    /// opción correcta mientras sólo exista la app móvil: CORS es una regla
+    /// que aplican los navegadores, y una app nativa no pasa por ella. Sin
+    /// esta opción, arrancar en producción sin frontend web obligaba a
+    /// inventarse una URL para rellenar el hueco, que no permite nada real
+    /// y encima aparenta significar algo.
     pub cors_allowed_origins: Vec<String>,
+
+    /// Si `CORS_ALLOWED_ORIGINS` se llegó a poner, aunque fuera a `none`.
+    /// Hace falta aparte de la lista porque "sin declarar" y "declarado
+    /// como ninguno" acaban las dos en una lista vacía, pero una es un
+    /// descuido y la otra una decisión.
+    pub cors_declared: bool,
 
     /// Si hay un proxy/balanceador delante en el que se puede confiar.
     ///
@@ -213,12 +227,17 @@ impl AppConfig {
         let public_base_url =
             env::var("PUBLIC_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
 
-        let cors_allowed_origins: Vec<String> = env::var("CORS_ALLOWED_ORIGINS")
-            .unwrap_or_default()
-            .split(',')
-            .map(|o| o.trim().to_string())
-            .filter(|o| !o.is_empty())
-            .collect();
+        let cors_raw = env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default();
+        let cors_declared = !cors_raw.trim().is_empty();
+        let cors_allowed_origins: Vec<String> = if cors_raw.trim().eq_ignore_ascii_case("none") {
+            Vec::new()
+        } else {
+            cors_raw
+                .split(',')
+                .map(|o| o.trim().to_string())
+                .filter(|o| !o.is_empty())
+                .collect()
+        };
 
         let trust_proxy = env::var("TRUST_PROXY")
             .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
@@ -244,6 +263,7 @@ impl AppConfig {
             photos_dir,
             public_base_url,
             cors_allowed_origins,
+            cors_declared,
             trust_proxy,
             run_migrations,
             resend_api_key,
@@ -279,8 +299,11 @@ impl AppConfig {
             problems.push("los secretos JWT deberían tener al menos 32 caracteres".to_string());
         }
 
-        if self.cors_allowed_origins.is_empty() {
-            problems.push("CORS_ALLOWED_ORIGINS vacío: se permite cualquier origen".to_string());
+        if !self.cors_declared {
+            problems.push(
+                "CORS_ALLOWED_ORIGINS sin poner: se permitiría cualquier origen. Pon la URL de tu web, o `none` si de momento sólo existe la app móvil"
+                    .to_string(),
+            );
         }
 
         if self.resend_api_key.is_none() {
