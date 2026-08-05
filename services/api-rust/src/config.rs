@@ -148,6 +148,23 @@ fn sanitize_database_url(raw: &str) -> String {
     }
 }
 
+/// El host de una URL de conexion de Postgres, sin credenciales ni puerto.
+/// Devuelve `None` si no se puede leer — en ese caso no hay nada que
+/// avisar, ya fallara al conectar con su propio error.
+fn database_host(url: &str) -> Option<String> {
+    let after_scheme = url.split("://").nth(1)?;
+    let authority = after_scheme.split('/').next()?;
+    // Lo de despues de la ultima `@` para saltarse usuario:contrasena, que
+    // pueden contener `@` a su vez.
+    let host_port = authority.rsplit('@').next()?;
+    let host = host_port.split(':').next()?;
+    if host.is_empty() {
+        None
+    } else {
+        Some(host.to_lowercase())
+    }
+}
+
 /// Lee una duracion en **segundos**, como numero pelado.
 ///
 /// Aborta si el valor esta puesto pero no se puede leer. Antes se caia
@@ -313,6 +330,20 @@ impl AppConfig {
             );
         }
 
+        // Un host que sólo resuelve en la máquina de desarrollo: `db` es el
+        // nombre del servicio en docker-compose y `localhost` es el propio
+        // contenedor. Pegar esa URL en el panel del proveedor es el error
+        // más fácil de cometer, y sin esto no se ve hasta que fallan las
+        // migraciones con un "could not translate host name" que no dice de
+        // dónde ha salido ese nombre.
+        if let Some(host) = database_host(&self.database_url) {
+            if matches!(host.as_str(), "db" | "localhost" | "127.0.0.1" | "::1") {
+                problems.push(format!(
+                    "DATABASE_URL apunta a {host:?}, que sólo existe en tu máquina.                      Usa la URL que te da el proveedor de la base de datos"
+                ));
+            }
+        }
+
         if self.public_base_url.starts_with("http://localhost") {
             problems.push(format!(
                 "PUBLIC_BASE_URL es {} — las URLs de las fotos apuntarían al dispositivo de cada usuario, no al servidor",
@@ -373,5 +404,33 @@ mod tests {
     fn leaves_plain_urls_alone() {
         let url = "postgresql://u:p@host:5432/db";
         assert_eq!(sanitize_database_url(url), url);
+    }
+
+    /// El host se saca saltando credenciales y puerto. `db` como host es
+    /// el nombre del servicio de docker-compose — justo el que no vale
+    /// fuera de la máquina de desarrollo. Ojo: también aparece como
+    /// *nombre de base de datos* al final de la URL, y eso sí es normal.
+    #[test]
+    fn extracts_host() {
+        use super::database_host;
+        assert_eq!(
+            database_host("postgresql://matchpoint:matchpoint@db:5432/matchpoint"),
+            Some("db".to_string())
+        );
+        assert_eq!(
+            database_host("postgresql://u:p@containers-us-west-1.railway.app:7432/railway"),
+            Some("containers-us-west-1.railway.app".to_string())
+        );
+        // Contrasena con `@` dentro: el host es lo que va tras la ultima.
+        assert_eq!(
+            database_host("postgresql://user:pa@ss@real-host:5432/db"),
+            Some("real-host".to_string())
+        );
+        // `db` como nombre de base de datos, no como host: no debe saltar.
+        assert_eq!(
+            database_host("postgresql://u:p@postgres.railway.internal:5432/db"),
+            Some("postgres.railway.internal".to_string())
+        );
+        assert_eq!(database_host("no-es-una-url"), None);
     }
 }
