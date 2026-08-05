@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Obligatorio aqui, no solo en los manifests de debug/profile.
+         Flutter declara INTERNET en esos dos porque su tooling lo necesita
+         para hablar con la app, pero NO los mezcla en el build de release:
+         sin esta linea el APK de release se queda sin red y toda peticion
+         falla con "Failed host lookup", como si no hubiera internet. No se
+         nota hasta el primer build de release. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="match_point"
         android:name="${applicationName}"
