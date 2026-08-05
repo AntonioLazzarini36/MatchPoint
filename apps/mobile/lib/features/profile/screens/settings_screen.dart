@@ -9,6 +9,7 @@ import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/location/location_search_screen.dart';
 import '../../../core/utils/pace_format.dart';
+import '../../auth/screens/email_verification_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
@@ -30,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _loading = true;
   String? _email;
+  bool _emailVerified = false;
   Profile? _profile;
   Preferences? _preferences;
   Map<Sport, SkillLevel> _skillLevels = {};
@@ -55,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       setState(() {
         _email = me.email;
+        _emailVerified = me.emailVerified;
         _profile = me.profile;
         _preferences = me.preferences;
         _skillLevels = me.skillLevels;
@@ -64,6 +67,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
     }
+  }
+
+  /// Abre la pantalla del código. Al volver se recarga `/me` en vez de
+  /// fiarse del resultado: el estado real lo tiene el backend, y así la
+  /// fila no puede quedarse diciendo "sin verificar" tras verificarlo.
+  Future<void> _verifyEmail() async {
+    final email = _email;
+    if (email == null) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EmailVerificationScreen(email: email),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   /// Cambiar la ubicación es posible en cualquier momento, no solo en el
@@ -321,12 +338,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (_email != null) ...[
                   _SettingsGroup(
                     children: [
+                      // Verificado o no, la fila es la misma: cambia el
+                      // icono, el subtítulo y si se puede tocar. Así el
+                      // estado del email se ve siempre, no sólo cuando
+                      // hay algo que hacer.
                       _SettingsRow(
-                        icon: Icons.email_outlined,
-                        iconBackground: context.colors.secondaryContainer,
-                        iconColor: context.colors.onSecondaryContainer,
+                        icon: _emailVerified
+                            ? Icons.mark_email_read_outlined
+                            : Icons.mark_email_unread_outlined,
+                        iconBackground: _emailVerified
+                            ? context.colors.secondaryContainer
+                            : context.colors.tertiaryContainer,
+                        iconColor: _emailVerified
+                            ? context.colors.onSecondaryContainer
+                            : context.colors.onTertiaryContainer,
                         title: 'Email',
-                        subtitle: _email!,
+                        subtitle: _emailVerified
+                            ? '${_email!}\nVerificado'
+                            : '${_email!}\nSin verificar — toca para confirmarlo',
+                        onTap: _emailVerified ? null : _verifyEmail,
                       ),
                     ],
                   ),
@@ -629,6 +659,9 @@ class _SettingsRow extends StatelessWidget {
                 context.colors.outline,
               ),
             ),
+      // Con subtitulo de dos lineas, ListTile necesita saberlo para
+      // repartir bien el alto; sin esto el texto queda pegado al borde.
+      isThreeLine: subtitle?.contains('\n') ?? false,
       trailing: trailing,
     );
   }

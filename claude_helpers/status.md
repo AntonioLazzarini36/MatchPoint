@@ -729,11 +729,18 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     tiempo 429 → código incorrecto 400 → código correcto 200 →
     `emailVerified` true → volver a pedirlo 400.
 
-  **Pendiente de esto:** la UI del móvil (pantalla de introducir el código
-  y aviso de "verifica tu correo" mientras no lo esté), y decidir si en
-  algún momento se **exige** el email verificado para algo. Hoy no bloquea
-  nada a propósito: bloquear antes de tener la pantalla dejaría fuera a
-  las cuentas que ya existen.
+  **UI del móvil, hecha (misma fecha):** `EmailVerificationScreen` con
+  campo de 6 dígitos (sólo números, verifica solo al completar el sexto —
+  pedir además un toque en el botón no aporta nada), pide el código al
+  entrar, y botón de reenvío con cuenta atrás de 60 s en el cliente para no
+  dejar pulsar algo que ya sabemos que va a dar 429. Se entra desde la fila
+  "Email" de Ajustes, que ahora enseña el estado siempre (verificado /
+  sin verificar, y sólo es pulsable en el segundo caso). Al volver se
+  recarga `/me` en vez de fiarse del resultado de la pantalla.
+
+  **Sigue sin bloquear nada** a propósito: exigir email verificado para
+  usar la app dejaría fuera de golpe a todas las cuentas que ya existen.
+  Cuándo y para qué se exige es una decisión de producto pendiente.
 
   **Aviso de Resend:** sin un dominio verificado sólo se puede enviar desde
   `onboarding@resend.dev` y **únicamente al email con el que se creó la

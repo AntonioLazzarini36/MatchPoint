@@ -42,6 +42,45 @@ class AuthService {
     return AuthResponse.fromJson(jsonDecode(res.body));
   }
 
+  /// Pide (o reenvía) el código de verificación al email de la cuenta.
+  ///
+  /// El backend limita los reenvíos a uno por minuto y responde 429 con el
+  /// tiempo que falta, así que el mensaje de error se pasa tal cual: ya
+  /// viene redactado para enseñarse.
+  Future<void> sendVerificationCode() async {
+    final res = await api.post('/auth/send-verification', auth: true);
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(_message(res.body, 'No se pudo enviar el código'));
+    }
+  }
+
+  /// Devuelve true si el código era correcto. Lanza con el motivo real
+  /// (caducado, demasiados intentos) si no.
+  Future<void> verifyEmail(String code) async {
+    final res = await api.post(
+      '/auth/verify-email',
+      body: {'code': code},
+      auth: true,
+    );
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(_message(res.body, 'No se pudo verificar el email'));
+    }
+  }
+
+  /// El backend manda `{"message": "..."}` ya redactado en castellano; si
+  /// por lo que sea no viene, se usa el texto genérico.
+  String _message(String body, String fallback) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['message'] is String) {
+        return decoded['message'] as String;
+      }
+    } catch (_) {
+      // cuerpo no-JSON: nos quedamos con el generico
+    }
+    return fallback;
+  }
+
   /// Revoca el refresh token guardado en el backend. Best-effort a
   /// propósito (igual que `auth::service::logout` en el backend): si no
   /// hay refresh token guardado o la llamada falla por red, el logout

@@ -154,12 +154,17 @@ class MeResponse {
   /// `services/api-rust/src/me/service.rs::MeResponse`.
   final Map<Sport, SkillLevel> skillLevels;
 
+  /// Si el dueño de la cuenta ha confirmado que el email es suyo. Mientras
+  /// sea false, el perfil enseña el aviso para verificarlo.
+  final bool emailVerified;
+
   MeResponse({
     required this.id,
     required this.email,
     required this.profile,
     this.preferences,
     this.skillLevels = const {},
+    this.emailVerified = false,
   });
 
   factory MeResponse.fromJson(Map<String, dynamic> json) {
@@ -173,6 +178,7 @@ class MeResponse {
           ? null
           : Preferences.fromJson(json['preferences'] as Map<String, dynamic>),
       skillLevels: skillLevelsFromJson(json['skillLevels']),
+      emailVerified: json['emailVerified'] == true,
     );
   }
 }
