@@ -4,8 +4,35 @@
 
 use std::env;
 
+/// En qué tipo de entorno corre el proceso. Cambia de "avisa" a "no
+/// arranques" en las comprobaciones de abajo: en dev conviene que la app
+/// levante aunque falte algo, en producción un secreto de ejemplo o un
+/// CORS abierto son un agujero, no una molestia.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppEnv {
+    Development,
+    Production,
+}
+
+impl AppEnv {
+    pub fn is_production(self) -> bool {
+        self == AppEnv::Production
+    }
+}
+
+/// Secretos de ejemplo que viven en `.env`/`docker-compose.yml` para que
+/// clonar el repo y arrancar funcione sin configurar nada. Justo por eso
+/// son públicos, y por eso el proceso se niega a arrancar con ellos en
+/// producción: cualquiera que lea el repo podría firmar tokens válidos.
+const DEV_SECRETS: &[&str] = &[
+    "dev_access_secret_change_me",
+    "dev_refresh_secret_change_me",
+    "1mKQdNgaRWyt/45tyC5TKw9ogvCE45Kq5p+wciokGtg=",
+];
+
 #[derive(Debug, Clone)]
 pub struct AppConfig {
+    pub env: AppEnv,
     pub port: u16,
     pub database_url: String,
 
@@ -23,6 +50,23 @@ pub struct AppConfig {
     /// (`{public_base_url}/uploads/{archivo}`). En dev es `http://localhost:{port}`;
     /// en un despliegue real habría que apuntarlo al dominio/proxy público.
     pub public_base_url: String,
+
+    /// Orígenes permitidos por CORS. Vacío = permitir cualquiera, que es
+    /// lo cómodo en dev (Flutter web arranca en un puerto distinto cada
+    /// vez) y lo que **no** se permite en producción.
+    pub cors_allowed_origins: Vec<String>,
+
+    /// Si hay un proxy/balanceador delante en el que se puede confiar.
+    ///
+    /// Importa para el rate limiter: sin esto ve la IP de la conexión TCP,
+    /// que detrás de un proxy es la del proxy **para todo el mundo** — el
+    /// límite dejaría de ser por cliente y un solo atacante bloquearía los
+    /// intentos de login de todos. Con esto lee `X-Forwarded-For`.
+    ///
+    /// Es opt-in a propósito: esa cabecera la pone quien llama, así que
+    /// confiar en ella *sin* un proxy delante permitiría saltarse el
+    /// límite inventando una IP distinta en cada intento.
+    pub trust_proxy: bool,
 }
 
 impl AppConfig {
@@ -31,6 +75,12 @@ impl AppConfig {
     pub fn from_env() -> Self {
         // Load .env if present (equivalent of `import 'dotenv/config'` in main.ts)
         dotenvy::dotenv().ok();
+
+        let env_name = env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
+        let app_env = match env_name.to_lowercase().as_str() {
+            "production" | "prod" => AppEnv::Production,
+            _ => AppEnv::Development,
+        };
 
         let port = env::var("PORT")
             .ok()
@@ -63,7 +113,19 @@ impl AppConfig {
         let public_base_url =
             env::var("PUBLIC_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{port}"));
 
-        Self {
+        let cors_allowed_origins: Vec<String> = env::var("CORS_ALLOWED_ORIGINS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|o| o.trim().to_string())
+            .filter(|o| !o.is_empty())
+            .collect();
+
+        let trust_proxy = env::var("TRUST_PROXY")
+            .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
+            .unwrap_or(false);
+
+        let cfg = Self {
+            env: app_env,
             port,
             database_url,
             jwt_access_secret,
@@ -73,6 +135,66 @@ impl AppConfig {
             message_key_base64,
             photos_dir,
             public_base_url,
+            cors_allowed_origins,
+            trust_proxy,
+        };
+
+        cfg.validate();
+        cfg
+    }
+
+    /// Comprueba lo que en dev es una molestia y en producción un agujero.
+    ///
+    /// En desarrollo sólo avisa por log: la gracia de clonar el repo y
+    /// hacer `cargo run` es que funcione sin configurar nada. En producción
+    /// aborta el arranque, porque un fallo ruidoso al desplegar es muchísimo
+    /// mejor que un servicio en pie con secretos públicos.
+    fn validate(&self) {
+        let mut problems: Vec<String> = Vec::new();
+
+        for (name, value) in [
+            ("JWT_ACCESS_SECRET", &self.jwt_access_secret),
+            ("JWT_REFRESH_SECRET", &self.jwt_refresh_secret),
+            ("MESSAGE_KEY_BASE64", &self.message_key_base64),
+        ] {
+            if DEV_SECRETS.contains(&value.as_str()) {
+                problems.push(format!(
+                    "{name} sigue siendo el valor de ejemplo del repo, que es público"
+                ));
+            }
+        }
+
+        if self.jwt_access_secret.len() < 32 || self.jwt_refresh_secret.len() < 32 {
+            problems.push("los secretos JWT deberían tener al menos 32 caracteres".to_string());
+        }
+
+        if self.cors_allowed_origins.is_empty() {
+            problems.push("CORS_ALLOWED_ORIGINS vacío: se permite cualquier origen".to_string());
+        }
+
+        if self.public_base_url.starts_with("http://localhost") {
+            problems.push(format!(
+                "PUBLIC_BASE_URL es {} — las URLs de las fotos apuntarían al dispositivo de cada usuario, no al servidor",
+                self.public_base_url
+            ));
+        }
+
+        if problems.is_empty() {
+            return;
+        }
+
+        if self.env.is_production() {
+            for problem in &problems {
+                tracing::error!("config inválida en producción: {problem}");
+            }
+            panic!(
+                "APP_ENV=production con {} problema(s) de configuración — ver los logs de arriba",
+                problems.len()
+            );
+        }
+
+        for problem in &problems {
+            tracing::warn!("config de desarrollo: {problem}");
         }
     }
 }

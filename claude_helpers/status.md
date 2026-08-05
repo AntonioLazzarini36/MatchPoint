@@ -643,6 +643,61 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     de importación, almacenamiento y datos que caducan — no compensa para
     lo que arregla una consulta bien hecha.
 
+- **Preparación para desplegar, primera tanda (2026-08-05)** — arreglos de
+  código previos a sacar la app de "el backend corre en mi portátil". Lo
+  importante de entender: **mover sólo la base de datos a la nube no
+  soluciona nada**; lo que hay que desplegar es la API y la base juntas
+  tras una URL pública. Estos son los bloqueos que venían de antes:
+  - **Las fotos se validaban por el `Content-Type` que manda el cliente**,
+    sin mirar el archivo jamás: cualquiera podía subir un HTML, un zip o
+    un ejecutable etiquetado como `image/png` y quedábamos sirviéndolo
+    desde nuestro dominio. Ahora la cabecera **se ignora por completo** y
+    la extensión sale de los primeros bytes (`sniff_extension` en
+    `me/photos.rs`, tres firmas, sin crate nueva). Con tests: rechaza
+    HTML/exe/zip/RIFF-que-no-es-WebP y entradas truncadas, y acepta un PNG
+    real aunque venga como `application/octet-stream`. Comprobado también
+    con curl contra el backend real.
+  - **`AppConfig::validate`** (nuevo `APP_ENV`): avisa en dev y **no deja
+    arrancar en producción** si los secretos siguen siendo los de ejemplo
+    del repo (que son públicos), si son cortos, si `CORS_ALLOWED_ORIGINS`
+    está vacío o si `PUBLIC_BASE_URL` sigue en localhost. Un fallo ruidoso
+    al desplegar es mejor que un servicio en pie con secretos públicos.
+  - **CORS configurable** por `CORS_ALLOWED_ORIGINS` en vez de `Any` fijo.
+  - **`/health` consulta la base** (timeout 2s) y devuelve **503** si no
+    responde. Antes devolvía `{ok:true}` fijo, así que un balanceador o un
+    healthcheck de Docker daría "sano" con Postgres caído.
+  - **Rate limiter tras proxy**: con `TRUST_PROXY=true` lee
+    `X-Forwarded-For`. Sin esto, detrás de Fly/Railway/nginx vería la IP
+    del proxy para todo el mundo y el límite de login dejaría de ser por
+    cliente — un solo atacante bloquearía a todos. Es opt-in porque esa
+    cabecera la pone quien llama: confiar en ella **sin** proxy delante
+    permitiría saltarse el límite inventando una IP por intento.
+  - `.env.example` documenta ahora todas las variables, con los avisos de
+    qué pasa al cambiar `MESSAGE_KEY_BASE64` (los mensajes ya cifrados
+    quedan ilegibles) y de que `PHOTOS_DIR` se borra en cada despliegue si
+    no hay volumen persistente.
+  - Verificado: fmt/clippy/build en verde, 5 tests (4 nuevos), y curl
+    contra el backend real — `/health` 200, arranque en producción
+    abortando con los 6 problemas listados, HTML-como-PNG rechazado con
+    400, PNG real aceptado.
+
+  **Lo que sigue bloqueado y por qué:**
+  - **Fotos en almacenamiento de objetos (S3/R2).** Es el único bloqueo
+    de despliegue que queda: en un contenedor sin volumen, `PHOTOS_DIR` se
+    borra en cada despliegue y todo el mundo pierde sus fotos. No se
+    implementó a ciegas porque hace falta una cuenta y un bucket contra el
+    que probarlo, y código de subida sin probar no vale. **Ojo:** varios
+    proveedores (Fly, Railway) ofrecen volumen persistente, que resuelve
+    esto con cero código — sólo apuntar `PHOTOS_DIR` al volumen.
+  - **Login con Google/Apple**: necesita Client ID de Google Cloud Console
+    y cuenta de Apple Developer (99 $/año). Ver la sección de 2026-08-01
+    más abajo, sigue igual.
+  - **Verificación de email / 2FA**: necesita un proveedor de envío
+    (Resend, SendGrid, SES) con sus credenciales. El modelo de datos y los
+    endpoints se pueden hacer con un transporte de dev que imprima el
+    enlace por consola, pero conviene decidir el proveedor antes para no
+    tirar trabajo.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

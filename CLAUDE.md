@@ -73,7 +73,7 @@ Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D
 - `src/lib.rs` — real startup logic (tracing init, config load, DB pool + connectivity check, CORS, router bind/serve). Everything is `pub mod`-ed here rather than in `main.rs` so app types count as "used" library surface for `cargo clippy --all-targets` (a bin-only crate would false-flag model types as dead code).
 - `src/app.rs` — equivalent of `app.module.ts`: builds the root `Router` by `.merge()`-ing every feature module's router, then `.with_state(AppState)`.
 - `src/state.rs` — `AppState { db: DbPool, config: Arc<AppConfig>, rate_limiter: RateLimiter }`, cloned into every handler (Axum's answer to Nest's constructor DI).
-- `src/config.rs` — equivalent of `ConfigModule`: reads all env vars once at startup into `AppConfig`, panics fast if something required is missing.
+- `src/config.rs` — equivalent of `ConfigModule`: reads all env vars once at startup into `AppConfig`, panics fast if something required is missing. Also holds `AppConfig::validate`, which checks the things that are merely annoying in dev and a hole in production (repo-published example secrets, empty `CORS_ALLOWED_ORIGINS`, a `PUBLIC_BASE_URL` still pointing at localhost): it **warns** under `APP_ENV=development` and **refuses to boot** under `APP_ENV=production`. `.env.example` documents every variable — keep it in sync when adding one.
 - `src/db.rs` — Diesel-async connection pool (bb8).
 - Each feature module (`auth/`, `discover/`, `me/`, `swipes/`, `matches/`, `proposals/`, `notifications/`, `chats/`, `users/`, `app/`) follows the same three-file shape as its Nest ancestor: `controller.rs` (Axum router + handlers, maps errors to `StatusCode`), `service.rs` (business logic, DB queries), and `dto.rs` where request/response shapes need their own types. `auth/` additionally has `jwt.rs` (sign/verify) and `rate_limit.rs` (in-memory per-IP sliding-window limiter, applied only to `/auth/login|register|email-available`); `chats/` additionally has `crypto.rs` (AES-256-GCM message encryption — ciphertext at rest, plaintext over the API).
 - `src/models.rs` / `src/schema.rs` — Diesel models and schema, hand-maintained (see migrations note above; do not expect `schema.rs` to auto-regenerate).
@@ -100,7 +100,7 @@ Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D
 - Notifications: `GET /me/notifications` → `{ unreadMessages, pendingProposals }`. Its own module because it spans chats + proposals; returns only counts, since the mobile client polls it every 15s while the app is open.
 - Chats: `GET/POST /chats/:matchId/messages`, `PATCH /chats/:matchId/read` (403 if not a match member)
 - Users: `GET /users/:userId/profile` (public profile, still requires auth; 404 if missing), `POST /users/:userId/report { reason }` (logs a report for review only — does not touch any match/chat)
-- Misc: `GET /`, `GET /health`
+- Misc: `GET /`, `GET /health` (actually queries the DB with a 2s timeout and returns **503** when it can't — a liveness probe that always says `{ok:true}` is worse than none)
 
 There's no *computed* rating yet (Elo vs Glicko-2 undecided) — `discover` has self-reported `SkillLevel` but nothing to rank by actual results. `Proposal` is the hook that unblocks it: an accepted, already-played session is the thing whose result you'd record.
 

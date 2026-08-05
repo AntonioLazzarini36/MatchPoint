@@ -183,7 +183,7 @@ fn me_error_response(err: MeError) -> axum::response::Response {
             StatusCode::BAD_REQUEST
         }
         MeError::Photo(
-            PhotoError::UnsupportedContentType(_)
+            PhotoError::NotAnImage
             | PhotoError::TooLarge
             | PhotoError::MissingField
             | PhotoError::Multipart(_),

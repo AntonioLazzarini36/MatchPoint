@@ -26,6 +26,7 @@ pub mod users;
 use std::sync::Arc;
 
 use axum::extract::DefaultBodyLimit;
+use axum::http::HeaderValue;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::EnvFilter;
 
@@ -76,10 +77,34 @@ pub async fn run() {
         rate_limiter: auth::rate_limit::RateLimiter::new(),
     };
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // Con la lista vacía se permite cualquier origen, que es lo comodo en
+    // dev (Flutter web arranca en un puerto distinto cada vez). En
+    // produccion `AppConfig::validate` no deja arrancar asi.
+    //
+    // El riesgo real de CORS abierto aqui es bajo porque la auth va por
+    // Bearer token y no por cookies — un origen ajeno no puede robar el
+    // token del navegador — pero no hay motivo para dejarlo abierto una
+    // vez se sabe desde donde se va a usar.
+    let origins = &state.config.cors_allowed_origins;
+    let cors = if origins.is_empty() {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    } else {
+        let parsed: Vec<HeaderValue> = origins
+            .iter()
+            .map(|o| {
+                o.parse::<HeaderValue>()
+                    .unwrap_or_else(|e| panic!("CORS_ALLOWED_ORIGINS: {o:?} invalido: {e}"))
+            })
+            .collect();
+        tracing::info!("CORS restringido a {origins:?}");
+        CorsLayer::new()
+            .allow_origin(parsed)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    };
 
     // axum's extractors default to a 2MB body limit; photos go up to 5MB
     // (see me::photos::MAX_PHOTO_BYTES), so raise the ceiling app-wide.
