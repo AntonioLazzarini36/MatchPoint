@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:match_point/app/routes.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../matches_controller.dart';
 import '../models/match_item.dart';
 import '../services/matches_service.dart';
-import '../../discovery/models/sport.dart';
-import '../../onboarding/services/profile_service.dart';
 import '../../../core/ui/dialogs/confirm_dialog.dart';
 import '../../../core/ui/widgets/matches/matches_section_title.dart';
 import '../../../core/ui/widgets/matches/new_match_avatar_item.dart';
@@ -31,30 +28,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
   /// El mapa de clubes es exclusivo de tenis, asi que a quien solo corre
   /// no se le enseña: antes aparecia siempre, y desde el chat de un match
   /// de correr llevaba a una pantalla de pistas que no le sirve de nada.
-  bool _playsTennis = false;
-
   @override
   void initState() {
     super.initState();
     controller = MatchesController(MatchesService(Api.client));
     controller.init();
-    _loadSports();
     _searchCtrl.addListener(() {
       setState(() => _query = _searchCtrl.text.trim().toLowerCase());
     });
-  }
-
-  Future<void> _loadSports() async {
-    try {
-      final me = await ProfileService(Api.client).getMe();
-      if (!mounted) return;
-      setState(() {
-        _playsTennis = me.profile?.sports.contains(Sport.tennis) ?? false;
-      });
-    } catch (_) {
-      // Sin dato, se queda oculto: mejor no ofrecer una pantalla que
-      // quiza no aplique que ofrecerla siempre por si acaso.
-    }
   }
 
   @override
@@ -124,12 +105,12 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   )
                 : const Text('Mensajes'),
             actions: [
-              if (!_searching && _playsTennis)
-                IconButton(
-                  icon: const Icon(Icons.sports_tennis),
-                  tooltip: 'Pistas cerca',
-                  onPressed: () => context.push(AppRoutes.courtsMap),
-                ),
+              // El acceso al mapa de clubes vivia aqui arriba, pero se
+              // solapaba con el boton de proponer del chat (que ademas
+              // lleva el club ya elegido) y en un perfil de los dos
+              // deportes ensuciaba la pantalla con una raqueta que no
+              // tenia nada que ver con la conversacion que estabas
+              // mirando. Sigue accesible desde el propio chat de tenis.
               IconButton(
                 icon: Icon(_searching ? Icons.close : Icons.search),
                 onPressed: _toggleSearch,
@@ -257,6 +238,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 ? m.otherUser.profile!.photos.first
                 : null,
             unread: m.unreadCount > 0,
+            sport: m.sport,
             isGroup: false,
             onTap: () => _openChat(m),
             onLongPress: () => _confirmUnmatch(m),

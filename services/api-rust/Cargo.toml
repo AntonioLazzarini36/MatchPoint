@@ -41,6 +41,11 @@ utoipa-swagger-ui = { version = "7", features = ["axum"] }
 # mucho mas ligero: solo hace falta escribir un PNG RGB, no decodificar ni
 # transformar nada.
 png = "0.17"
+# Para abrir el socket en dual-stack a mano (IPv6 + IPv4 en el mismo
+# listener). `TcpListener::bind("[::]:...")` no vale: en Windows el
+# flag IPV6_V6ONLY viene activado por defecto y deja fuera IPv4.
+# Ya estaba en el arbol de dependencias via tokio, no anade peso real.
+socket2 = "0.5"
 # Cliente HTTP para llamar a la API de Resend (envio de emails).
 # rustls y no TLS del sistema: evita depender de OpenSSL, que en
 # Windows y en la imagen slim de Docker es justo lo que da guerra.

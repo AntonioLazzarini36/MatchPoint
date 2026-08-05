@@ -7,6 +7,7 @@ import '../../../core/location/location_result.dart';
 import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/ui/dialogs/confirm_changes_dialog.dart';
 import '../../../core/ui/location/location_search_screen.dart';
 import '../../../core/utils/pace_format.dart';
 import '../../auth/screens/email_verification_screen.dart';
@@ -91,6 +92,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (result == null || !mounted) return;
 
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar ubicación',
+      changes: [
+        FieldChange(
+          label: 'Ubicación',
+          before: _profile?.city ?? '',
+          after: result.displayName,
+        ),
+      ],
+    );
+    if (!ok || !mounted) return;
+
     setState(() => _savingLocation = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -116,6 +130,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (sheetContext) => _RadiusSheet(initialKm: current),
     );
     if (chosen == null || !mounted) return;
+
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar radio de búsqueda',
+      changes: [
+        FieldChange(
+          label: 'Radio',
+          before: '$current km',
+          after: '$chosen km',
+        ),
+      ],
+    );
+    if (!ok || !mounted) return;
 
     setState(() => _savingRadius = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -145,6 +172,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (chosen == null || !mounted) return;
 
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar tus deportes',
+      changes: [
+        FieldChange(
+          label: 'Deportes que juegas',
+          before: current.map((s) => s.label).join(', '),
+          after: chosen.map((s) => s.label).join(', '),
+        ),
+      ],
+    );
+    if (!ok || !mounted) return;
+
     setState(() => _savingSports = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -173,6 +213,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _SkillLevelSheet(sports: sports, initialLevels: _skillLevels),
     );
     if (chosen == null || !mounted) return;
+
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar tu nivel',
+      changes: [
+        for (final sport in sports)
+          FieldChange(
+            label: sport.label,
+            before: _skillLevels[sport]?.label ?? '',
+            after: chosen[sport]?.label ?? '',
+          ),
+      ],
+    );
+    if (!ok || !mounted) return;
 
     setState(() => _savingSkillLevels = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -204,6 +258,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (chosen == null || !mounted) return;
+
+    String pace(double? value) =>
+        value == null ? '' : '${formatPaceMinPerKm(value)} min/km';
+    String km(double? value) => value == null ? '' : '$value km';
+    String years(int? value) => value == null ? '' : '$value años';
+
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar tus credenciales',
+      changes: [
+        FieldChange(
+          label: 'Años jugando',
+          before: years(_profile?.yearsPlaying),
+          after: years(chosen.yearsPlaying),
+        ),
+        FieldChange(
+          label: 'Club',
+          before: _profile?.club ?? '',
+          after: chosen.club ?? '',
+        ),
+        FieldChange(
+          label: 'Ritmo medio',
+          before: pace(_profile?.avgPaceMinPerKm),
+          after: pace(chosen.avgPaceMinPerKm),
+        ),
+        FieldChange(
+          label: 'Distancia media',
+          before: km(_profile?.avgDistanceKm),
+          after: km(chosen.avgDistanceKm),
+        ),
+        FieldChange(
+          label: 'Logros',
+          before: (_profile?.achievements ?? const []).join(', '),
+          after: chosen.achievements.join(', '),
+        ),
+      ],
+    );
+    if (!ok || !mounted) return;
 
     setState(() => _savingCredentials = true);
     final messenger = ScaffoldMessenger.of(context);

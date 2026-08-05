@@ -2,6 +2,10 @@
 //! match.
 //!
 //! Design notes worth knowing before changing anything here:
+//! - **El deporte lo deciden las personas, no el match.** `Match.sport`
+//!   solo dice por que feed os cruzasteis; si los dos practicais otro
+//!   deporte ademas, se puede proponer en la misma conversacion (ver
+//!   `assert_both_play`).
 //! - **One live proposal per match.** Creating a new one supersedes any
 //!   still-pending proposal in that match (`Cancelled`). Two competing
 //!   pending offers would leave both sides asking "which one am I
@@ -121,6 +125,49 @@ async fn assert_member(
     Ok(found)
 }
 
+/// El deporte propuesto tiene que jugarlo **la gente**, no el match.
+///
+/// Antes se exigia que coincidiera con `Match.sport`. Pero el deporte del
+/// match solo dice por que feed os cruzasteis: si los dos jugais al tenis
+/// y ademas corres, no hay ninguna razon para no poder proponer una
+/// carrera en esa misma conversacion. Obligaba a hacer un segundo match
+/// con la misma persona para el otro deporte, cosa que ni el usuario sabe
+/// que existe ni tendria por que.
+///
+/// Lo que si hace falta comprobar es que ambos lo practiquen: proponerle
+/// tenis a quien solo corre es una quedada que no va a existir.
+async fn assert_both_play(
+    conn: &mut AsyncPgConnection,
+    found: &Match,
+    sport: Sport,
+) -> Result<(), ProposalsError> {
+    let rows = profiles::table
+        .filter(
+            profiles::user_id
+                .eq(&found.user_a_id)
+                .or(profiles::user_id.eq(&found.user_b_id)),
+        )
+        .select((profiles::user_id, profiles::sports))
+        .load::<(String, Vec<Sport>)>(conn)
+        .await?;
+
+    // Sin perfil no se puede afirmar que no lo juegue; se deja pasar en vez
+    // de bloquear por un dato que falta (mismo criterio que el filtro de
+    // genero en discover).
+    let both_play = [&found.user_a_id, &found.user_b_id].iter().all(|id| {
+        rows.iter()
+            .find(|(user_id, _)| user_id == *id)
+            .map(|(_, sports)| sports.contains(&sport))
+            .unwrap_or(true)
+    });
+
+    if !both_play {
+        return Err(bad("Uno de los dos no juega a ese deporte"));
+    }
+
+    Ok(())
+}
+
 fn validate(dto: &CreateProposalDto, when: DateTime<Utc>) -> Result<(), ProposalsError> {
     let now = Utc::now();
     // A minute of slack so a proposal for "right now" doesn't get rejected
@@ -168,9 +215,7 @@ pub async fn create(
         .map_err(|e| ProposalsError::Pool(e.to_string()))?;
 
     let found = assert_member(&mut conn, match_id, user_id).await?;
-    if found.sport != dto.sport {
-        return Err(bad("El deporte no coincide con el del match"));
-    }
+    assert_both_play(&mut conn, &found, dto.sport).await?;
 
     // Supersede whatever was still on the table (see module docs).
     diesel::update(

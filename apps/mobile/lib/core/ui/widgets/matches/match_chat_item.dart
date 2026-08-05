@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/utils/sport_words.dart';
+import 'package:match_point/features/discovery/models/sport.dart';
 
 class MatchChatItem extends StatelessWidget {
   final String name;
@@ -7,6 +9,12 @@ class MatchChatItem extends StatelessWidget {
   final String time;
   final String? imageUrl;
   final bool unread;
+
+  /// Deporte del match. Con los dos deportes mezclados en la misma lista,
+  /// el nombre solo no dice si esa conversacion es de tenis o de correr —
+  /// y eso cambia lo que vas a proponerle.
+  final Sport? sport;
+
   final bool isGroup;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -18,6 +26,7 @@ class MatchChatItem extends StatelessWidget {
     required this.time,
     required this.imageUrl,
     required this.unread,
+    this.sport,
     this.isGroup = false,
     this.onTap,
     this.onLongPress,
@@ -53,7 +62,28 @@ class MatchChatItem extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(name, style: context.textStyles.titleMedium),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: context.textStyles.titleMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (sport != null) ...[
+                              const SizedBox(width: 6),
+                              Icon(
+                                sportIcon(sport!),
+                                size: 15,
+                                color: context.colors.primary,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         time,
                         style: context.textStyles.bodySmall?.copyWith(

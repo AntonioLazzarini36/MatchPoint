@@ -218,6 +218,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     : 'Reenviar código',
               ),
             ),
+            // Salida explicita, no sólo la flecha de atrás: se llega aquí
+            // recién registrado, y no verificar todavía no bloquea nada.
+            // Quien no tenga el correo a mano tiene que poder seguir.
+            TextButton(
+              onPressed: busy ? null : () => Navigator.of(context).pop(false),
+              child: Text(
+                'Más tarde',
+                style: TextStyle(color: context.colors.onSurfaceVariant),
+              ),
+            ),
           ],
         ),
       ),

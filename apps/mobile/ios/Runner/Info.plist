@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Obligatorias para que iOS deje abrir camara o galeria: sin ellas
+	     la app se cierra en el momento de pedirlas. Android no las
+	     necesita porque image_picker delega en la app de camara del
+	     sistema. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Para hacerte una foto de perfil desde la propia app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Para elegir las fotos de tu perfil.</string>
 </dict>
 </plist>

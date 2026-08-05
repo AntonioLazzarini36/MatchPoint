@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../features/onboarding/services/profile_service.dart';
 import '../../theme/app_theme.dart';
 import 'photo_grid_editor.dart';
+import 'photo_source_sheet.dart';
 import 'photo_crop_preview.dart';
 
 /// Bottom sheet para gestionar las fotos del propio perfil: grid de fotos
@@ -50,12 +50,9 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
       return;
     }
 
-    final picked = await ImagePicker().pickMultiImage(
-      imageQuality: 85,
-      // El propio selector impide pasarse, en vez de dejar elegir 6 y
-      // luego decir que no caben.
-      limit: remaining,
-    );
+    // El propio selector impide pasarse, en vez de dejar elegir 6 y luego
+    // decir que no caben.
+    final picked = await pickPhotos(context, limit: remaining);
     if (picked.isEmpty || !mounted) return;
 
     final originals = <Uint8List>[];

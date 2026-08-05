@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/location/location_result.dart';
@@ -28,6 +27,8 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dar
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
+import 'package:match_point/features/auth/screens/email_verification_screen.dart';
+import 'package:match_point/core/ui/profile/photo_source_sheet.dart';
 
 class _PickedPhoto {
   final Uint8List bytes;
@@ -333,6 +334,21 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         );
       }
 
+      if (!mounted) return;
+
+      // Verificar el email va justo aquí y no escondido en Ajustes: es el
+      // único momento en que alguien tiene el correo a mano y entiende por
+      // qué se lo pedimos. Es saltable a propósito — no verificar no
+      // bloquea nada todavía, y plantar un muro nada más registrarse es la
+      // forma más rápida de que alguien no llegue a probar la app.
+      if (email != null) {
+        await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(email: email),
+          ),
+        );
+      }
+
       if (mounted) context.go(AppRoutes.shell);
     } catch (e) {
       controller.setError('No se pudo completar el registro: $e');
@@ -353,11 +369,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       return;
     }
 
-    final picked = await ImagePicker().pickMultiImage(
-      imageQuality: 85,
-      limit: remaining,
-    );
-    if (picked.isEmpty) return;
+    final picked = await pickPhotos(context, limit: remaining);
+    if (picked.isEmpty || !mounted) return;
 
     setState(() {
       _photoBusy = true;

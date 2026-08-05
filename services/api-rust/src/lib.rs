@@ -35,6 +35,49 @@ use tracing_subscriber::EnvFilter;
 use config::AppConfig;
 use state::AppState;
 
+/// Abre el socket de escucha aceptando IPv6 **e** IPv4 a la vez.
+///
+/// Hacen falta las dos cosas por motivos distintos:
+/// - **IPv6**: la red privada de Railway es sólo IPv6, así que un proceso
+///   atado nada más a `0.0.0.0` está vivo pero donde nadie le habla — y
+///   el síntoma es un "healthcheck failure" sin ningún error en el log.
+/// - **IPv4**: es por donde entra todo en desarrollo (`127.0.0.1:3000`, y
+///   el `adb reverse` que usa el móvil por cable).
+///
+/// `TcpListener::bind("[::]:puerto")` a secas no sirve: en Linux funciona
+/// porque `bindv6only` viene desactivado, pero **en Windows viene activado**
+/// y el socket rechaza IPv4 en silencio. De ahí montar el socket a mano
+/// para apagar ese flag explícitamente.
+///
+/// Si el sistema no tiene IPv6, se cae a IPv4 a secas.
+async fn bind_dual_stack(port: u16) -> tokio::net::TcpListener {
+    use socket2::{Domain, Protocol, Socket, Type};
+
+    let build = || -> std::io::Result<tokio::net::TcpListener> {
+        let addr: std::net::SocketAddr = format!("[::]:{port}").parse().expect("addr valida");
+        let socket = Socket::new(Domain::IPV6, Type::STREAM, Some(Protocol::TCP))?;
+        socket.set_only_v6(false)?;
+        socket.set_nonblocking(true)?;
+        socket.bind(&addr.into())?;
+        socket.listen(1024)?;
+        tokio::net::TcpListener::from_std(std::net::TcpListener::from(socket))
+    };
+
+    match build() {
+        Ok(listener) => {
+            tracing::info!("listening on [::]:{port} (IPv6 + IPv4)");
+            listener
+        }
+        Err(e) => {
+            tracing::warn!("sin IPv6 utilizable ({e}); escuchando sólo en IPv4");
+            let addr = format!("0.0.0.0:{port}");
+            tokio::net::TcpListener::bind(&addr)
+                .await
+                .unwrap_or_else(|e| panic!("failed to bind {addr}: {e}"))
+        }
+    }
+}
+
 /// Boots and runs the HTTP server. Called from `main.rs`.
 pub async fn run() {
     tracing_subscriber::fmt()
@@ -135,27 +178,7 @@ pub async fn run() {
         .layer(cors)
         .layer(DefaultBodyLimit::max(8 * 1024 * 1024));
 
-    // Se intenta primero `[::]`, que en Linux escucha en IPv6 **y** en
-    // IPv4 a la vez (dual-stack, `bindv6only=0` por defecto). No es un
-    // capricho: la red privada de Railway es sólo IPv6, así que un proceso
-    // atado únicamente a `0.0.0.0` no recibe nada por ahí — y el síntoma
-    // es justo un "healthcheck failure" sin ningún error en el log, porque
-    // el proceso está vivo y escuchando, sólo que donde nadie le habla.
-    //
-    // El fallback a IPv4 cubre entornos sin IPv6, donde `[::]` falla.
-    let listener = match tokio::net::TcpListener::bind(format!("[::]:{port}")).await {
-        Ok(listener) => {
-            tracing::info!("listening on [::]:{port} (IPv6 + IPv4)");
-            listener
-        }
-        Err(e) => {
-            tracing::warn!("no se pudo escuchar en IPv6 ({e}); probando sólo IPv4");
-            let addr = format!("0.0.0.0:{port}");
-            tokio::net::TcpListener::bind(&addr)
-                .await
-                .unwrap_or_else(|e| panic!("failed to bind {addr}: {e}"))
-        }
-    };
+    let listener = bind_dual_stack(port).await;
 
     axum::serve(
         listener,

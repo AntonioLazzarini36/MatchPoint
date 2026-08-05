@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:match_point/app/routes.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/utils/sport_words.dart';
 
 import '../chat_controller.dart';
 import '../services/chat_service.dart';
@@ -21,7 +22,7 @@ import '../models/proposal.dart';
 import '../services/proposal_service.dart';
 import '../../discovery/models/sport.dart';
 
-enum _ChatMenuAction { unmatch, report }
+enum _ChatMenuAction { courts, unmatch, report }
 
 class ChatScreen extends StatefulWidget {
   final String matchId;
@@ -53,6 +54,11 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController scroll = ScrollController();
 
   bool _busy = false;
+
+  /// Deportes de cada uno, para saber cuáles compartís. `null` = todavía
+  /// no han llegado.
+  List<Sport>? _mySports;
+  List<Sport>? _theirSports;
   Timer? _pollTimer;
 
   /// La propuesta más reciente del match, fijada arriba del chat. null
@@ -74,6 +80,7 @@ class _ChatScreenState extends State<ChatScreen> {
     proposalService = ProposalService(Api.client);
     controller.init().then((_) => _scrollToBottom());
     _loadProposal();
+    _loadSharedSports();
 
     // No websocket/push here — short-interval polling is enough for this
     // app's scale, and far less machinery than standing up a socket.
@@ -132,13 +139,46 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _propose() async {
+  Future<void> _propose(Sport sport) async {
     final created = await proposeSession(
       context,
       matchId: widget.matchId,
-      sport: widget.sport,
+      sport: sport,
     );
     if (created && mounted) await _loadProposal();
+  }
+
+  /// Deportes que podéis jugar juntos: los que practicáis los dos.
+  ///
+  /// El deporte del match sólo dice por qué feed os cruzasteis. Si los dos
+  /// jugáis al tenis y además coréis, no hay motivo para que en esta
+  /// conversación sólo se pueda proponer tenis — antes el deporte del
+  /// match mandaba y el otro no existía por ningún lado.
+  ///
+  /// Mientras no lleguen los perfiles se usa el del match, que siempre es
+  /// válido: así el botón funciona desde el primer frame en vez de
+  /// aparecer medio segundo después.
+  List<Sport> get _sharedSports {
+    final mine = _mySports;
+    final theirs = _theirSports;
+    if (mine == null || theirs == null) return [widget.sport];
+    final shared = mine.where(theirs.contains).toList();
+    return shared.isEmpty ? [widget.sport] : shared;
+  }
+
+  Future<void> _loadSharedSports() async {
+    try {
+      final service = ProfileService(Api.client);
+      final me = await service.getMe();
+      final other = await service.getUserProfile(widget.otherUserId);
+      if (!mounted) return;
+      setState(() {
+        _mySports = me.profile?.sports ?? const [];
+        _theirSports = other.sports;
+      });
+    } catch (_) {
+      // Se queda con el deporte del match, que es lo que había antes.
+    }
   }
 
   bool _isNearBottom() {
@@ -240,38 +280,44 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           centerTitle: true,
           actions: [
-            // Ambos deportes proponen desde aquí. Tenis además tiene la
-            // entrada por el mapa de clubes (desde Matches), que lleva al
-            // mismo sitio con el club ya elegido.
-            IconButton(
-              tooltip: widget.sport == Sport.running
-                  ? 'Proponer salir a correr'
-                  : 'Proponer un partido',
-              // El icono sigue al deporte del match, no al perfil: desde el
-              // chat de un match de correr, una raqueta no significa nada.
-              icon: Icon(
-                widget.sport == Sport.running
-                    ? Icons.directions_run
-                    : Icons.sports_tennis,
+            // Un botón por deporte que podáis jugar juntos. Con uno solo
+            // en común es exactamente lo de antes; con los dos, aparecen
+            // los dos iconos en vez de que el tenis se coma al otro.
+            for (final sport in _sharedSports)
+              IconButton(
+                tooltip: sport == Sport.running
+                    ? 'Proponer salir a correr'
+                    : 'Proponer un partido',
+                icon: Icon(sportIcon(sport)),
+                onPressed: _busy ? null : () => _propose(sport),
               ),
-              onPressed: _busy ? null : _propose,
-            ),
             PopupMenuButton<_ChatMenuAction>(
               enabled: !_busy,
               onSelected: (action) {
                 switch (action) {
+                  case _ChatMenuAction.courts:
+                    context.push(AppRoutes.courtsMap);
                   case _ChatMenuAction.unmatch:
                     _unmatch();
                   case _ChatMenuAction.report:
                     _report();
                 }
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
+              itemBuilder: (context) => [
+                // El mapa de clubes vivia en la AppBar de Matches, donde
+                // aparecia con cada conversacion aunque fuera de correr.
+                // Aqui sale solo en un chat de tenis, que es cuando mirar
+                // pistas cerca viene a cuento.
+                if (widget.sport == Sport.tennis)
+                  const PopupMenuItem(
+                    value: _ChatMenuAction.courts,
+                    child: Text('Ver pistas cerca'),
+                  ),
+                const PopupMenuItem(
                   value: _ChatMenuAction.unmatch,
                   child: Text('Deshacer match'),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: _ChatMenuAction.report,
                   child: Text('Reportar'),
                 ),
