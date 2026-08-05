@@ -84,6 +84,56 @@ pub struct AppConfig {
     pub email_from: String,
 }
 
+/// Quita de la URL de conexion los parametros que libpq no entiende.
+///
+/// El caso real: `?schema=public`. Es un invento de Prisma — lo lleva el
+/// `.env.example` heredado del backend NestJS viejo — y libpq lo rechaza
+/// con `invalid URI query parameter: "schema"`, un error que no dice de
+/// donde sale ni que el resto de la URL estaba bien.
+///
+/// Se descarta en vez de fallar porque `schema=public` no pide nada
+/// distinto de lo que ya hace Postgres por defecto: quitarlo no cambia a
+/// que base te conectas. Cualquier otro parametro se respeta tal cual
+/// (`sslmode`, `connect_timeout`...), que si tienen efecto.
+fn sanitize_database_url(raw: &str) -> String {
+    const UNSUPPORTED: &[&str] = &["schema"];
+
+    let Some((base, query)) = raw.split_once('?') else {
+        return raw.to_string();
+    };
+
+    let mut dropped: Vec<&str> = Vec::new();
+    let kept: Vec<&str> = query
+        .split('&')
+        .filter(|param| {
+            let key = param.split('=').next().unwrap_or_default();
+            if UNSUPPORTED.contains(&key) {
+                dropped.push(key);
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if dropped.is_empty() {
+        return raw.to_string();
+    }
+
+    // Por log y no en silencio: si alguien puso el parametro esperando que
+    // hiciera algo, tiene que enterarse de que no lo hace.
+    eprintln!(
+        "DATABASE_URL: ignorando parametro(s) que Postgres no acepta: {}",
+        dropped.join(", ")
+    );
+
+    if kept.is_empty() {
+        base.to_string()
+    } else {
+        format!("{base}?{}", kept.join("&"))
+    }
+}
+
 /// Lee una duracion en **segundos**, como numero pelado.
 ///
 /// Aborta si el valor esta puesto pero no se puede leer. Antes se caia
@@ -121,22 +171,43 @@ impl AppConfig {
             .and_then(|v| v.parse().ok())
             .unwrap_or(3000);
 
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        // Las obligatorias se leen todas juntas y se reportan juntas. Con un
+        // `expect` por variable, cada despliegue moria en la primera que
+        // faltara: arreglabas esa, volvias a desplegar (minutos de build) y
+        // te encontrabas la siguiente. Con la lista completa se arregla en
+        // una sola vuelta.
+        //
+        // Sin valor por defecto a proposito: un secreto JWT que cayera
+        // silenciosamente a un valor conocido dejaria a cualquiera firmar
+        // tokens validos en el entorno que se olvidara de ponerlo.
+        let mut missing: Vec<&str> = Vec::new();
+        let mut required = |name: &'static str| -> String {
+            match env::var(name) {
+                Ok(value) if !value.trim().is_empty() => value,
+                _ => {
+                    missing.push(name);
+                    String::new()
+                }
+            }
+        };
 
-        // No fallback: a silently-defaulted JWT secret would let anyone forge
-        // valid access/refresh tokens in any env that forgot to set these.
-        let jwt_access_secret =
-            env::var("JWT_ACCESS_SECRET").expect("JWT_ACCESS_SECRET must be set");
-        let jwt_refresh_secret =
-            env::var("JWT_REFRESH_SECRET").expect("JWT_REFRESH_SECRET must be set");
+        let database_url = sanitize_database_url(&required("DATABASE_URL"));
+        let jwt_access_secret = required("JWT_ACCESS_SECRET");
+        let jwt_refresh_secret = required("JWT_REFRESH_SECRET");
+        let message_key_base64 = required("MESSAGE_KEY_BASE64");
+
+        if !missing.is_empty() {
+            panic!(
+                "faltan {} variable(s) de entorno obligatoria(s): {}.                  Ver services/api-rust/DEPLOY.md",
+                missing.len(),
+                missing.join(", ")
+            );
+        }
 
         // 15 min y 30 dias, mismos valores por defecto que auth.service.ts.
         let jwt_access_expires_in_seconds = seconds_from_env("JWT_ACCESS_EXPIRES_IN_SECONDS", 900);
         let jwt_refresh_expires_in_seconds =
             seconds_from_env("JWT_REFRESH_EXPIRES_IN_SECONDS", 2_592_000);
-
-        let message_key_base64 = env::var("MESSAGE_KEY_BASE64")
-            .expect("MESSAGE_KEY_BASE64 must be set (used by chats/crypto)");
 
         let photos_dir = env::var("PHOTOS_DIR").unwrap_or_else(|_| "./uploads".to_string());
         let public_base_url =
@@ -214,7 +285,7 @@ impl AppConfig {
 
         if self.resend_api_key.is_none() {
             problems.push(
-                "RESEND_API_KEY sin poner: los correos de verificacion se escriben                  en el log en vez de enviarse"
+                "RESEND_API_KEY sin poner: los correos de verificacion se escriben en el log en vez de enviarse"
                     .to_string(),
             );
         }
@@ -243,5 +314,41 @@ impl AppConfig {
         for problem in &problems {
             tracing::warn!("config de desarrollo: {problem}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_database_url;
+
+    /// El caso real que rompía el despliegue: `?schema=public` viene del
+    /// `.env.example` heredado de Prisma y libpq lo rechaza entero.
+    #[test]
+    fn drops_prisma_schema_param() {
+        assert_eq!(
+            sanitize_database_url("postgresql://u:p@host:5432/db?schema=public"),
+            "postgresql://u:p@host:5432/db"
+        );
+    }
+
+    /// Los parámetros que sí hacen algo tienen que sobrevivir — `sslmode`
+    /// es obligatorio en varios proveedores gestionados.
+    #[test]
+    fn keeps_supported_params() {
+        assert_eq!(
+            sanitize_database_url("postgresql://u:p@host/db?sslmode=require"),
+            "postgresql://u:p@host/db".to_string() + "?sslmode=require"
+        );
+        assert_eq!(
+            sanitize_database_url("postgresql://u:p@host/db?schema=public&sslmode=require"),
+            "postgresql://u:p@host/db?sslmode=require"
+        );
+    }
+
+    /// Sin query no se toca nada, ni se añade un `?` de más.
+    #[test]
+    fn leaves_plain_urls_alone() {
+        let url = "postgresql://u:p@host:5432/db";
+        assert_eq!(sanitize_database_url(url), url);
     }
 }
