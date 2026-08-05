@@ -39,6 +39,7 @@ pub struct OkResponse {
         crate::auth::controller::send_verification,
         crate::auth::controller::verify_email,
         crate::me::controller::get_me,
+        crate::me::controller::delete_account,
         crate::me::controller::update_profile,
         crate::me::controller::update_preferences,
         crate::me::controller::update_skill_levels,

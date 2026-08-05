@@ -213,6 +213,15 @@ class ProfileService {
     }
   }
 
+  /// Borra la cuenta entera, sin vuelta atrás. La confirmación (escribir
+  /// "BORRAR") la pide la interfaz; aquí ya viene decidido.
+  Future<void> deleteAccount() async {
+    final res = await api.delete('/me', auth: true);
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('No se pudo borrar la cuenta: ${res.statusCode}');
+    }
+  }
+
   Future<Profile> uploadPhoto({
     required List<int> bytes,
     required String filename,

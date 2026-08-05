@@ -837,6 +837,38 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   arregla con más código. Hace falta un proyecto de Firebase
   (`google-services.json`) para FCM.
 
+- **Borrar cuenta e interruptor de verificación (2026-08-05, tarde):**
+  - **`DELETE /me`** — borraba el hueco de RGPD que llevaba anotado desde
+    el 2026-08-02. Las tablas cuelgan de `User` con `ON DELETE CASCADE`,
+    así que una sentencia se lleva perfil, swipes, matches, mensajes y
+    propuestas; los **ficheros** de las fotos no los borra ningún cascade,
+    viven en disco, y hay que quitarlos a mano o quedan huérfanos para
+    siempre. Se borran **después** de que la fila desaparezca: si el
+    borrado fallara, quedaría una cuenta viva sin sus fotos.
+  - **Confirmación escribiendo "BORRAR"**, no un sí/no. Un diálogo de dos
+    botones se despacha con un toque reflejo y esto no tiene deshacer. El
+    diálogo lista **qué se pierde en concreto** (conversaciones, partidos
+    acordados, fotos) en vez de "tus datos", y el botón está deshabilitado
+    hasta escribir la palabra. Verificado con curl: registro → `/me` 200
+    → `DELETE /me` 204 → `/me` 404 → 0 filas en la base.
+  - **`EMAIL_VERIFICATION_ENABLED`** — interruptor en el servidor, no en
+    la app. Sin dominio de correo propio, Resend sólo entrega al titular
+    de la cuenta, así que con la verificación encendida cualquier amigo
+    que se registre choca contra un fallo de envío nada más crear la
+    cuenta. Apagado: los endpoints responden 503 y `/me` expone el flag
+    para que la app esconda la pantalla y la fila de Ajustes. Va por el
+    servidor a propósito: el día que haya dominio se enciende cambiando
+    una variable, sin publicar una versión nueva ni pedirle a nadie que
+    actualice.
+  - **Credenciales separadas por deporte** en el onboarding y en Ajustes:
+    con los dos deportes elegidos, "años jugando" y "club" caían justo
+    encima de "ritmo medio" sin nada que dijera cuál era de qué. Cabecera
+    con el icono del deporte, y sólo cuando hay dos — con uno solo sería
+    ruido.
+  - **Hueco de reserva para fotos que no cargan** (`NetworkPhoto`):
+    `Image.network` a pelo deja un recuadro gris cuando la URL da 404, y
+    eso pasa de verdad mientras no haya volumen persistente.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

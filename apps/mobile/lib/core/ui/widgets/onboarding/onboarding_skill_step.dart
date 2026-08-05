@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/utils/pace_format.dart';
+import 'package:match_point/core/utils/sport_words.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 
@@ -102,6 +104,7 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
     final t = Theme.of(context).textTheme;
     final playsTennis = widget.sports.contains(Sport.tennis);
     final playsRunning = widget.sports.contains(Sport.running);
+    final playsBoth = playsTennis && playsRunning;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -141,7 +144,13 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),
+          // Con los dos deportes elegidos, los cuatro campos caían
+          // seguidos y sin nada que dijera cuál era de qué: "años jugando"
+          // y "club" justo encima de "ritmo medio". La cabecera con el
+          // icono del deporte sólo aparece cuando hay dos, que es cuando
+          // hace falta distinguir — con uno solo sería ruido.
           if (playsTennis) ...[
+            if (playsBoth) _sportHeader(context, Sport.tennis),
             TextFormField(
               controller: _yearsCtrl,
               textInputAction: TextInputAction.done,
@@ -165,6 +174,7 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
             const SizedBox(height: 12),
           ],
           if (playsRunning) ...[
+            if (playsBoth) _sportHeader(context, Sport.running),
             TextFormField(
               controller: _paceCtrl,
               textInputAction: TextInputAction.done,
@@ -208,6 +218,29 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
       ),
     );
   }
+}
+
+/// Cabecera de sección con el icono del deporte. Sólo se usa cuando el
+/// usuario ha elegido los dos: con uno solo, decir "Tenis" encima de los
+/// únicos campos que hay es ruido.
+Widget _sportHeader(BuildContext context, Sport sport) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Icon(sportIcon(sport), size: 18, color: context.colors.primary),
+        const SizedBox(width: 8),
+        Text(
+          sport.label,
+          style: context.textStyles.titleSmall?.copyWith(
+            color: context.colors.primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Divider(color: context.colors.outlineVariant)),
+      ],
+    ),
+  );
 }
 
 class _AchievementsEditor extends StatefulWidget {

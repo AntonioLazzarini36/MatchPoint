@@ -537,3 +537,53 @@ fn parse_date(s: &str) -> DateTime<Utc> {
                 .and_utc()
         })
 }
+
+/// Borra la cuenta entera: usuario, perfil, swipes, matches, mensajes,
+/// propuestas y fotos.
+///
+/// Las tablas cuelgan de `User` con `ON DELETE CASCADE`, así que una sola
+/// sentencia se lleva las filas. Los **ficheros** de las fotos no los
+/// borra ningún cascade — viven en disco, no en la base — así que hay que
+/// quitarlos a mano antes, o quedarían huérfanos para siempre ocupando
+/// sitio sin que nadie sepa de quién eran.
+///
+/// El borrado de ficheros es best-effort (mismo criterio que
+/// `remove_photo`): si uno falla no se aborta el borrado de la cuenta, que
+/// es lo que la persona ha pedido y lo que importa de verdad.
+pub async fn delete_account(state: &AppState, user_id: &str) -> Result<(), MeError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
+
+    let photos = profiles::table
+        .filter(profiles::user_id.eq(user_id))
+        .select(profiles::photos)
+        .first::<Vec<String>>(&mut conn)
+        .await
+        .optional()?
+        .unwrap_or_default();
+
+    let deleted = diesel::delete(users::table.filter(users::id.eq(user_id)))
+        .execute(&mut conn)
+        .await?;
+
+    if deleted == 0 {
+        return Err(MeError::UserNotFound);
+    }
+
+    // Después de borrar la fila, no antes: si el borrado fallara, tendríamos
+    // una cuenta viva con las fotos ya borradas del disco.
+    for url in photos {
+        photos::delete_photo_file(
+            &url,
+            &state.config.photos_dir,
+            &state.config.public_base_url,
+        )
+        .await;
+    }
+
+    tracing::info!("cuenta borrada: {user_id}");
+    Ok(())
+}

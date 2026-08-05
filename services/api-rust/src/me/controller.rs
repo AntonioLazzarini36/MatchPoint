@@ -28,7 +28,7 @@ use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/me", get(get_me))
+        .route("/me", get(get_me).delete(delete_account))
         .route("/me/profile", patch(update_profile))
         .route("/me/preferences", patch(update_preferences))
         .route("/me/skill-levels", patch(update_skill_levels))
@@ -192,4 +192,28 @@ fn me_error_response(err: MeError) -> axum::response::Response {
         MeError::Db(_) | MeError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
     (status, Json(json!({ "message": err.to_string() }))).into_response()
+}
+
+/// Borra la cuenta del usuario autenticado, sin vuelta atrás.
+///
+/// No pide confirmación aquí: eso es cosa de la interfaz, que además la
+/// pide escribiendo la palabra "BORRAR". Un endpoint que exigiera un
+/// segundo parámetro de confirmación sería seguridad de mentira — quien
+/// llame a la API directamente lo mandaría igual.
+#[utoipa::path(
+    delete,
+    path = "/me",
+    tag = "me",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 204, description = "Cuenta borrada"),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 404, description = "Usuario no encontrado", body = ErrorResponse),
+    )
+)]
+async fn delete_account(State(state): State<AppState>, user: AuthUser) -> impl IntoResponse {
+    match service::delete_account(&state, &user.user_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => me_error_response(err),
+    }
 }

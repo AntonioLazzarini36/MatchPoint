@@ -8,8 +8,10 @@ import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/dialogs/confirm_changes_dialog.dart';
+import '../../../core/ui/dialogs/delete_account_dialog.dart';
 import '../../../core/ui/location/location_search_screen.dart';
 import '../../../core/utils/pace_format.dart';
+import '../../../core/utils/sport_words.dart';
 import '../../auth/screens/email_verification_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../discovery/models/skill_level.dart';
@@ -38,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Preferences? _preferences;
   Map<Sport, SkillLevel> _skillLevels = {};
   bool _loggingOut = false;
+  bool _deletingAccount = false;
   bool _savingLocation = false;
   bool _savingRadius = false;
   bool _savingSports = false;
@@ -362,6 +365,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true) await _logout();
   }
 
+  /// Borrar la cuenta cierra sesión a la fuerza: el token que hay guardado
+  /// apunta a un usuario que ya no existe, así que dejarlo puesto sólo
+  /// sirve para que la siguiente pantalla falle con un 401 raro.
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await confirmDeleteAccount(context);
+    if (!confirmed || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.deleteAccount();
+      await TokenStorage.clear();
+      if (!mounted) return;
+      context.go(AppRoutes.welcome);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _deletingAccount = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   Future<void> _logout() async {
     setState(() => _loggingOut = true);
 
@@ -628,6 +654,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _loggingOut ? null : _confirmLogout,
+                    ),
+                    // Debajo de cerrar sesión y en su propio grupo: es la
+                    // acción más destructiva de la app, no debería quedar
+                    // pegada a nada que se toque a menudo.
+                    _SettingsRow(
+                      icon: Icons.delete_forever_outlined,
+                      iconBackground: context.colors.error.withValues(
+                        alpha: 0.12,
+                      ),
+                      iconColor: context.colors.error,
+                      title: 'Borrar mi cuenta',
+                      titleColor: context.colors.error,
+                      subtitle: 'No se puede deshacer',
+                      trailing: _deletingAccount
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _deletingAccount ? null : _confirmDeleteAccount,
                     ),
                   ],
                 ),
@@ -1009,6 +1061,28 @@ class _CredentialsResult {
   });
 }
 
+/// Cabecera de seccion con el icono del deporte, para cuando hay campos de
+/// los dos seguidos. Con un solo deporte no se usa: seria ruido.
+Widget _sportHeaderRow(BuildContext context, Sport sport) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Icon(sportIcon(sport), size: 18, color: context.colors.primary),
+        const SizedBox(width: 8),
+        Text(
+          sport.label,
+          style: context.textStyles.titleSmall?.copyWith(
+            color: context.colors.primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Divider(color: context.colors.outlineVariant)),
+      ],
+    ),
+  );
+}
+
 class _CredentialsSheet extends StatefulWidget {
   final List<Sport> sports;
   final int? initialYearsPlaying;
@@ -1113,6 +1187,9 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
   Widget build(BuildContext context) {
     final playsTennis = widget.sports.contains(Sport.tennis);
     final playsRunning = widget.sports.contains(Sport.running);
+    // Misma separacion que en el onboarding: con los dos deportes, los
+    // cuatro campos caian seguidos y sin decir cual era de que.
+    final playsBoth = playsTennis && playsRunning;
 
     return SafeArea(
       child: Padding(
@@ -1137,6 +1214,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
               ),
               const SizedBox(height: 16),
               if (playsTennis) ...[
+                if (playsBoth) _sportHeaderRow(context, Sport.tennis),
                 TextField(
                   controller: _yearsCtrl,
                   textInputAction: TextInputAction.done,
@@ -1160,6 +1238,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
                 const SizedBox(height: 12),
               ],
               if (playsRunning) ...[
+                if (playsBoth) _sportHeaderRow(context, Sport.running),
                 TextField(
                   controller: _paceCtrl,
                   textInputAction: TextInputAction.done,
