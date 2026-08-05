@@ -8,10 +8,12 @@ use std::sync::Arc;
 use crate::auth::rate_limit::RateLimiter;
 use crate::config::AppConfig;
 use crate::db::DbPool;
+use crate::mail::Mailer;
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
     pub config: Arc<AppConfig>,
     pub rate_limiter: RateLimiter,
+    pub mailer: Mailer,
 }

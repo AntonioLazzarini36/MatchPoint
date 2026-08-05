@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use chrono::Utc;
+use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::scoped_futures::ScopedFutureExt;
@@ -11,8 +11,11 @@ use utoipa::ToSchema;
 
 use crate::auth::dto::{LoginDto, RegisterDto};
 use crate::auth::jwt::{self, Claims};
-use crate::models::{NewPreferences, NewProfile, NewRefreshToken, NewUser};
-use crate::schema::{preferences, profiles, refresh_tokens, users};
+use crate::models::{
+    EmailVerification, NewEmailVerification, NewPreferences, NewProfile, NewRefreshToken, NewUser,
+    User,
+};
+use crate::schema::{email_verifications, preferences, profiles, refresh_tokens, users};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -48,6 +51,18 @@ pub enum AuthError {
     RefreshTokenMismatch,
     #[error("User not found")]
     UserNotFound,
+    #[error("Tu email ya está verificado")]
+    EmailAlreadyVerified,
+    #[error("Espera {0}s antes de pedir otro código")]
+    CodeRequestedTooSoon(i64),
+    #[error("Código incorrecto")]
+    InvalidCode,
+    #[error("El código ha caducado, pide uno nuevo")]
+    CodeExpired,
+    #[error("Demasiados intentos, pide un código nuevo")]
+    TooManyCodeAttempts,
+    #[error("No se pudo enviar el correo: {0}")]
+    MailFailed(String),
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -377,4 +392,163 @@ fn parse_date(s: &str) -> chrono::DateTime<Utc> {
                 .unwrap()
                 .and_utc()
         })
+}
+
+// ---------------------------------------------------------------------
+// Verificación de email
+// ---------------------------------------------------------------------
+
+/// Cuánto vive un código. Corto a propósito: es lo que de verdad protege
+/// un código de 6 dígitos, junto con [`MAX_CODE_ATTEMPTS`].
+const CODE_TTL_MINUTES: i64 = 15;
+
+/// Intentos por código antes de invalidarlo. Sin esto, un millón de
+/// combinaciones se prueban en un rato desde un script.
+const MAX_CODE_ATTEMPTS: i32 = 5;
+
+/// Espera mínima entre reenvíos. Evita que el botón "reenviar" se
+/// convierta en una forma de bombardear el buzón de otra persona (y de
+/// gastar la cuota de Resend).
+const RESEND_COOLDOWN_SECONDS: i64 = 60;
+
+/// Código aleatorio de 6 dígitos.
+///
+/// Se deriva de un UUID v4 en vez de añadir la crate `rand`: v4 se genera
+/// con el CSPRNG del sistema, así que los bytes ya son aleatorios de
+/// calidad criptográfica. El módulo introduce un sesgo despreciable
+/// (2^32 no es múltiplo de 10^6, así que unos códigos son ~0,02% más
+/// probables), irrelevante frente al TTL y al límite de intentos.
+fn generate_code() -> String {
+    let bytes = uuid::Uuid::new_v4().into_bytes();
+    let n = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) % 1_000_000;
+    format!("{n:06}")
+}
+
+fn code_digest(code: &str) -> String {
+    // Mismo estilo que `refresh_token_digest`: base64 del SHA-256.
+    STANDARD.encode(Sha256::digest(code.as_bytes()))
+}
+
+/// Genera un código nuevo y lo envía por correo.
+///
+/// Invalida los códigos anteriores del usuario: tener dos válidos a la vez
+/// duplicaría la superficie de adivinación sin ganar nada, y además
+/// confunde ("¿cuál de los dos correos miro?").
+pub async fn send_verification_code(state: &AppState, user_id: &str) -> Result<(), AuthError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
+
+    let user = users::table
+        .filter(users::id.eq(user_id))
+        .first::<User>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(AuthError::UserNotFound)?;
+
+    if user.email_verified_at.is_some() {
+        return Err(AuthError::EmailAlreadyVerified);
+    }
+
+    let now = Utc::now();
+
+    // Cooldown mirando el código más reciente, no una tabla aparte de
+    // rate limiting: el dato ya está aquí.
+    let last_sent = email_verifications::table
+        .filter(email_verifications::user_id.eq(user_id))
+        .order(email_verifications::created_at.desc())
+        .select(email_verifications::created_at)
+        .first::<DateTime<Utc>>(&mut conn)
+        .await
+        .optional()?;
+
+    if let Some(sent_at) = last_sent {
+        let elapsed = now.signed_duration_since(sent_at).num_seconds();
+        if elapsed < RESEND_COOLDOWN_SECONDS {
+            return Err(AuthError::CodeRequestedTooSoon(
+                RESEND_COOLDOWN_SECONDS - elapsed,
+            ));
+        }
+    }
+
+    let code = generate_code();
+
+    diesel::delete(email_verifications::table.filter(email_verifications::user_id.eq(user_id)))
+        .execute(&mut conn)
+        .await?;
+
+    diesel::insert_into(email_verifications::table)
+        .values(NewEmailVerification {
+            id: uuid::Uuid::new_v4().to_string(),
+            user_id: user_id.to_string(),
+            code_hash: code_digest(&code),
+            expires_at: now + Duration::minutes(CODE_TTL_MINUTES),
+        })
+        .execute(&mut conn)
+        .await?;
+
+    // El envío va después de guardar: si el correo falla, el código sigue
+    // siendo válido y "reenviar" (pasado el cooldown) vuelve a intentarlo,
+    // en vez de dejar al usuario con una fila que no corresponde a nada.
+    state
+        .mailer
+        .send_verification_code(&user.email, &code)
+        .await
+        .map_err(|e| AuthError::MailFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Comprueba el código y marca el email como verificado.
+pub async fn verify_email(state: &AppState, user_id: &str, code: &str) -> Result<(), AuthError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
+
+    let now = Utc::now();
+
+    let pending = email_verifications::table
+        .filter(email_verifications::user_id.eq(user_id))
+        .order(email_verifications::created_at.desc())
+        .first::<EmailVerification>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(AuthError::InvalidCode)?;
+
+    if pending.expires_at < now {
+        return Err(AuthError::CodeExpired);
+    }
+
+    if pending.attempts >= MAX_CODE_ATTEMPTS {
+        return Err(AuthError::TooManyCodeAttempts);
+    }
+
+    if code_digest(code) != pending.code_hash {
+        // El intento se cuenta antes de responder, para que el límite
+        // valga también si el atacante corta la conexión al ver el error.
+        diesel::update(email_verifications::table.filter(email_verifications::id.eq(&pending.id)))
+            .set(email_verifications::attempts.eq(pending.attempts + 1))
+            .execute(&mut conn)
+            .await?;
+        return Err(AuthError::InvalidCode);
+    }
+
+    diesel::update(users::table.filter(users::id.eq(user_id)))
+        .set((
+            users::email_verified_at.eq(Some(now)),
+            users::updated_at.eq(now),
+        ))
+        .execute(&mut conn)
+        .await?;
+
+    // Ya no vale para nada y guardarlo sólo alarga la tabla.
+    diesel::delete(email_verifications::table.filter(email_verifications::user_id.eq(user_id)))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
 }

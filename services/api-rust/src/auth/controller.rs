@@ -34,6 +34,8 @@ pub fn router(state: AppState) -> Router<AppState> {
         .merge(rate_limited)
         .route("/auth/refresh", post(refresh))
         .route("/auth/logout", post(logout))
+        .route("/auth/send-verification", post(send_verification))
+        .route("/auth/verify-email", post(verify_email))
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -147,8 +149,78 @@ impl IntoResponse for AuthRejection {
             | AuthError::RefreshTokenRevoked
             | AuthError::RefreshTokenMismatch
             | AuthError::UserNotFound => StatusCode::UNAUTHORIZED,
+            AuthError::EmailAlreadyVerified | AuthError::InvalidCode | AuthError::CodeExpired => {
+                StatusCode::BAD_REQUEST
+            }
+            // 429 y no 400: son límites de ritmo, y el cliente puede
+            // reintentar más tarde sin cambiar nada de lo que manda.
+            AuthError::CodeRequestedTooSoon(_) | AuthError::TooManyCodeAttempts => {
+                StatusCode::TOO_MANY_REQUESTS
+            }
+            // El correo lo manda un tercero: si falla, el fallo es nuestro
+            // (o suyo), no de quien lo pidió.
+            AuthError::MailFailed(_) => StatusCode::BAD_GATEWAY,
             AuthError::Db(_) | AuthError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (status, Json(json!({ "message": self.0.to_string() }))).into_response()
+    }
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyEmailDto {
+    /// Código de 6 dígitos recibido por correo.
+    pub code: String,
+}
+
+/// Pide (o reenvía) el código de verificación al email de la cuenta.
+///
+/// Requiere estar autenticado a propósito: así el código sólo puede
+/// pedirse para la propia cuenta y nadie puede usar este endpoint para
+/// bombardear el buzón de otra persona metiendo su email.
+#[utoipa::path(
+    post,
+    path = "/auth/send-verification",
+    tag = "auth",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 204, description = "Código enviado"),
+        (status = 400, description = "El email ya estaba verificado", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 429, description = "Pedido demasiado pronto tras el anterior", body = ErrorResponse),
+        (status = 502, description = "El proveedor de email falló", body = ErrorResponse),
+    )
+)]
+async fn send_verification(
+    State(state): State<AppState>,
+    user: crate::auth::jwt::AuthUser,
+) -> impl IntoResponse {
+    match service::send_verification_code(&state, &user.user_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => AuthRejection(e).into_response(),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/verify-email",
+    tag = "auth",
+    security(("bearerAuth" = [])),
+    request_body = VerifyEmailDto,
+    responses(
+        (status = 200, description = "Email verificado", body = OkResponse),
+        (status = 400, description = "Código incorrecto o caducado", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 429, description = "Demasiados intentos con el mismo código", body = ErrorResponse),
+    )
+)]
+async fn verify_email(
+    State(state): State<AppState>,
+    user: crate::auth::jwt::AuthUser,
+    Json(dto): Json<VerifyEmailDto>,
+) -> impl IntoResponse {
+    match service::verify_email(&state, &user.user_id, dto.code.trim()).await {
+        Ok(()) => Json(json!({ "ok": true })).into_response(),
+        Err(e) => AuthRejection(e).into_response(),
     }
 }

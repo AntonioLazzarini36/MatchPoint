@@ -36,6 +36,8 @@ pub struct OkResponse {
         crate::auth::controller::login,
         crate::auth::controller::refresh,
         crate::auth::controller::logout,
+        crate::auth::controller::send_verification,
+        crate::auth::controller::verify_email,
         crate::me::controller::get_me,
         crate::me::controller::update_profile,
         crate::me::controller::update_preferences,
@@ -60,6 +62,7 @@ pub struct OkResponse {
     components(schemas(
         ErrorResponse,
         OkResponse,
+        crate::auth::controller::VerifyEmailDto,
         crate::models::Sport,
         crate::models::SwipeType,
         crate::models::SkillLevel,

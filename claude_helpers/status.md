@@ -698,6 +698,48 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     enlace por consola, pero conviene decidir el proveedor antes para no
     tirar trabajo.
 
+- **Verificación de email, backend completo (2026-08-05)** — hasta ahora
+  cualquiera podía registrarse con el correo de otra persona porque nadie
+  comprobaba que le perteneciera.
+  - Migración: `User.emailVerifiedAt` (fecha y no booleano: "cuándo lo
+    verificó" es dato útil y el booleano se deduce) y tabla
+    `EmailVerification`.
+  - **Código de 6 dígitos, no enlace**: en una app móvil escribir seis
+    números es más directo que abrir un enlace, no necesita deep links, y
+    es la misma pieza que hará falta luego para 2FA.
+  - Defensas: 15 min de vida, 5 intentos por código, 60 s de cooldown entre
+    reenvíos, y sólo un código válido a la vez. Se guarda el SHA-256 del
+    código (no bcrypt: lo que protege 6 dígitos es el TTL y el límite de
+    intentos, no el coste de hashear). El código se genera de un UUID v4,
+    que ya viene del CSPRNG del sistema — sin añadir la crate `rand`.
+  - Los dos endpoints piden **autenticación**: así sólo puedes pedir el
+    código de tu propia cuenta, y nadie puede usar el endpoint para
+    bombardear el buzón de otra persona metiendo su email.
+  - `mail::Mailer` con dos transportes: **Resend** si hay `RESEND_API_KEY`,
+    y si no un transporte de **log** que escribe el correo (con el código
+    visible) por consola. Así el flujo entero se desarrolla y se prueba sin
+    credenciales, y nadie tiene que comentar código para compilar.
+    `AppConfig::validate` avisa (y en producción aborta) si falta la key,
+    para que nadie despliegue creyendo que envía correos.
+  - Nueva dependencia: `reqwest` con **rustls** y no TLS del sistema, para
+    no depender de OpenSSL (que es justo lo que da guerra en Windows y en
+    la imagen slim de Docker).
+  - Verificado con curl contra el backend real, capturando el código del
+    log: `emailVerified` false → pedir código 204 → reenviar antes de
+    tiempo 429 → código incorrecto 400 → código correcto 200 →
+    `emailVerified` true → volver a pedirlo 400.
+
+  **Pendiente de esto:** la UI del móvil (pantalla de introducir el código
+  y aviso de "verifica tu correo" mientras no lo esté), y decidir si en
+  algún momento se **exige** el email verificado para algo. Hoy no bloquea
+  nada a propósito: bloquear antes de tener la pantalla dejaría fuera a
+  las cuentas que ya existen.
+
+  **Aviso de Resend:** sin un dominio verificado sólo se puede enviar desde
+  `onboarding@resend.dev` y **únicamente al email con el que se creó la
+  cuenta de Resend**. Para probarlo con otra persona hace falta verificar un
+  dominio propio (registros DNS).
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

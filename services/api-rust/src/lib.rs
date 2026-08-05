@@ -12,6 +12,7 @@ pub mod chats;
 pub mod config;
 pub mod db;
 pub mod discover;
+pub mod mail;
 pub mod matches;
 pub mod me;
 pub mod models;
@@ -71,10 +72,12 @@ pub async fn run() {
         }
     }
 
+    let cfg_for_mailer = cfg.clone();
     let state = AppState {
         db: pool,
         config: Arc::new(cfg),
         rate_limiter: auth::rate_limit::RateLimiter::new(),
+        mailer: mail::Mailer::from_config(&cfg_for_mailer),
     };
 
     // Con la lista vacía se permite cualquier origen, que es lo comodo en

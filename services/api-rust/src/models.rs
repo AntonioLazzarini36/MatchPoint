@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::schema::{
-    matches, messages, preferences, profiles, proposals, refresh_tokens, reports, skill_levels,
-    swipes, users,
+    email_verifications, matches, messages, preferences, profiles, proposals, refresh_tokens,
+    reports, skill_levels, swipes, users,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
@@ -105,8 +105,40 @@ pub struct User {
     pub email: String,
     #[serde(skip_serializing)]
     pub password_hash: String,
+    /// `None` = email sin verificar. Se guarda la fecha en vez de un
+    /// booleano porque "cuando lo verifico" es dato util y el booleano se
+    /// deduce igual (`email_verified_at.is_some()`).
+    pub email_verified_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// Codigo de verificacion de email, de un solo uso.
+///
+/// Se guarda el SHA-256 del codigo y no el codigo: si alguien lee la base
+/// de datos, no puede verificar cuentas ajenas. Lo que protege un codigo
+/// de 6 digitos no es el coste de hashear sino el TTL corto y el limite de
+/// intentos — por eso SHA-256 y no bcrypt, que solo anadiria latencia a
+/// cada intento.
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = email_verifications)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct EmailVerification {
+    pub id: String,
+    pub user_id: String,
+    pub code_hash: String,
+    pub expires_at: DateTime<Utc>,
+    pub attempts: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = email_verifications)]
+pub struct NewEmailVerification {
+    pub id: String,
+    pub user_id: String,
+    pub code_hash: String,
+    pub expires_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Insertable)]

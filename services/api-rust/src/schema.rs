@@ -37,10 +37,28 @@ diesel::table! {
         email -> Text,
         #[sql_name = "passwordHash"]
         password_hash -> Text,
+        #[sql_name = "emailVerifiedAt"]
+        email_verified_at -> Nullable<Timestamptz>,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
         #[sql_name = "updatedAt"]
         updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    #[sql_name = "EmailVerification"]
+    email_verifications (id) {
+        id -> Text,
+        #[sql_name = "userId"]
+        user_id -> Text,
+        #[sql_name = "codeHash"]
+        code_hash -> Text,
+        #[sql_name = "expiresAt"]
+        expires_at -> Timestamptz,
+        attempts -> Int4,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
     }
 }
 
@@ -237,6 +255,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     profiles,
     preferences,
     refresh_tokens,
+    email_verifications,
     swipes,
     matches,
     messages,

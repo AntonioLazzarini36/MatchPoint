@@ -67,6 +67,15 @@ pub struct AppConfig {
     /// confiar en ella *sin* un proxy delante permitiría saltarse el
     /// límite inventando una IP distinta en cada intento.
     pub trust_proxy: bool,
+
+    /// API key de Resend. `None` = los correos se escriben en el log en
+    /// vez de enviarse (ver `mail::Mailer`), que es lo que permite
+    /// desarrollar el flujo de verificacion sin credenciales.
+    pub resend_api_key: Option<String>,
+    /// Remitente de los correos. Sin dominio verificado en Resend, tiene
+    /// que ser `onboarding@resend.dev` y solo se puede enviar al email con
+    /// el que se creo la cuenta de Resend.
+    pub email_from: String,
 }
 
 impl AppConfig {
@@ -124,6 +133,10 @@ impl AppConfig {
             .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
             .unwrap_or(false);
 
+        let resend_api_key = env::var("RESEND_API_KEY").ok().filter(|k| !k.is_empty());
+        let email_from = env::var("EMAIL_FROM")
+            .unwrap_or_else(|_| "MatchPoint <onboarding@resend.dev>".to_string());
+
         let cfg = Self {
             env: app_env,
             port,
@@ -137,6 +150,8 @@ impl AppConfig {
             public_base_url,
             cors_allowed_origins,
             trust_proxy,
+            resend_api_key,
+            email_from,
         };
 
         cfg.validate();
@@ -170,6 +185,13 @@ impl AppConfig {
 
         if self.cors_allowed_origins.is_empty() {
             problems.push("CORS_ALLOWED_ORIGINS vacío: se permite cualquier origen".to_string());
+        }
+
+        if self.resend_api_key.is_none() {
+            problems.push(
+                "RESEND_API_KEY sin poner: los correos de verificacion se escriben                  en el log en vez de enviarse"
+                    .to_string(),
+            );
         }
 
         if self.public_base_url.starts_with("http://localhost") {

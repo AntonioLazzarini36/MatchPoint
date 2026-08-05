@@ -150,6 +150,10 @@ pub struct MeResponse {
     /// `models::UserSkillLevel`), so it's fetched and attached separately
     /// rather than being a column on `profile`.
     pub skill_levels: Vec<SkillLevelEntry>,
+    /// Si el dueño de la cuenta ha confirmado que el email es suyo. Es un
+    /// booleano y no la fecha: al cliente sólo le sirve para decidir si
+    /// enseña el aviso de "verifica tu correo".
+    pub email_verified: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -160,10 +164,15 @@ pub async fn get_me(state: &AppState, user_id: &str) -> Result<MeResponse, MeErr
         .await
         .map_err(|e| MeError::Pool(e.to_string()))?;
 
-    let (id, email, created_at) = users::table
+    let (id, email, email_verified_at, created_at) = users::table
         .filter(users::id.eq(user_id))
-        .select((users::id, users::email, users::created_at))
-        .first::<(String, String, DateTime<Utc>)>(&mut conn)
+        .select((
+            users::id,
+            users::email,
+            users::email_verified_at,
+            users::created_at,
+        ))
+        .first::<(String, String, Option<DateTime<Utc>>, DateTime<Utc>)>(&mut conn)
         .await
         .optional()?
         .ok_or(MeError::UserNotFound)?;
@@ -188,6 +197,7 @@ pub async fn get_me(state: &AppState, user_id: &str) -> Result<MeResponse, MeErr
         profile,
         preferences,
         skill_levels,
+        email_verified: email_verified_at.is_some(),
         created_at,
     })
 }
