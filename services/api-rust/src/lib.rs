@@ -128,12 +128,27 @@ pub async fn run() {
         .layer(cors)
         .layer(DefaultBodyLimit::max(8 * 1024 * 1024));
 
-    let addr = format!("0.0.0.0:{port}");
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .unwrap_or_else(|e| panic!("failed to bind {addr}: {e}"));
-
-    tracing::info!("listening on {addr}");
+    // Se intenta primero `[::]`, que en Linux escucha en IPv6 **y** en
+    // IPv4 a la vez (dual-stack, `bindv6only=0` por defecto). No es un
+    // capricho: la red privada de Railway es sólo IPv6, así que un proceso
+    // atado únicamente a `0.0.0.0` no recibe nada por ahí — y el síntoma
+    // es justo un "healthcheck failure" sin ningún error en el log, porque
+    // el proceso está vivo y escuchando, sólo que donde nadie le habla.
+    //
+    // El fallback a IPv4 cubre entornos sin IPv6, donde `[::]` falla.
+    let listener = match tokio::net::TcpListener::bind(format!("[::]:{port}")).await {
+        Ok(listener) => {
+            tracing::info!("listening on [::]:{port} (IPv6 + IPv4)");
+            listener
+        }
+        Err(e) => {
+            tracing::warn!("no se pudo escuchar en IPv6 ({e}); probando sólo IPv4");
+            let addr = format!("0.0.0.0:{port}");
+            tokio::net::TcpListener::bind(&addr)
+                .await
+                .unwrap_or_else(|e| panic!("failed to bind {addr}: {e}"))
+        }
+    };
 
     axum::serve(
         listener,

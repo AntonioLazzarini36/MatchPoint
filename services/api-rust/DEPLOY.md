@@ -52,7 +52,15 @@ las aplica al arrancar (`src/migrate.rs`). En el log de despliegue verás
 
 ## 4. Variables de entorno
 
-En el servicio → **Variables**:
+En el servicio → **Variables**.
+
+> ⚠️ **Tu `.env` local NO cuenta.** Está en `.gitignore`, así que nunca
+> sale de tu máquina y Railway no lo ve. Las variables hay que ponerlas en
+> su panel, una a una. Si falta `DATABASE_URL` o cualquier otra
+> obligatoria, el proceso aborta al arrancar y el despliegue falla con
+> **"healthcheck failure"** — que no dice nada de la causa real; ésa está
+> en los **Deploy Logs**.
+
 
 | Variable | Valor |
 |---|---|
@@ -142,6 +150,24 @@ Railway da una URL pública aparte de la interna para conectarse desde
 fuera (**Postgres → Connect → Public Network**).
 
 ---
+
+## Si el despliegue falla con "healthcheck failure"
+
+Ese mensaje sólo dice "nadie contestó a `/health`", no por qué. Mira los
+**Deploy Logs** del servicio y busca la última línea antes de que muera.
+Por orden de probabilidad:
+
+1. **`DATABASE_URL must be set`** — no pusiste las variables en el panel de
+   Railway, o el Postgres no está enlazado al servicio.
+2. **`APP_ENV=production con N problema(s) de configuración`** — el propio
+   log lista cuáles: secretos de ejemplo, CORS vacío o `PUBLIC_BASE_URL`
+   en localhost. Es a propósito.
+3. **`migraciones: no se pudo conectar a la base de datos`** — la
+   `DATABASE_URL` apunta a algo que no responde.
+4. **Ningún error y aun así falla** — mira que el log diga
+   `listening on [::]:...`. La red privada de Railway es sólo IPv6, así
+   que un proceso atado nada más a `0.0.0.0` está vivo pero donde nadie
+   le habla.
 
 ## Lo que sigue faltando
 
