@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../utils/landscape_crop.dart';
+import 'network_photo.dart';
 
 /// Fallback para cuando `XFile.mimeType` viene vacío (pasa en algunas
 /// plataformas nativas; en web `image_picker` sí lo rellena). Debe cubrir
@@ -118,7 +119,7 @@ class _PhotoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = switch (data) {
-      RemotePhoto(:final url) => Image.network(url, fit: BoxFit.cover),
+      RemotePhoto(:final url) => NetworkPhoto(url: url, iconSize: 28),
       LocalPhoto(:final bytes) => Image.memory(bytes, fit: BoxFit.cover),
     };
 

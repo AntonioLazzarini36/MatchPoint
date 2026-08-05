@@ -6,6 +6,7 @@ import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
 import 'profile_header_data.dart';
+import 'network_photo.dart';
 
 class ProfileView extends StatelessWidget {
   final ProfileHeaderData data;
@@ -56,7 +57,7 @@ class ProfileView extends StatelessWidget {
           flexibleSpace: FlexibleSpaceBar(
             background: data.photos.isEmpty
                 ? _emptyHeader(context)
-                : Image.network(data.photos.first, fit: BoxFit.cover),
+                : NetworkPhoto(url: data.photos.first, iconSize: 56),
           ),
           actions: [
             if (onSettings != null)
@@ -177,7 +178,7 @@ class ProfileView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         child: AspectRatio(
                           aspectRatio: kPhotoAspectRatio,
-                          child: Image.network(photo, fit: BoxFit.cover),
+                          child: NetworkPhoto(url: photo),
                         ),
                       ),
                     ),

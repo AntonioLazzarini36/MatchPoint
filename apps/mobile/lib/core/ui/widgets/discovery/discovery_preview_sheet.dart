@@ -8,6 +8,7 @@ import '../../../../features/discovery/models/discover_profile.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import '../../../../features/discovery/models/sport.dart';
 import 'discovery_mini_card.dart' show distanceLabel;
+import '../../profile/network_photo.dart';
 
 /// Vista ampliada de un perfil, al tocar su tarjeta. Es un modal y no una
 /// navegación a propósito: así no pierdes el sitio en la columna de abajo.
@@ -77,7 +78,7 @@ class _PreviewBody extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       child: AspectRatio(
                         aspectRatio: kPhotoAspectRatio,
-                        child: Image.network(photo, fit: BoxFit.cover),
+                        child: NetworkPhoto(url: photo),
                       ),
                     ),
                   ),
@@ -98,7 +99,7 @@ class _PreviewBody extends StatelessWidget {
         AspectRatio(
           aspectRatio: kPhotoAspectRatio,
           child: user.mainPhoto != null
-              ? Image.network(user.mainPhoto!, fit: BoxFit.cover)
+              ? NetworkPhoto(url: user.mainPhoto!, iconSize: 56)
               : Container(
                   color: context.colors.surfaceContainerHighest,
                   child: Icon(
