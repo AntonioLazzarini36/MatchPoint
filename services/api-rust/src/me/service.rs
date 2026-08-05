@@ -154,6 +154,10 @@ pub struct MeResponse {
     /// booleano y no la fecha: al cliente sólo le sirve para decidir si
     /// enseña el aviso de "verifica tu correo".
     pub email_verified: bool,
+    /// Si la app deberia pedir verificar el email. Viene del servidor y no
+    /// de una constante del cliente para poder encenderlo el dia que haya
+    /// un dominio de correo, sin publicar una version nueva de la app.
+    pub email_verification_enabled: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -198,6 +202,7 @@ pub async fn get_me(state: &AppState, user_id: &str) -> Result<MeResponse, MeErr
         preferences,
         skill_levels,
         email_verified: email_verified_at.is_some(),
+        email_verification_enabled: state.config.email_verification_enabled,
         created_at,
     })
 }

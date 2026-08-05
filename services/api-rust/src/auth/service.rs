@@ -51,6 +51,8 @@ pub enum AuthError {
     RefreshTokenMismatch,
     #[error("User not found")]
     UserNotFound,
+    #[error("La verificación de email está desactivada ahora mismo")]
+    EmailVerificationDisabled,
     #[error("Tu email ya está verificado")]
     EmailAlreadyVerified,
     #[error("Espera {0}s antes de pedir otro código")]
@@ -435,6 +437,10 @@ fn code_digest(code: &str) -> String {
 /// duplicaría la superficie de adivinación sin ganar nada, y además
 /// confunde ("¿cuál de los dos correos miro?").
 pub async fn send_verification_code(state: &AppState, user_id: &str) -> Result<(), AuthError> {
+    if !state.config.email_verification_enabled {
+        return Err(AuthError::EmailVerificationDisabled);
+    }
+
     let mut conn = state
         .db
         .get()
@@ -503,6 +509,10 @@ pub async fn send_verification_code(state: &AppState, user_id: &str) -> Result<(
 
 /// Comprueba el código y marca el email como verificado.
 pub async fn verify_email(state: &AppState, user_id: &str, code: &str) -> Result<(), AuthError> {
+    if !state.config.email_verification_enabled {
+        return Err(AuthError::EmailVerificationDisabled);
+    }
+
     let mut conn = state
         .db
         .get()

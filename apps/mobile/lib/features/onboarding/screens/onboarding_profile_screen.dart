@@ -341,7 +341,22 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // qué se lo pedimos. Es saltable a propósito — no verificar no
       // bloquea nada todavía, y plantar un muro nada más registrarse es la
       // forma más rápida de que alguien no llegue a probar la app.
-      if (email != null) {
+      // Se pregunta al servidor si la verificación está activa antes de
+      // enseñar la pantalla. Sin un dominio de correo propio, el proveedor
+      // sólo entrega al titular de la cuenta, así que a cualquier otro le
+      // saldría un fallo de envío justo al terminar de registrarse — la
+      // peor primera impresión posible. Si la consulta falla, no se enseña:
+      // ante la duda, mejor no meter a nadie en un callejón sin salida.
+      var verificationEnabled = false;
+      try {
+        verificationEnabled =
+            (await controller.service.getMe()).emailVerificationEnabled;
+      } catch (_) {
+        // se queda en false
+      }
+      if (!mounted) return;
+
+      if (email != null && verificationEnabled) {
         await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => EmailVerificationScreen(email: email),

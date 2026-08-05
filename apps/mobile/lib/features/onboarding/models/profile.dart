@@ -158,6 +158,13 @@ class MeResponse {
   /// sea false, el perfil enseña el aviso para verificarlo.
   final bool emailVerified;
 
+  /// Si el servidor pide verificar el email. Lo decide él y no una
+  /// constante de la app: sin un dominio de correo propio, el proveedor
+  /// sólo entrega al titular de la cuenta, así que pedirlo a cualquier
+  /// otro es mandarle a un error. Se enciende cambiando una variable en el
+  /// servidor, sin publicar una versión nueva de la app.
+  final bool emailVerificationEnabled;
+
   MeResponse({
     required this.id,
     required this.email,
@@ -165,6 +172,7 @@ class MeResponse {
     this.preferences,
     this.skillLevels = const {},
     this.emailVerified = false,
+    this.emailVerificationEnabled = true,
   });
 
   factory MeResponse.fromJson(Map<String, dynamic> json) {
@@ -179,6 +187,7 @@ class MeResponse {
           : Preferences.fromJson(json['preferences'] as Map<String, dynamic>),
       skillLevels: skillLevelsFromJson(json['skillLevels']),
       emailVerified: json['emailVerified'] == true,
+      emailVerificationEnabled: json['emailVerificationEnabled'] != false,
     );
   }
 }

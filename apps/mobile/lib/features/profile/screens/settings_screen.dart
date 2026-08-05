@@ -33,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   String? _email;
   bool _emailVerified = false;
+  bool _emailVerificationEnabled = true;
   Profile? _profile;
   Preferences? _preferences;
   Map<Sport, SkillLevel> _skillLevels = {};
@@ -59,6 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _email = me.email;
         _emailVerified = me.emailVerified;
+        _emailVerificationEnabled = me.emailVerificationEnabled;
         _profile = me.profile;
         _preferences = me.preferences;
         _skillLevels = me.skillLevels;
@@ -437,7 +439,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _SettingsRow(
                         icon: _emailVerified
                             ? Icons.mark_email_read_outlined
-                            : Icons.mark_email_unread_outlined,
+                            : _emailVerificationEnabled
+                            ? Icons.mark_email_unread_outlined
+                            : Icons.email_outlined,
                         iconBackground: _emailVerified
                             ? context.colors.secondaryContainer
                             : context.colors.tertiaryContainer,
@@ -445,10 +449,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? context.colors.onSecondaryContainer
                             : context.colors.onTertiaryContainer,
                         title: 'Email',
-                        subtitle: _emailVerified
+                        // Con la verificación apagada en el servidor la
+                        // fila es sólo informativa: enseñar "sin verificar"
+                        // y dejar tocarlo llevaría a un error que no depende
+                        // de quien lo toca.
+                        subtitle: !_emailVerificationEnabled
+                            ? _email!
+                            : _emailVerified
                             ? '${_email!}\nVerificado'
                             : '${_email!}\nSin verificar — toca para confirmarlo',
-                        onTap: _emailVerified ? null : _verifyEmail,
+                        onTap: (_emailVerified || !_emailVerificationEnabled)
+                            ? null
+                            : _verifyEmail,
                       ),
                     ],
                   ),

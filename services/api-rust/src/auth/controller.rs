@@ -160,6 +160,9 @@ impl IntoResponse for AuthRejection {
             // El correo lo manda un tercero: si falla, el fallo es nuestro
             // (o suyo), no de quien lo pidió.
             AuthError::MailFailed(_) => StatusCode::BAD_GATEWAY,
+            // 503 y no 400: la peticion es correcta, es el servicio el que
+            // no esta disponible — y volvera a estarlo al encender el flag.
+            AuthError::EmailVerificationDisabled => StatusCode::SERVICE_UNAVAILABLE,
             AuthError::Db(_) | AuthError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (status, Json(json!({ "message": self.0.to_string() }))).into_response()

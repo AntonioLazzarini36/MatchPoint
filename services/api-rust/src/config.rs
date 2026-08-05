@@ -91,6 +91,17 @@ pub struct AppConfig {
     /// del pipeline (ver `migrate.rs`).
     pub run_migrations: bool,
 
+    /// Si se pide verificar el email. Apagarlo no borra nada: los
+    /// endpoints siguen existiendo pero responden 503, y el cliente
+    /// esconde la pantalla en vez de llevar a la gente a un error.
+    ///
+    /// Existe por una limitacion real de los proveedores de correo: sin un
+    /// dominio propio verificado, Resend (y cualquier otro) solo entrega al
+    /// email del titular de la cuenta. Con esto encendido y sin dominio,
+    /// cualquiera que se registre choca contra un fallo de envio nada mas
+    /// crear la cuenta.
+    pub email_verification_enabled: bool,
+
     pub resend_api_key: Option<String>,
     /// Remitente de los correos. Sin dominio verificado en Resend, tiene
     /// que ser `onboarding@resend.dev` y solo se puede enviar al email con
@@ -264,6 +275,10 @@ impl AppConfig {
             .map(|v| !matches!(v.to_lowercase().as_str(), "0" | "false" | "no"))
             .unwrap_or(true);
 
+        let email_verification_enabled = env::var("EMAIL_VERIFICATION_ENABLED")
+            .map(|v| !matches!(v.to_lowercase().as_str(), "0" | "false" | "no"))
+            .unwrap_or(true);
+
         let resend_api_key = env::var("RESEND_API_KEY").ok().filter(|k| !k.is_empty());
         let email_from = env::var("EMAIL_FROM")
             .unwrap_or_else(|_| "MatchPoint <onboarding@resend.dev>".to_string());
@@ -283,6 +298,7 @@ impl AppConfig {
             cors_declared,
             trust_proxy,
             run_migrations,
+            email_verification_enabled,
             resend_api_key,
             email_from,
         };
@@ -323,7 +339,7 @@ impl AppConfig {
             );
         }
 
-        if self.resend_api_key.is_none() {
+        if self.resend_api_key.is_none() && self.email_verification_enabled {
             problems.push(
                 "RESEND_API_KEY sin poner: los correos de verificacion se escriben en el log en vez de enviarse"
                     .to_string(),
@@ -339,7 +355,7 @@ impl AppConfig {
         if let Some(host) = database_host(&self.database_url) {
             if matches!(host.as_str(), "db" | "localhost" | "127.0.0.1" | "::1") {
                 problems.push(format!(
-                    "DATABASE_URL apunta a {host:?}, que sólo existe en tu máquina.                      Usa la URL que te da el proveedor de la base de datos"
+                    "DATABASE_URL apunta a {host:?}, que sólo existe en tu máquina. Usa la URL que te da el proveedor de la base de datos"
                 ));
             }
         }
