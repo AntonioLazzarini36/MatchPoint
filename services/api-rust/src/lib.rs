@@ -15,6 +15,7 @@ pub mod discover;
 pub mod mail;
 pub mod matches;
 pub mod me;
+pub mod migrate;
 pub mod models;
 pub mod notifications;
 pub mod openapi;
@@ -45,6 +46,18 @@ pub async fn run() {
 
     std::fs::create_dir_all(&cfg.photos_dir)
         .unwrap_or_else(|e| panic!("failed to create photos_dir {:?}: {e}", cfg.photos_dir));
+
+    // Antes del pool: si el esquema no está al día, no tiene sentido
+    // abrir conexiones para consultarlo. Es bloqueante (Diesel síncrono),
+    // así que va en un hilo aparte para no parar el executor.
+    if cfg.run_migrations {
+        let database_url = cfg.database_url.clone();
+        tokio::task::spawn_blocking(move || migrate::run(&database_url))
+            .await
+            .expect("migraciones: el hilo falló");
+    } else {
+        tracing::warn!("migraciones desactivadas por RUN_MIGRATIONS=false");
+    }
 
     let pool = db::build_pool(&cfg.database_url).await;
 

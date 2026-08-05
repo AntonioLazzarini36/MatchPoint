@@ -71,6 +71,12 @@ pub struct AppConfig {
     /// API key de Resend. `None` = los correos se escriben en el log en
     /// vez de enviarse (ver `mail::Mailer`), que es lo que permite
     /// desarrollar el flujo de verificacion sin credenciales.
+    /// Aplicar migraciones pendientes al arrancar. Por defecto sí: es lo
+    /// que hace que un despliegue funcione sin entrar por consola. Se puede
+    /// desactivar si algún día las migraciones pasan a ser un paso propio
+    /// del pipeline (ver `migrate.rs`).
+    pub run_migrations: bool,
+
     pub resend_api_key: Option<String>,
     /// Remitente de los correos. Sin dominio verificado en Resend, tiene
     /// que ser `onboarding@resend.dev` y solo se puede enviar al email con
@@ -133,6 +139,10 @@ impl AppConfig {
             .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
             .unwrap_or(false);
 
+        let run_migrations = env::var("RUN_MIGRATIONS")
+            .map(|v| !matches!(v.to_lowercase().as_str(), "0" | "false" | "no"))
+            .unwrap_or(true);
+
         let resend_api_key = env::var("RESEND_API_KEY").ok().filter(|k| !k.is_empty());
         let email_from = env::var("EMAIL_FROM")
             .unwrap_or_else(|_| "MatchPoint <onboarding@resend.dev>".to_string());
@@ -150,6 +160,7 @@ impl AppConfig {
             public_base_url,
             cors_allowed_origins,
             trust_proxy,
+            run_migrations,
             resend_api_key,
             email_from,
         };

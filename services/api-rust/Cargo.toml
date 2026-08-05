@@ -12,6 +12,11 @@ axum = { version = "0.7", features = ["multipart"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 diesel = { version = "2.2", features = ["postgres", "uuid", "chrono"] }
 diesel-async = { version = "0.5", features = ["postgres", "bb8"] }
+# Migraciones compiladas dentro del binario: al desplegar no hay
+# terminal donde correr `diesel migration run`, y olvidarlas deja la
+# app en pie contra un esquema viejo. Necesita conexion sincrona, que
+# es lo unico que soporta `MigrationHarness`.
+diesel_migrations = "2.2"
 dotenvy = "0.15.7"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"

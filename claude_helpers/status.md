@@ -747,6 +747,38 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
   cuenta de Resend**. Para probarlo con otra persona hace falta verificar un
   dominio propio (registros DNS).
 
+- **Listo para desplegar en Railway (2026-08-05)** — elegido Railway por ser
+  el más simple de los tres candidatos. Todo lo automatizable está hecho;
+  queda pulsar cosas en su panel, que es lo que explica `DEPLOY.md`.
+  - **Migraciones dentro del binario** (`src/migrate.rs`, `embed_migrations!`)
+    y aplicadas al arrancar, antes de construir el pool. Un despliegue no
+    tiene consola donde correr `diesel migration run`, y un servicio
+    sirviendo contra un esquema viejo falla de formas raras (columna que no
+    existe) en vez de fallar claro. `RUN_MIGRATIONS=false` lo desactiva.
+    Aviso: la copia embebida se lee **al compilar**, así que en local una
+    migración nueva necesita recompilar para que la coja.
+  - `Dockerfile`: copia `migrations/` en la fase de build (el macro las
+    necesita al compilar), crea `/app/uploads` para que arranque sin
+    volumen, y documenta que `PORT` lo inyecta la plataforma.
+  - `railway.json` (builder DOCKERFILE, healthcheck en `/health`, reinicio
+    ante fallo) y `.dockerignore` para no meter `target/` en el contexto.
+  - **`DEPLOY.md`**: guía paso a paso — generar secretos, Root Directory
+    `services/api-rust`, Postgres, la tabla de variables, dominio y
+    `PUBLIC_BASE_URL`, CORS, y **el volumen en `/app/uploads`**, que es lo
+    que más fácil se olvida: sin él cada despliegue borra las fotos de
+    todo el mundo, y como `/discover` exige foto, los perfiles desaparecen
+    del feed.
+  - **Verificado de verdad, no sólo compilado**: imagen construida con
+    `docker build`, arrancada con `APP_ENV=production` y secretos reales
+    contra una base **vacía**. Aplicó las 9 migraciones sola, creó las 12
+    tablas, `/health` devolvió 200 y un `POST /auth/register` contra esa
+    base recién migrada funcionó. También confirmado que con la config de
+    dev y `APP_ENV=production` se niega a arrancar listando los problemas.
+
+  **Lo que falta y le toca al usuario:** crear la cuenta de Railway, el
+  proyecto y el volumen (no puedo crear cuentas). Y decidir dónde se
+  publica la web, para poder fijar `CORS_ALLOWED_ORIGINS`.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

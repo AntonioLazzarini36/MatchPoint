@@ -41,7 +41,7 @@ cargo build --locked --all-features
 cargo test --locked --all-features
 ```
 
-Requires a `.env` with `DATABASE_URL` using `127.0.0.1` (not `localhost`). DB: `docker compose up -d db` (only the DB runs in Docker for normal dev; `docker compose up -d --build api-rust` is only for the occasional Dockerfile sanity check or real deploys).
+Requires a `.env` with `DATABASE_URL` using `127.0.0.1` (not `localhost`). **`services/api-rust/DEPLOY.md` is the step-by-step for deploying to Railway** (root directory, env vars, the volume the photos need, and what breaks without each one). DB: `docker compose up -d db` (only the DB runs in Docker for normal dev; `docker compose up -d --build api-rust` is only for the occasional Dockerfile sanity check or real deploys).
 
 Diesel migrations (schema changes):
 ```powershell
@@ -70,6 +70,7 @@ Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D
 `api-rust` is a straight port of a former NestJS app, and the module shape still mirrors Nest's DI structure — useful mental model when navigating:
 
 - `src/main.rs` — thin entrypoint, just calls `matchpoint_api::run()`.
+- `src/migrate.rs` — migrations are **compiled into the binary** (`embed_migrations!`) and applied at startup, before the pool is built. A deploy has no shell to run `diesel migration run` in, and a service happily serving against a stale schema fails in confusing ways instead of failing clearly. Set `RUN_MIGRATIONS=false` to opt out. Local dev still uses the diesel CLI — the embedded copy is read at compile time, so a new migration needs a rebuild to be picked up.
 - `src/lib.rs` — real startup logic (tracing init, config load, DB pool + connectivity check, CORS, router bind/serve). Everything is `pub mod`-ed here rather than in `main.rs` so app types count as "used" library surface for `cargo clippy --all-targets` (a bin-only crate would false-flag model types as dead code).
 - `src/app.rs` — equivalent of `app.module.ts`: builds the root `Router` by `.merge()`-ing every feature module's router, then `.with_state(AppState)`.
 - `src/state.rs` — `AppState { db: DbPool, config: Arc<AppConfig>, rate_limiter: RateLimiter }`, cloned into every handler (Axum's answer to Nest's constructor DI).
