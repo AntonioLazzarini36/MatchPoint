@@ -70,7 +70,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
         context.go(AppRoutes.onboarding);
       }
     } catch (e) {
-      controller.setError('Could not load profile. Please try again.');
+      controller.setError('No se pudo cargar tu perfil. Inténtalo otra vez.');
     }
   }
 
@@ -109,12 +109,12 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     final pass = passCtrl.text;
 
     if (email.isEmpty) {
-      controller.setError('Email is required');
+      controller.setError('Escribe tu email');
       return;
     }
 
     if (!email.contains('@')) {
-      controller.setError('Email is not valid');
+      controller.setError('Ese email no parece válido');
       return;
     }
 
@@ -134,7 +134,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
 
     final confirm = confirmPassCtrl.text;
     if (pass != confirm) {
-      controller.setError('Passwords do not match');
+      controller.setError('Las contraseñas no coinciden');
       return;
     }
 
@@ -147,11 +147,16 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     final busy = _busy;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isLogin ? 'Login' : 'Register')),
+      appBar: AppBar(title: Text(isLogin ? 'Entrar' : 'Crear cuenta')),
       body: AnimatedBuilder(
         animation: controller,
         builder: (_, _) {
-          return Padding(
+          // Scroll obligatorio, no decorativo: al abrir el teclado el
+          // alto disponible se queda en la mitad y un `Column` pelado
+          // desbordaba ("BOTTOM OVERFLOWED BY 54 PIXELS"). Con el scroll,
+          // el propio `Scaffold` reduce el viewport y el formulario se
+          // desplaza en vez de romperse.
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -185,7 +190,9 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       confirmPassFocus.requestFocus();
                     }
                   },
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: const InputDecoration(
+                    labelText: 'Contraseña',
+                  ),
                 ),
                 if (!isLogin) ...[
                   const SizedBox(height: 12),
@@ -196,7 +203,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
                     decoration: const InputDecoration(
-                      labelText: 'Confirm Password',
+                      labelText: 'Repite la contraseña',
                     ),
                   ),
                 ],
@@ -205,7 +212,9 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                 if (controller.error != null) ...[
                   Text(
                     controller.error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -218,7 +227,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(isLogin ? 'Login' : 'Register'),
+                      : Text(isLogin ? 'Entrar' : 'Crear cuenta'),
                 ),
 
                 const SizedBox(height: 12),
@@ -229,8 +238,8 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       : () => setState(() => isLogin = !isLogin),
                   child: Text(
                     isLogin
-                        ? 'No tienes cuenta? Registrate'
-                        : 'Ya tienes cuenta? Login',
+                        ? '¿No tienes cuenta? Regístrate'
+                        : '¿Ya tienes cuenta? Entra',
                   ),
                 ),
               ],

@@ -341,19 +341,23 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     }
   }
 
-  Future<void> _addOnboardingPhoto() async {
-    if (_localPhotos.length >= PhotoGridEditor.maxPhotos) {
+  /// Varias de una tacada: rellenar el perfil foto a foto (elegir,
+  /// recortar, confirmar, repetir) es lo primero que hace alguien recién
+  /// llegado, y de una en una se hace eterno.
+  Future<void> _addOnboardingPhotos() async {
+    final remaining = PhotoGridEditor.maxPhotos - _localPhotos.length;
+    if (remaining <= 0) {
       setState(
         () => _photoError = 'Máximo ${PhotoGridEditor.maxPhotos} fotos.',
       );
       return;
     }
 
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
+    final picked = await ImagePicker().pickMultiImage(
       imageQuality: 85,
+      limit: remaining,
     );
-    if (picked == null) return;
+    if (picked.isEmpty) return;
 
     setState(() {
       _photoBusy = true;
@@ -361,27 +365,35 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     });
 
     try {
-      final bytes = await picked.readAsBytes();
+      final originals = <Uint8List>[];
+      for (final file in picked) {
+        originals.add(await file.readAsBytes());
+      }
       if (!mounted) return;
       // Recorte a 16:9 con vista previa: la app enseña las fotos siempre
       // en horizontal, así que es mejor que el usuario vea el encuadre
       // final ahora que descubra después que le cortó la cabeza.
-      final cropped = await showPhotoCropPreview(context, original: bytes);
-      if (cropped == null || !mounted) return;
+      final cropped = await showPhotoCropPreview(
+        context,
+        originals: originals,
+      );
+      if (cropped == null || cropped.isEmpty || !mounted) return;
       setState(() {
-        _localPhotos.add(
-          _PickedPhoto(
-            bytes: cropped,
-            // El recorte re-codifica a PNG (ver landscape_crop.dart), así
-            // que el nombre/tipo originales ya no describen los bytes.
-            filename: '${DateTime.now().millisecondsSinceEpoch}.png',
-            contentType: 'image/png',
-          ),
-        );
+        for (final bytes in cropped) {
+          _localPhotos.add(
+            _PickedPhoto(
+              bytes: bytes,
+              // El recorte re-codifica a PNG (ver landscape_crop.dart), así
+              // que el nombre/tipo originales ya no describen los bytes.
+              filename: '${DateTime.now().microsecondsSinceEpoch}.png',
+              contentType: 'image/png',
+            ),
+          );
+        }
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _photoError = 'No se pudo leer la foto: $e');
+      setState(() => _photoError = 'No se pudieron leer las fotos: $e');
     } finally {
       if (mounted) setState(() => _photoBusy = false);
     }
@@ -536,7 +548,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 photos: _localPhotos.map((p) => p.bytes).toList(),
                 busy: _photoBusy,
                 error: _photoError,
-                onAdd: _addOnboardingPhoto,
+                onAdd: _addOnboardingPhotos,
                 onDelete: _deleteOnboardingPhoto,
               ),
               OnboardingPreviewStep(

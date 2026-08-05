@@ -170,7 +170,9 @@ class ProposalCard extends StatelessWidget {
           proposal.mine ? 'Propuesta enviada' : 'Te han propuesto jugar',
         );
       case ProposalStatus.accepted:
-        return (Icons.event_available, Colors.green, '¡Confirmado!');
+        // El verde de la paleta, no el `Colors.green` de Material: con
+        // el tema de pista, el verde generico se ve fuera de sitio.
+        return (Icons.event_available, colors.primary, '¡Confirmado!');
       case ProposalStatus.declined:
         return (
           Icons.event_busy,

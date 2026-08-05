@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -38,24 +40,34 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
     _photos = List.of(widget.initialPhotos);
   }
 
-  Future<void> _addPhoto() async {
-    if (_photos.length >= PhotoGridEditor.maxPhotos) {
+  /// Varias fotos de una tacada: el selector permite marcar todas las que
+  /// quepan, se recortan y se previsualizan juntas, y luego se suben una
+  /// detrás de otra (el endpoint acepta una por peticion).
+  Future<void> _addPhotos() async {
+    final remaining = PhotoGridEditor.maxPhotos - _photos.length;
+    if (remaining <= 0) {
       setState(() => _error = 'Máximo ${PhotoGridEditor.maxPhotos} fotos.');
       return;
     }
 
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
+    final picked = await ImagePicker().pickMultiImage(
       imageQuality: 85,
+      // El propio selector impide pasarse, en vez de dejar elegir 6 y
+      // luego decir que no caben.
+      limit: remaining,
     );
-    if (picked == null) return;
+    if (picked.isEmpty || !mounted) return;
 
-    final bytes = await picked.readAsBytes();
+    final originals = <Uint8List>[];
+    for (final file in picked) {
+      originals.add(await file.readAsBytes());
+    }
     if (!mounted) return;
+
     // Mismo recorte a 16:9 con vista previa que en el onboarding — las
     // fotos tienen que verse igual se suban desde donde se suban.
-    final cropped = await showPhotoCropPreview(context, original: bytes);
-    if (cropped == null || !mounted) return;
+    final cropped = await showPhotoCropPreview(context, originals: originals);
+    if (cropped == null || cropped.isEmpty || !mounted) return;
 
     setState(() {
       _busy = true;
@@ -63,18 +75,23 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
     });
 
     try {
-      final profile = await widget.service.uploadPhoto(
-        bytes: cropped,
-        // El recorte re-codifica a PNG (ver landscape_crop.dart).
-        filename: '${DateTime.now().millisecondsSinceEpoch}.png',
-        contentType: 'image/png',
-      );
-      if (!mounted) return;
-      setState(() => _photos = profile.photos);
+      for (final bytes in cropped) {
+        final profile = await widget.service.uploadPhoto(
+          bytes: bytes,
+          // El recorte re-codifica a PNG (ver landscape_crop.dart).
+          filename: '${DateTime.now().microsecondsSinceEpoch}.png',
+          contentType: 'image/png',
+        );
+        if (!mounted) return;
+        setState(() => _photos = profile.photos);
+      }
       widget.onChanged(_photos);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'No se pudo subir la foto: $e');
+      // Puede haber subido algunas antes de fallar: el estado ya refleja
+      // lo que el backend tiene, así que basta con contarlo.
+      setState(() => _error = 'No se pudieron subir todas las fotos: $e');
+      widget.onChanged(_photos);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -131,7 +148,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
             PhotoGridEditor(
               photos: _photos.map(RemotePhoto.new).toList(),
               busy: _busy,
-              onAdd: _addPhoto,
+              onAdd: _addPhotos,
               onDelete: (i) => _deletePhoto(_photos[i]),
             ),
           ],

@@ -20,6 +20,19 @@ class DiscoverProfile {
   final double? avgDistanceKm;
   final Map<Sport, SkillLevel> skillLevels;
 
+  /// Distancia en línea recta desde ti, en km. null cuando tú no tienes
+  /// ubicación puesta — los perfiles sin ella ya no aparecen en Discovery.
+  /// El backend nunca manda las coordenadas del otro, sólo esta cifra.
+  final double? distanceKm;
+
+  /// Su nivel declarado en el deporte que estás mirando coincide con el
+  /// tuyo. Lo calcula el backend (ya lo necesita para ordenar el feed), así
+  /// que el cliente no tiene que pedir sus propios niveles para deducirlo.
+  final bool matchesYourLevel;
+
+  /// Esta persona ya te dio like: darle like tú cierra el match al momento.
+  final bool likesYou;
+
   DiscoverProfile({
     required this.userId,
     required this.displayName,
@@ -34,6 +47,9 @@ class DiscoverProfile {
     this.avgPaceMinPerKm,
     this.avgDistanceKm,
     this.skillLevels = const {},
+    this.distanceKm,
+    this.matchesYourLevel = false,
+    this.likesYou = false,
   });
 
   String? get mainPhoto => photos.isNotEmpty ? photos.first : null;
@@ -66,6 +82,9 @@ class DiscoverProfile {
       avgPaceMinPerKm: (p['avgPaceMinPerKm'] as num?)?.toDouble(),
       avgDistanceKm: (p['avgDistanceKm'] as num?)?.toDouble(),
       skillLevels: skillLevelsFromJson(p['skillLevels']),
+      distanceKm: (p['distanceKm'] as num?)?.toDouble(),
+      matchesYourLevel: p['matchesYourLevel'] == true,
+      likesYou: p['likesYou'] == true,
     );
   }
 }

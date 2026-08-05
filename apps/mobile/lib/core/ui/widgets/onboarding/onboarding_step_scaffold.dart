@@ -48,7 +48,7 @@ class OnboardingStepScaffold extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Text(
                 errorText!,
-                style: const TextStyle(color: Colors.red),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
           Expanded(child: child),

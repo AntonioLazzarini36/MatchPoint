@@ -170,12 +170,7 @@ ThemeData get lightTheme => ThemeData(
   useMaterial3: true,
   colorScheme: _lightScheme,
   scaffoldBackgroundColor: LightModeColors.background,
-  appBarTheme: const AppBarTheme(
-    backgroundColor: Colors.transparent,
-    foregroundColor: LightModeColors.onSurface,
-    elevation: 0,
-    centerTitle: true,
-  ),
+  appBarTheme: _appBarTheme(_lightScheme),
   cardTheme: CardThemeData(
     elevation: 0,
     shape: RoundedRectangleBorder(
@@ -234,9 +229,14 @@ ThemeData get lightTheme => ThemeData(
   navigationBarTheme: _navigationBarTheme(_lightScheme),
   chipTheme: _chipTheme(_lightScheme),
   filledButtonTheme: _filledButtonTheme(_lightScheme),
+  textButtonTheme: _textButtonTheme(_lightScheme),
   bottomSheetTheme: _bottomSheetTheme(_lightScheme),
   snackBarTheme: _snackBarTheme(_lightScheme),
   dialogTheme: _dialogTheme(_lightScheme),
+  sliderTheme: _sliderTheme(_lightScheme),
+  progressIndicatorTheme: ProgressIndicatorThemeData(color: _lightScheme.primary),
+  iconTheme: IconThemeData(color: _lightScheme.onSurfaceVariant),
+  tooltipTheme: _tooltipTheme(_lightScheme),
   dividerTheme: const DividerThemeData(
     space: 1,
     thickness: 1,
@@ -254,12 +254,7 @@ ThemeData get darkTheme => ThemeData(
   useMaterial3: true,
   colorScheme: _darkScheme,
   scaffoldBackgroundColor: DarkModeColors.background,
-  appBarTheme: const AppBarTheme(
-    backgroundColor: Colors.transparent,
-    foregroundColor: DarkModeColors.onSurface,
-    elevation: 0,
-    centerTitle: true,
-  ),
+  appBarTheme: _appBarTheme(_darkScheme),
   cardTheme: CardThemeData(
     elevation: 0,
     shape: RoundedRectangleBorder(
@@ -300,9 +295,14 @@ ThemeData get darkTheme => ThemeData(
   navigationBarTheme: _navigationBarTheme(_darkScheme),
   chipTheme: _chipTheme(_darkScheme),
   filledButtonTheme: _filledButtonTheme(_darkScheme),
+  textButtonTheme: _textButtonTheme(_darkScheme),
   bottomSheetTheme: _bottomSheetTheme(_darkScheme),
   snackBarTheme: _snackBarTheme(_darkScheme),
   dialogTheme: _dialogTheme(_darkScheme),
+  sliderTheme: _sliderTheme(_darkScheme),
+  progressIndicatorTheme: ProgressIndicatorThemeData(color: _darkScheme.primary),
+  iconTheme: IconThemeData(color: _darkScheme.onSurfaceVariant),
+  tooltipTheme: _tooltipTheme(_darkScheme),
   dividerTheme: const DividerThemeData(
     space: 1,
     thickness: 1,
@@ -328,7 +328,10 @@ NavigationBarThemeData _navigationBarTheme(ColorScheme scheme) {
     indicatorColor: scheme.primaryContainer,
     elevation: 0,
     height: 68,
-    labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+    // Todas las etiquetas visibles: con "Quedadas" recien renombrada,
+    // esconder el nombre de las pestanas que no estan activas obliga a
+    // adivinar que hace cada icono.
+    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
     iconTheme: WidgetStateProperty.resolveWith((states) {
       final selected = states.contains(WidgetState.selected);
       return IconThemeData(
@@ -342,12 +345,31 @@ NavigationBarThemeData _navigationBarTheme(ColorScheme scheme) {
   );
 }
 
+/// El color de `labelStyle` tiene que ser explicito.
+///
+/// `ChipThemeData.labelStyle` NO pasa por el `.apply(bodyColor: ...)` que
+/// `ThemeData` le hace al `textTheme`, asi que si se deja sin color el
+/// texto se queda sin color en toda la cadena y el motor de Flutter pinta
+/// su default, que es **blanco**. Eso hacia invisibles sobre fondo claro
+/// "Tenis", "Cualquiera", "Hombres", el nivel del rival o sus logros.
+/// Mismo motivo para `iconTheme`.
 ChipThemeData _chipTheme(ColorScheme scheme) {
+  Color labelColor(Set<WidgetState> states) {
+    if (states.contains(WidgetState.disabled)) {
+      return scheme.onSurface.withValues(alpha: 0.38);
+    }
+    return states.contains(WidgetState.selected)
+        ? scheme.onPrimaryContainer
+        : scheme.onSurface;
+  }
+
   return ChipThemeData(
-    backgroundColor: scheme.surface,
+    // `surfaceContainerHighest` y no `surface`: sobre fondo claro un chip
+    // del mismo color que la pantalla no se distingue del texto suelto.
+    backgroundColor: scheme.surfaceContainerHighest,
     selectedColor: scheme.primaryContainer,
     checkmarkColor: scheme.onPrimaryContainer,
-    side: BorderSide(color: scheme.outline.withValues(alpha: 0.5)),
+    side: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -355,6 +377,81 @@ ChipThemeData _chipTheme(ColorScheme scheme) {
     labelStyle: GoogleFonts.inter(
       fontSize: FontSizes.bodyMedium,
       fontWeight: FontWeight.w500,
+      color: WidgetStateColor.resolveWith(labelColor),
+    ),
+    secondaryLabelStyle: GoogleFonts.inter(
+      fontSize: FontSizes.bodyMedium,
+      fontWeight: FontWeight.w500,
+      color: WidgetStateColor.resolveWith(labelColor),
+    ),
+    iconTheme: IconThemeData(
+      size: 18,
+      color: WidgetStateColor.resolveWith(labelColor),
+    ),
+  );
+}
+
+/// AppBar sin tinte de superficie y con el titulo en la misma familia que
+/// el resto de titulares — por defecto Material lo pinta con su propio
+/// estilo y desentonaba con `_buildTextTheme`.
+AppBarTheme _appBarTheme(ColorScheme scheme) {
+  return AppBarTheme(
+    backgroundColor: Colors.transparent,
+    foregroundColor: scheme.onSurface,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    centerTitle: true,
+    titleTextStyle: GoogleFonts.poppins(
+      fontSize: FontSizes.titleMedium,
+      fontWeight: FontWeight.w600,
+      color: scheme.onSurface,
+    ),
+    iconTheme: IconThemeData(color: scheme.onSurface),
+  );
+}
+
+TextButtonThemeData _textButtonTheme(ColorScheme scheme) {
+  return TextButtonThemeData(
+    style: TextButton.styleFrom(
+      foregroundColor: scheme.primary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      textStyle: GoogleFonts.inter(
+        fontWeight: FontWeight.w600,
+        fontSize: FontSizes.labelLarge,
+      ),
+    ),
+  );
+}
+
+/// El `RangeSlider` de edad salia con el morado por defecto de Material en
+/// vez del verde de la app.
+SliderThemeData _sliderTheme(ColorScheme scheme) {
+  return SliderThemeData(
+    activeTrackColor: scheme.primary,
+    inactiveTrackColor: scheme.surfaceContainerHighest,
+    thumbColor: scheme.primary,
+    overlayColor: scheme.primary.withValues(alpha: 0.12),
+    valueIndicatorColor: scheme.primary,
+    valueIndicatorTextStyle: GoogleFonts.inter(
+      color: scheme.onPrimary,
+      fontSize: FontSizes.bodySmall,
+      fontWeight: FontWeight.w600,
+    ),
+  );
+}
+
+TooltipThemeData _tooltipTheme(ColorScheme scheme) {
+  return TooltipThemeData(
+    decoration: BoxDecoration(
+      color: scheme.secondary,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+    ),
+    textStyle: GoogleFonts.inter(
+      color: scheme.onSecondary,
+      fontSize: FontSizes.bodySmall,
     ),
   );
 }

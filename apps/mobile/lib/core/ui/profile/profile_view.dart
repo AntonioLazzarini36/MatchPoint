@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
+import '../../utils/landscape_crop.dart';
 import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
@@ -41,15 +42,21 @@ class ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // La cabecera ocupa exactamente un 16:9 del ancho de pantalla, que es
+    // la proporcion en la que se guardan las fotos (ver landscape_crop
+    // .dart): con un alto fijo, el recorte de la cabecera no coincidia con
+    // el que el usuario habia aprobado al subirla.
+    final headerHeight = MediaQuery.sizeOf(context).width / kPhotoAspectRatio;
+
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          expandedHeight: 220,
+          expandedHeight: headerHeight,
           pinned: true,
           flexibleSpace: FlexibleSpaceBar(
             background: data.photos.isEmpty
                 ? _emptyHeader(context)
-                : _PhotoCarousel(photos: data.photos),
+                : Image.network(data.photos.first, fit: BoxFit.cover),
           ),
           actions: [
             if (onSettings != null)
@@ -152,6 +159,27 @@ class ProfileView extends StatelessWidget {
                       context,
                       Icons.emoji_events_outlined,
                       achievement,
+                    ),
+                ],
+
+                if (data.photos.length > 1) ...[
+                  const SizedBox(height: 24),
+                  Text('Fotos', style: context.textStyles.titleMedium),
+                  const SizedBox(height: 12),
+                  // En vertical y a lo ancho, no en un carrusel lateral:
+                  // el carrusel escondia todas las fotos menos la primera
+                  // detras de un gesto que nada indicaba, asi que en la
+                  // practica el resto del perfil no se veia nunca.
+                  for (final photo in data.photos.skip(1))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: AspectRatio(
+                          aspectRatio: kPhotoAspectRatio,
+                          child: Image.network(photo, fit: BoxFit.cover),
+                        ),
+                      ),
                     ),
                 ],
 
@@ -300,68 +328,6 @@ class ProfileView extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Carrusel horizontal con puntos indicadores para las fotos del perfil
-/// (a diferencia de las cards de discovery, que de momento solo muestran
-/// la primera foto — eso se rediseñará aparte).
-class _PhotoCarousel extends StatefulWidget {
-  final List<String> photos;
-
-  const _PhotoCarousel({required this.photos});
-
-  @override
-  State<_PhotoCarousel> createState() => _PhotoCarouselState();
-}
-
-class _PhotoCarouselState extends State<_PhotoCarousel> {
-  final _controller = PageController();
-  int _index = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: widget.photos.length,
-          onPageChanged: (i) => setState(() => _index = i),
-          itemBuilder: (context, i) =>
-              Image.network(widget.photos[i], fit: BoxFit.cover),
-        ),
-        if (widget.photos.length > 1)
-          Positioned(
-            bottom: 12,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < widget.photos.length; i++)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i == _index
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.4),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-      ],
     );
   }
 }

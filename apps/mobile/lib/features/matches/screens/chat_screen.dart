@@ -117,7 +117,9 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _proposal = updated);
       if (updated.status == ProposalStatus.accepted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('¡Confirmado! Ya está en tus partidos')),
+          const SnackBar(
+            content: Text('¡Confirmado! Ya está en tus quedadas'),
+          ),
         );
       }
     } catch (e) {
@@ -245,6 +247,8 @@ class _ChatScreenState extends State<ChatScreen> {
               tooltip: widget.sport == Sport.running
                   ? 'Proponer salir a correr'
                   : 'Proponer un partido',
+              // El icono sigue al deporte del match, no al perfil: desde el
+              // chat de un match de correr, una raqueta no significa nada.
               icon: Icon(
                 widget.sport == Sport.running
                     ? Icons.directions_run

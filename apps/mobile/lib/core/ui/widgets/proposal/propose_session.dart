@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../location/location_result.dart';
 import '../../location/location_search_screen.dart';
 import 'map_point_picker.dart';
+import 'tennis_club_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../features/onboarding/services/profile_service.dart';
 import '../../../network/api.dart';
@@ -17,7 +18,7 @@ import 'time_slot_picker.dart';
 /// de texto al chat: nada que aceptar, sin estado, y se perdia scrolleando.
 /// Ahora los dos crean una `Proposal` de verdad (POST
 /// /matches/:matchId/proposals) que la otra persona puede aceptar o
-/// rechazar, y que aparece en "Proximos partidos".
+/// rechazar, y que aparece en la pestaña de Quedadas.
 ///
 /// El sitio es opcional a proposito: en tenis normalmente viene ya elegido
 /// del mapa de clubes (`presetPlaceName` + coordenadas), y corriendo puede
@@ -157,6 +158,21 @@ class _PlaceSheetState extends State<_PlaceSheet> {
     Navigator.of(context).pop(_PlaceChoice(result));
   }
 
+  /// Solo tenis: el buscador por nombre es un geocodificador de sitios y
+  /// no encuentra pistas (feedback del usuario: "solo busca municipios").
+  /// Los clubes salen de OpenStreetMap via Overpass, igual que el mapa de
+  /// clubes de Matches.
+  Future<void> _pickClub() async {
+    final center = _myLocation;
+    if (center == null) return;
+    final result = await Navigator.of(context).push<LocationResult>(
+      MaterialPageRoute(builder: (_) => TennisClubPicker(center: center)),
+    );
+    if (!mounted) return;
+    if (result == null) return; // volvio atras sin elegir: no cierra la hoja
+    Navigator.of(context).pop(_PlaceChoice(result));
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -179,32 +195,59 @@ class _PlaceSheetState extends State<_PlaceSheet> {
               isRunning
                   ? 'Marca el sitio exacto en el mapa — mucho más útil que '
                         'decir sólo el municipio.'
-                  : 'Opcional — podéis concretarlo por chat más tarde.',
+                  : 'Elige un club de los que hay cerca, o marca el punto '
+                        'exacto en el mapa.',
               style: t.bodySmall,
             ),
             const SizedBox(height: 16),
 
-            // El mapa es la opcion principal: el caso real es "en esta
-            // esquina del parque", que un buscador de municipios no sabe
-            // expresar.
+            // En tenis lo primero es el club: es donde se juega de verdad,
+            // y es justo lo que el buscador por nombre no sabe encontrar.
+            // Corriendo no hay equivalente, asi que ahi manda el mapa: el
+            // caso real es "en esta esquina del parque", que un buscador
+            // de municipios no sabe expresar.
+            if (!isRunning) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: canUseMap ? _pickClub : null,
+                  icon: _loadingLocation
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sports_tennis),
+                  label: const Text('Elegir un club cerca'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: canUseMap ? _pickOnMap : null,
-                icon: _loadingLocation
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.map_outlined),
-                label: const Text('Marcar en el mapa'),
-              ),
+              child: isRunning
+                  ? FilledButton.icon(
+                      onPressed: canUseMap ? _pickOnMap : null,
+                      icon: _loadingLocation
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.map_outlined),
+                      label: const Text('Marcar en el mapa'),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: canUseMap ? _pickOnMap : null,
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Marcar en el mapa'),
+                    ),
             ),
             if (!_loadingLocation && !canUseMap) ...[
               const SizedBox(height: 6),
               Text(
-                'Pon tu ubicación en Ajustes para poder usar el mapa.',
+                'Pon tu ubicación en Ajustes para poder elegir sitio en el '
+                'mapa.',
                 style: t.bodySmall,
               ),
             ],

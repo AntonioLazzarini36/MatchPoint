@@ -79,7 +79,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
           autofocus: true,
           onChanged: _onQueryChanged,
           decoration: const InputDecoration(
-            hintText: 'Escribe una ciudad o barrio...',
+            hintText: 'Ciudad, barrio, parque...',
             border: InputBorder.none,
           ),
         ),
@@ -114,8 +114,15 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
           padding: const EdgeInsets.all(24),
           child: Text(
             _controller.text.trim().isEmpty
-                ? 'Escribe para buscar un sitio (ciudad, barrio, pueblo...)'
-                : 'Sin resultados',
+                ? 'Escribe para buscar un sitio (ciudad, barrio, parque, '
+                      'una dirección...)'
+                // Nominatim es un geocodificador: encuentra sitios con
+                // nombre y direcciones, pero no sirve para "búscame un
+                // club de tenis" — para eso está el selector de clubes
+                // del flujo de propuestas, que consulta OpenStreetMap por
+                // etiqueta.
+                : 'Sin resultados. Prueba con el nombre exacto del sitio o '
+                      'con el municipio.',
             textAlign: TextAlign.center,
             style: context.textStyles.bodyMedium?.copyWith(
               color: context.colors.onSurfaceVariant,

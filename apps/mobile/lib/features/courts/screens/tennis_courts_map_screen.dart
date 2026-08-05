@@ -12,6 +12,7 @@ import '../../matches/services/matches_service.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../models/tennis_club.dart';
 import '../services/overpass_service.dart';
+import '../../../core/ui/widgets/proposal/name_place_dialog.dart';
 import '../../../core/ui/widgets/proposal/propose_session.dart';
 import '../../discovery/models/sport.dart';
 
@@ -93,8 +94,16 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      // El detalle tecnico ("TimeoutException after 0:00:20...") no le
+      // dice nada a nadie y ocupaba media pantalla en rojo; queda en la
+      // consola, que es donde sirve para algo. Overpass es el servicio
+      // publico y gratuito de OSM, lo comparte todo el mundo y se satura
+      // a ratos: no es un fallo de la app ni algo que el usuario haya
+      // hecho mal, asi que tampoco merece tratamiento de error grave.
+      debugPrint('Overpass fallo: $e');
       setState(() {
-        _error = 'No se pudieron cargar los clubes: $e';
+        _error = 'El servicio de mapas esta saturado. Reintenta en unos '
+            'segundos.';
         _loadingClubs = false;
       });
     }
@@ -211,6 +220,23 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
 
     if (chosen == null || !mounted) return;
 
+    // Casi ninguna pista de OSM tiene nombre, asi que mandar `club.name`
+    // tal cual llenaba los chats de "Club de tenis" sin decir donde. Para
+    // esas se propone la direccion real y se deja confirmar/editar; las
+    // que si tienen nombre pasan directas, sin preguntar nada.
+    var placeName = club.name;
+    if (!club.hasRealName) {
+      final suggestion = await suggestedPlaceName(club);
+      if (!mounted) return;
+      final named = await askPlaceName(
+        context,
+        suggestion: suggestion,
+        courtCount: club.courtCount,
+      );
+      if (named == null || !mounted) return;
+      placeName = named;
+    }
+
     // El club queda como sitio de la propuesta (nombre + coordenadas), asi
     // que `proposeSession` solo pregunta dia y hora. Las coordenadas dejan
     // al otro lado abrir el sitio en un mapa sin depender de que OSM tenga
@@ -219,7 +245,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       context,
       matchId: chosen.matchId,
       sport: Sport.tennis,
-      presetPlaceName: club.name,
+      presetPlaceName: placeName,
       presetPlaceLat: club.latitude,
       presetPlaceLng: club.longitude,
     );
@@ -306,16 +332,27 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
               left: 12,
               right: 12,
               child: Material(
-                color: context.colors.errorContainer,
+                // Aviso neutro, no `errorContainer`: es un servicio de
+                // terceros ocupado, no un error de la app.
+                color: context.colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
+                elevation: 2,
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
                   child: Row(
                     children: [
+                      Icon(
+                        Icons.cloud_off,
+                        size: 20,
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _error!,
-                          style: TextStyle(color: context.colors.onErrorContainer),
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: context.colors.onSurface,
+                          ),
                         ),
                       ),
                       TextButton(
@@ -365,6 +402,13 @@ class _ClubSheet extends StatelessWidget {
                           color: context.colors.onSurfaceVariant,
                         ),
                       ),
+                      if (!club.hasRealName)
+                        Text(
+                          'Sin nombre en OpenStreetMap · lo confirmas tú',
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -384,7 +428,7 @@ class _ClubSheet extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onProposeMatch,
                 icon: const Icon(Icons.send),
-                label: const Text('Proponer partido'),
+                label: const Text('Proponer partido aquí'),
               ),
             ),
           ],

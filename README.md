@@ -106,7 +106,7 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 - POST /me/photos (multipart, máx. 6 fotos, valida tipo/tamaño)
 - DELETE /me/photos (no deja borrar la última foto)
 #### Discover
-- GET /discover?sport=TENNIS|RUNNING
+- GET /discover?sport=TENNIS|RUNNING → candidatos con perfil completo (foto + ubicación), filtrados por edad/distancia/género, con `distanceKm`, `matchesYourLevel` y `likesYou`, ordenados por quién te ha dado like y quién juega a tu nivel
   (excluye a quien ya swipeaste y filtra por `ageMin`/`ageMax`, `distanceKm` y `genderPreference` reales de tus preferencias — distancia por Haversine contra `Profile.latitude/longitude`, sin PostGIS; ni viewer ni candidato sin ubicación seteada se ven afectados por el filtro, y quien no ha declarado género tampoco se excluye al filtrar por género. Qué deporte pedir lo decide el cliente a partir de `Preferences.sportsWanted`)
 #### Swipes + match
 - POST /swipes { toUserId, sport, type: LIKE|PASS } → { match, matchId?, swipeId }
@@ -117,7 +117,7 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 - POST /matches/:matchId/proposals { sport, scheduledAt, placeName?, placeLat?, placeLng? } → crea la propuesta y **cancela cualquier otra que siguiera pendiente en ese match** (dos ofertas vivas a la vez dejan a ambas partes sin saber cuál aceptan)
 - GET /matches/:matchId/proposals → historial de propuestas del match, más reciente primero
 - PATCH /proposals/:proposalId { action: ACCEPT|DECLINE|CANCEL } → aceptar/rechazar solo lo puede hacer quien la recibió, y solo mientras está PENDING. `CANCEL` funciona también sobre una ya ACCEPTED (los planes cambian) y en ese caso puede hacerlo cualquiera de los dos; mientras solo está propuesta, cancelar es cosa de quien la hizo
-- GET /me/proposals → sesiones aceptadas y aún por jugar, de todos tus matches, con lo justo del otro usuario para pintar la fila
+- GET /me/proposals → tu agenda: sesiones aceptadas **y** propuestas pendientes aún por jugar, de todos tus matches, con lo justo del otro usuario para pintar la fila
 #### Chats
 - GET /chats/:matchId/messages
 - POST /chats/:matchId/messages

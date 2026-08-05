@@ -457,6 +457,192 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     las herramientas de navegador estaban bloqueadas en la sesión, así que
     esta tanda queda pendiente de tu revisión visual.
 
+- **Tercera tanda del 2026-08-04 (segunda ronda de feedback en vivo desde
+  el móvil):**
+  - **Texto blanco invisible en todos los chips.** Los logros del rival,
+    "Tenis"/"Correr", "Cualquiera"/"Hombres", los niveles… salían en
+    blanco sobre fondo claro. Causa real: `ChipThemeData.labelStyle`
+    **no** pasa por el `.apply(bodyColor:…)` que `ThemeData` le hace al
+    `textTheme`, así que al declararlo sin color el texto se quedaba sin
+    color en toda la cadena y el motor de Flutter pintaba su default, que
+    es blanco. Arreglado en el tema (`WidgetStateColor` según
+    seleccionado/deshabilitado + `iconTheme`), no chip a chip: el bug
+    estaba en un sitio, no en ocho pantallas. De paso, el fondo del chip
+    pasó a `surfaceContainerHighest` — con `surface` era del mismo color
+    que la pantalla y no se distinguía del texto suelto.
+  - **Los logros del rival ya no van en `Chip`.** En la ficha de la
+    quedada son frases largas ("Subcampeón del torneo de…") y dentro de
+    una píldora se cortaban; ahora son filas con icono, como en el resto
+    de perfiles. Además se muestran **todos**, no sólo el primero.
+  - **Las propuestas pendientes ya aparecen en la pestaña de quedadas.**
+    Antes `GET /me/proposals` sólo devolvía ACCEPTED, así que una
+    propuesta recién recibida sólo existía dentro del chat que la traía
+    — invisible justo en la pantalla que contesta "¿qué tengo por
+    jugar?". Ahora devuelve también PENDING y la pantalla las agrupa en
+    tres secciones ("Esperan tu respuesta" primero, luego "Confirmadas",
+    luego "Esperando respuesta"). La ficha de la quedada acepta, rechaza y
+    retira desde ahí, con las mismas reglas que la tarjeta del chat.
+  - **"Partidos" → "Quedadas".** A quien sólo corre, una pestaña llamada
+    "Partidos" le hablaba de algo que no hace. "Quedada" vale para los dos
+    deportes y, a diferencia de "propuesta", sigue siendo correcto una vez
+    aceptada. Nuevo `core/utils/sport_words.dart` con el vocabulario
+    (`sportSessionTitle`/`sportSessionNoun`/`sportIcon`) para que no se
+    vuelva a desincronizar: los botones dicen "Cancelar partido" o
+    "Cancelar salida" según el deporte de esa quedada.
+  - **Elegir club de tenis al proponer.** El buscador de sitios es un
+    geocodificador (Nominatim) y en la práctica sólo devuelve municipios
+    y calles: buscar "club de tenis" no encontraba nada. Nuevo
+    `TennisClubPicker`, que reutiliza el `OverpassService` del mapa de
+    clubes (datos reales de OSM por etiqueta), ordena por distancia, deja
+    filtrar por nombre y ampliar de 10 a 30 km. En tenis es ahora la
+    opción principal; corriendo sigue mandando el mapa con el pin.
+  - **Subir varias fotos a la vez.** `pickMultiImage` + un "Así se
+    verán" que muestra las N ya recortadas a 16:9, con opción de quitar
+    las que no convenzan antes de subirlas. Ir de una en una (elegir,
+    recortar, confirmar, subir, repetir) es justo lo primero que hace
+    alguien recién llegado.
+  - **Los perfiles enseñan todas las fotos, en horizontal y scrolleando.**
+    El carrusel lateral escondía todo menos la primera foto detrás de un
+    gesto que nada indicaba. Ahora la cabecera es un 16:9 exacto del ancho
+    de pantalla (la misma proporción en la que se guardan) y el resto van
+    apiladas en una sección "Fotos". Igual en el preview de Discovery y en
+    el paso de "Así te van a ver" del onboarding, que seguían en cuadrado.
+  - **Desbordes de layout arreglados:** el formulario de login/registro no
+    tenía scroll y al abrir el teclado desbordaba 54 px; la pantalla de
+    bienvenida desbordaba 82 px en pantallas cortas (dos `Spacer`, que no
+    pueden encogerse por debajo de cero). Los dos con
+    `SingleChildScrollView` — en Welcome con `ConstrainedBox` +
+    `IntrinsicHeight` para que los `Spacer` sigan centrando cuando sí
+    cabe.
+  - **Más tema:** `AppBarTheme` propio (sin tinte de superficie, título
+    en Poppins), `TextButtonThemeData`, `SliderThemeData` (el `RangeSlider`
+    de edad salía con el morado por defecto de Material),
+    `TooltipThemeData`, `ProgressIndicatorThemeData` e `IconThemeData`.
+    Etiquetas de la barra de navegación siempre visibles. Se sustituyeron
+    los `Colors.red`/`Colors.green` sueltos por `error`/`primary` del
+    esquema. Login/registro y Welcome pasados a castellano (eran las
+    únicas pantallas que seguían en inglés).
+  - **Los clubes se llamaban todos igual** (feedback inmediato al probarlo):
+    la etiqueta `name` de OpenStreetMap casi nunca está en las pistas de
+    tenis — **3 de 106 cerca de Benalmádena**, comprobado con la consulta
+    real — así que el relleno "Club de tenis" se comía la lista entera y
+    quien recibía la propuesta no sabía a dónde ir. Tres cosas:
+    1. La consulta de Overpass pide también `sports_centre`/`club=tennis`
+       (pocas, pero son las que sí llevan nombre) y las etiquetas `addr:*`,
+       y al agrupar el nombre de la instalación gana al de una pista suelta.
+    2. Los sin nombre se resuelven por geocodificación inversa
+       (`GeocodingService.reverse`, nuevo) a una dirección real — sólo los
+       **12 más cercanos**, uno cada 1,1 s, porque la política de Nominatim
+       pide ~1 petición/segundo y nadie queda en la pista número 40 por
+       distancia. Los demás se resuelven al elegirlos, con una sola
+       petición.
+    3. Al elegir uno sin nombre se pide confirmación con el nombre
+       **editable** (`askPlaceName`, compartido con el mapa de clubes),
+       propuesto como "Pistas de tenis · Avenida de Alay, Benalmádena". Así
+       quien conoce el sitio puede escribir cómo lo llama todo el mundo.
+    El relleno pasó de "Club de tenis" a "Pistas de tenis": lo primero
+    afirma algo que no sabemos (que sea un club).
+  - **El error de Overpass ya no es un ladrillo rojo.** Salía el texto
+    crudo de la excepción (`TimeoutException after 0:00:20...`) sobre
+    `errorContainer`, ocupando media pantalla. Overpass es el servicio
+    público y gratuito de OSM, lo comparte todo el mundo y se satura a
+    ratos: no es un fallo de la app. Ahora es un aviso neutro de una línea
+    ("El servicio de mapas está saturado. Reintenta en unos segundos.")
+    con su botón, y el detalle técnico va a `debugPrint`. Mismo trato en
+    el selector de clubes.
+  - Verificado: fmt/clippy/test backend en verde; `flutter analyze`/`test`
+    en verde; y curl end-to-end de la agenda (propuesta PENDING creada por
+    una cuenta → aparece en `/me/proposals` de la otra con `mine=false` y
+    `pendingProposals: 1`).
+
+- **Cuarta tanda del 2026-08-04 (rediseno de Discovery y calidad de datos):**
+  - **Discovery ya no enseña perfiles a medias.** `/discover` exige ahora
+    al menos una foto **y** coordenadas. Es un cambio deliberado de
+    criterio respecto al "no castigues al que no ha rellenado algo" del
+    filtro de distancia: entonces la ubicación era opcional en el
+    onboarding y exigirla habría vaciado el feed; ahora el onboarding no
+    deja pasar del paso de ubicación ni terminar sin foto, así que un
+    perfil sin ellas es una cuenta a medio crear, no alguien a quien se
+    esté castigando. Se mantienen los dos carve-outs que sí siguen
+    teniendo sentido: un *viewer* sin coordenadas no se filtra por
+    distancia, y quien no ha declarado género nunca se excluye.
+  - **Los 10 perfiles de prueba tenían cero fotos**, así que el filtro de
+    arriba los habría borrado del mapa. `datagen` genera ahora dos fotos
+    por perfil (pista de tierra batida / tartán en perspectiva, 1280×720,
+    con el crate `png`) y **rellena las de un perfil ya sembrado que no
+    tenga**, para que re-ejecutarlo repare una base de datos vieja. Se
+    dibujan en vez de descargarse: funciona sin red, es determinista y no
+    finge ser una persona real. Borradas además 4 cuentas basura de
+    registros abortados (`onboarding-flow-test`, `photos-verify`,
+    `antonio`, `prueba1`) — sin fotos, sin ubicación, sin swipes ni
+    matches.
+  - **Tres señales nuevas en cada candidato**, calculadas donde ya estaban
+    los datos: `distanceKm` (la cifra derivada; las coordenadas del otro
+    siguen sin salir del servidor), `matchesYourLevel` y `likesYou`. Son
+    **relativas a quien mira**, así que `/users/:userId/profile` y el lado
+    `otherUser` de `/matches` las fuerzan a false/None a propósito. El feed
+    se ordena por ellas: primero quien ya te dio like (tu like cierra el
+    match al instante), luego quien juega a tu nivel, luego el resto.
+  - **Tarjetas de Discovery rehechas.** Antes eran miniaturas con el
+    nombre en `labelMedium` y un badge de nivel: no se leían y no daban
+    ningún motivo para arrastrarlas. Ahora: nombre+edad en `titleLarge`,
+    píldoras de deporte+nivel y distancia, marca de agua difuminada de la
+    raqueta/corredor, y borde + chapa de acento cuando la persona te ha
+    dado like ("Te ha dado like", lima) o juega a tu nivel ("A tu nivel",
+    verde). De 4 tarjetas a **3**, y **escalonadas** (cada una desplazada
+    18 px al lado contrario de la anterior) — con 4 no cabía información
+    en ninguna y alineadas al milímetro parecía una tabla. Cabecera con
+    subtítulo real ("7 perfiles de tenis cerca de ti") y, abajo, la
+    leyenda del gesto, que de paso llena el hueco del zigzag.
+  - **Preview rehecho.** Foto grande con el nombre encima en vez de foto
+    cuadrada y bloque de texto suelto; recuadro que *explica* por qué el
+    perfil está destacado (el borde de color llamaba la atención pero no
+    decía nada); deporte+nivel como tarjetas y no chips; ciudad y
+    distancia bajo el nombre; el resto de fotos en vertical.
+  - **Overpass se satura menos.** Se añadió `overpass.kumi.systems` como
+    primer espejo (el de más capacidad de los públicos) y una caché en
+    memoria por (lat, lng, radio) redondeados a ~11 m: el mapa de clubes y
+    el selector de sitio preguntan casi siempre por el mismo punto — tu
+    ubicación de perfil — así que antes cada entrada era otra consulta a
+    un servicio público saturado. Las pistas de una zona no cambian en lo
+    que dura una sesión.
+  - Verificado: fmt/clippy/build/test backend en verde; `flutter analyze`/
+    `test` en verde y `flutter build web --release` limpio; y curl contra
+    el backend real confirmando el orden del feed (para Lucía, primero
+    quien le dio like, luego los tres INTERMEDIATE de tenis, luego el
+    resto), las distancias reales y que los 13 candidatos tienen foto.
+    **Sin probar en el móvil**: no estaba conectado en esta tanda.
+
+- **Los clubes de tenis seguían sin nombre (2026-08-04, quinta tanda)** —
+  y no eran los datos, era la consulta. Se propuso montar una base de datos
+  propia con los clubes de España/Europa; **no hacía falta**: "Club de
+  Tenis Capellanía" ya está mapeado en OSM, lo que pasaba es que su
+  `leisure=sports_centre` **no lleva etiqueta `sport`** y la consulta pedía
+  `sports_centre` *exigiendo* `sport~tennis`. Medido con curl cerca de
+  Benalmádena: 110 instalaciones en 15 km, 79 con nombre, y la consulta
+  vieja se quedaba con 3.
+  - Ahora se piden **todas** las instalaciones de la zona (`sports_centre`
+    y cualquier `club=*`, sin filtrar por deporte) y el nombre se le pega
+    al grupo de pistas que tenga a menos de 300 m. Resultado en la misma
+    zona: de 0 clubes con nombre a **17**, incluidos los grandes (Lew Hoad
+    8 pistas, Complejo Tenis Málaga 7, Algarrobo 5, Capellanía 4, Sohail
+    4).
+  - Una instalación sólo presta su nombre si no tiene etiqueta `sport`, o
+    si menciona tenis, o si es `multi`. Sin ese filtro, unas pistas al lado
+    de "Karting Mijas" saldrían llamándose así — y un nombre equivocado es
+    peor que ninguno.
+  - Los grupos de pistas que resuelven a la misma instalación se fusionan
+    (un complejo grande se partía en dos y salía duplicado), y la lista se
+    ordena **con nombre primero** y luego por cercanía: ordenar sólo por
+    distancia dejaba arriba pistas sueltas de urbanización y enterraba el
+    club de 8 pistas de al lado.
+  - Descartado a propósito buscar por nombre en Overpass
+    (`name~"[Tt]enis"`): una regex sobre nombres en 15 km devuelve 504,
+    comprobado. Una base de datos propia sigue siendo una opción si algún
+    día se quiere búsqueda instantánea u offline, pero significa pipeline
+    de importación, almacenamiento y datos que caducan — no compensa para
+    lo que arregla una consulta bien hecha.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

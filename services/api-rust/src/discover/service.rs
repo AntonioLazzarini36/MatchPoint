@@ -8,7 +8,7 @@
 //! which gives the same end result as the `.filter((u) => u.profile)` in
 //! the TS version.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Datelike, Utc};
 use diesel::prelude::*;
@@ -19,7 +19,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::models::{Gender, SkillLevel, Sport};
+use crate::models::{Gender, SkillLevel, Sport, SwipeType};
 use crate::schema::{preferences, profiles, skill_levels, swipes};
 use crate::state::AppState;
 
@@ -115,6 +115,27 @@ pub struct DiscoverProfile {
     /// users::get_profile, matches list) fetch it separately and
     /// overwrite this field.
     pub skill_levels: Vec<SkillLevelEntry>,
+    /// Straight-line distance from the viewer, in km, rounded to one
+    /// decimal. `None` when either side has no coordinates — which in
+    /// `/discover` only happens for a viewer who hasn't set a location,
+    /// since candidates without one are filtered out entirely.
+    ///
+    /// The raw coordinates never leave the server (same call as
+    /// `birth_date` → `age`); this is the derived number a card can show.
+    pub distance_km: Option<f64>,
+    /// True when this person's self-reported level in the sport being
+    /// browsed is the same as the viewer's. Computed here because the
+    /// server already needs it to order the feed, and it saves every
+    /// client fetching its own levels just to re-derive it.
+    pub matches_your_level: bool,
+    /// True when this person already swiped LIKE on the viewer, so a like
+    /// back is an instant match.
+    ///
+    /// Only ever `true` inside `/discover` (everywhere else it defaults to
+    /// false): it is the viewer's own inbound interest, not a public
+    /// property of the profile, so it must not leak from
+    /// `/users/:userId/profile` or the `otherUser` side of `/matches`.
+    pub likes_you: bool,
 }
 
 impl From<crate::models::Profile> for DiscoverProfile {
@@ -134,6 +155,9 @@ impl From<crate::models::Profile> for DiscoverProfile {
             avg_pace_min_per_km: p.avg_pace_min_per_km,
             avg_distance_km: p.avg_distance_km,
             skill_levels: Vec::new(),
+            distance_km: None,
+            matches_your_level: false,
+            likes_you: false,
         }
     }
 }
@@ -249,6 +273,21 @@ pub async fn discover(
         .filter(profiles::user_id.ne_all(excluded_ids))
         .filter(profiles::birth_date.le(max_birth_date))
         .filter(profiles::birth_date.gt(min_birth_date))
+        // Perfil incompleto = perfil que no se enseña. Sin foto no hay
+        // nada que mirar, y sin coordenadas no se puede decir a qué
+        // distancia está — las dos cosas convierten una tarjeta en un
+        // hueco vacío que sólo sirve para descartar.
+        //
+        // Ojo, esto es un cambio deliberado de criterio respecto al filtro
+        // de distancia de más abajo ("no castigues al que no ha rellenado
+        // algo"): entonces la ubicación era opcional en el onboarding y
+        // exigirla habría vaciado el feed. Ahora el onboarding no deja
+        // pasar del paso de ubicación ni terminar sin al menos una foto,
+        // así que un perfil sin ellas es de una cuenta a medio crear, no
+        // alguien a quien se esté castigando.
+        .filter(profiles::photos.ne(Vec::<String>::new()))
+        .filter(profiles::latitude.is_not_null())
+        .filter(profiles::longitude.is_not_null())
         .into_boxed();
 
     if let Some(wanted) = gender_preference {
@@ -312,20 +351,7 @@ pub async fn discover(
 
     let mut result: Vec<DiscoverProfile> = rows
         .into_iter()
-        .filter(|(_, _, _, _, _, _, _, _, lat, lng, _, _, _, _, _)| {
-            let Some((my_lat, my_lng)) = my_location else {
-                return true;
-            };
-            // A candidate who hasn't set a location yet isn't excluded —
-            // we simply can't tell whether they're in range, and punishing
-            // them for not having set a location would just empty out
-            // discover for everyone until the whole user base has.
-            let (Some(lat), Some(lng)) = (lat, lng) else {
-                return true;
-            };
-            haversine_km(my_lat, my_lng, *lat, *lng) <= distance_km as f64
-        })
-        .map(
+        .filter_map(
             |(
                 user_id,
                 display_name,
@@ -335,15 +361,35 @@ pub async fn discover(
                 bio,
                 photos,
                 sports,
-                _lat,
-                _lng,
+                lat,
+                lng,
                 years_playing,
                 club,
                 achievements,
                 avg_pace_min_per_km,
                 avg_distance_km,
             )| {
-                DiscoverProfile {
+                // La distancia se calcula una vez y sirve para dos cosas:
+                // descartar a quien queda fuera del radio y decirle al
+                // cliente a cuanto esta el resto. Antes se calculaba solo
+                // para filtrar y se tiraba, asi que la tarjeta no podia
+                // decir "a 4 km" aunque el dato ya estuviera hecho.
+                let distance = match (my_location, lat.zip(lng)) {
+                    (Some((my_lat, my_lng)), Some((lat, lng))) => {
+                        let km = haversine_km(my_lat, my_lng, lat, lng);
+                        if km > distance_km as f64 {
+                            return None;
+                        }
+                        Some((km * 10.0).round() / 10.0)
+                    }
+                    // Un viewer sin coordenadas no puede filtrar por
+                    // distancia — ve a todo el mundo, sin cifra. (El caso
+                    // contrario ya no existe: los candidatos sin
+                    // coordenadas quedan fuera de la consulta.)
+                    _ => None,
+                };
+
+                Some(DiscoverProfile {
                     user_id,
                     display_name,
                     age: age_from_birth_date(birth_date),
@@ -358,12 +404,15 @@ pub async fn discover(
                     avg_distance_km,
                     achievements,
                     skill_levels: Vec::new(),
-                }
+                    distance_km: distance,
+                    matches_your_level: false,
+                    likes_you: false,
+                })
             },
         )
         .collect();
 
-    result.truncate(20);
+    result.truncate(40);
 
     // One batched query for skill levels instead of one per candidate.
     let ids: Vec<String> = result.iter().map(|p| p.user_id.clone()).collect();
@@ -373,6 +422,62 @@ pub async fn discover(
             .remove(&profile.user_id)
             .unwrap_or_default();
     }
+
+    // Quién te ha dado LIKE ya. Una sola consulta para todos los
+    // candidatos, no una por tarjeta.
+    let mut liked_me_query = swipes::table
+        .filter(swipes::to_user_id.eq(current_user_id))
+        .filter(swipes::from_user_id.eq_any(&ids))
+        .filter(swipes::swipe_type.eq(SwipeType::Like))
+        .into_boxed();
+    if let Some(sport) = sport {
+        liked_me_query = liked_me_query.filter(swipes::sport.eq(sport));
+    }
+    let liked_me: HashSet<String> = liked_me_query
+        .select(swipes::from_user_id)
+        .load::<String>(&mut conn)
+        .await?
+        .into_iter()
+        .collect();
+    for profile in &mut result {
+        profile.likes_you = liked_me.contains(&profile.user_id);
+    }
+
+    // Orden con intención, en vez del que devuelva Postgres: primero
+    // quien ya te ha dado like (un like tuyo cierra el match al instante),
+    // luego quien juega a tu mismo nivel en el deporte que estás mirando
+    // — que es la promesa de la app, encontrar con quién jugar de tu
+    // nivel, no la cara que salga antes en la tabla.
+    // Lista, no `HashMap`: `Sport` no implementa `Hash` (es un enum de
+    // Diesel) y de todas formas son dos deportes.
+    let my_levels = fetch_skill_levels(&mut conn, current_user_id).await?;
+    let my_level_for_sport = sport.and_then(|s| {
+        my_levels
+            .iter()
+            .find(|entry| entry.sport == s)
+            .map(|entry| (s, entry.level))
+    });
+
+    for profile in &mut result {
+        profile.matches_your_level = my_level_for_sport
+            .map(|(s, mine)| {
+                profile
+                    .skill_levels
+                    .iter()
+                    .any(|entry| entry.sport == s && entry.level == mine)
+            })
+            .unwrap_or(false);
+    }
+
+    result.sort_by_key(
+        |profile| match (profile.likes_you, profile.matches_your_level) {
+            (true, _) => 0,
+            (false, true) => 1,
+            (false, false) => 2,
+        },
+    );
+
+    result.truncate(20);
 
     Ok(result)
 }

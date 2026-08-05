@@ -114,7 +114,7 @@ async fn respond(
     tag = "proposals",
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Sesiones aceptadas y aún por jugar, más próxima primero", body = Vec<UpcomingSession>),
+        (status = 200, description = "Agenda del usuario: sesiones aceptadas y propuestas pendientes aún por jugar, más próxima primero", body = Vec<UpcomingSession>),
         (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
     )
 )]

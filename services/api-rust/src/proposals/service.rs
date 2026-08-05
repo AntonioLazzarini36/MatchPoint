@@ -87,8 +87,9 @@ impl ProposalResponse {
     }
 }
 
-/// An accepted, still-in-the-future session plus just enough about the
-/// other person to render a row without a second round-trip.
+/// A still-in-the-future session (agreed *or* still on the table) plus
+/// just enough about the other person to render a row without a second
+/// round-trip.
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpcomingSession {
@@ -291,9 +292,16 @@ pub async fn respond(
     Ok(ProposalResponse::from_row(updated, user_id))
 }
 
-/// Everything the caller has actually agreed to and hasn't happened yet,
-/// across every match — this is what makes the app answer "what's next?"
-/// instead of only "who did I match with?".
+/// The caller's whole agenda across every match: sessions already agreed
+/// *and* proposals still waiting on someone, as long as they haven't
+/// happened yet.
+///
+/// Pending ones are deliberately included. They used to be reachable only
+/// from inside the chat that carried them, so a proposal you hadn't opened
+/// yet was invisible in the one screen named after exactly that — you had
+/// to remember which conversation it arrived in. The status travels with
+/// each row, so the client can group them ("esperando respuesta" vs
+/// "confirmadas") without a second call.
 pub async fn list_upcoming(
     state: &AppState,
     user_id: &str,
@@ -315,7 +323,11 @@ pub async fn list_upcoming(
                 .eq(user_id)
                 .or(matches::user_b_id.eq(user_id)),
         )
-        .filter(proposals::status.eq(ProposalStatus::Accepted))
+        .filter(
+            proposals::status
+                .eq(ProposalStatus::Accepted)
+                .or(proposals::status.eq(ProposalStatus::Pending)),
+        )
         .filter(proposals::scheduled_at.ge(cutoff))
         .order(proposals::scheduled_at.asc())
         .limit(50)

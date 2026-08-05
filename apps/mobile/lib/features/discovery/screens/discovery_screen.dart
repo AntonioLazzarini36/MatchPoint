@@ -16,12 +16,15 @@ import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
 import '../../../core/ui/widgets/discovery/discovery_mini_card.dart';
 import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
 
-/// Column of small horizontal-rectangle cards (up to 4, each an equal,
-/// non-overlapping share of the available height) shown stacked instead of
-/// the old one-at-a-time full-screen swipe deck. Each card is independently
-/// draggable — drag it away to like/pass, tap it for a bigger preview. No
-/// separate like/pass buttons: the drag *is* the action now, buttons would
-/// be redundant.
+/// Columna de tarjetas apaisadas, en vez del mazo de una en una a pantalla
+/// completa. Cada tarjeta se arrastra por separado — a un lado para
+/// jugar, al otro para pasar — y al tocarla se abre el preview. Sin
+/// botones de like/pass: el gesto *es* la acción, un botón sobraría.
+///
+/// Tres tarjetas, no cuatro, y **escalonadas** (cada una desplazada al lado
+/// contrario de la anterior): con cuatro no cabía información util en
+/// ninguna, y alineadas al milímetro la pantalla parecía una tabla. El
+/// desplazamiento también deja claro que se arrastran a los lados.
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
 
@@ -30,8 +33,12 @@ class DiscoveryScreen extends StatefulWidget {
 }
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
-  static const _maxVisible = 4;
-  static const _cardSpacing = 10.0;
+  static const _maxVisible = 3;
+  static const _cardSpacing = 12.0;
+
+  /// Cuánto se desplaza cada tarjeta respecto al centro. Suficiente para
+  /// que se lea como un zigzag, no tanto como para desperdiciar ancho.
+  static const _stagger = 18.0;
 
   DiscoveryController? controller;
   bool _showIntro = false;
@@ -153,14 +160,26 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 // hacía nada. Qué deportes se piden sale de los filtros,
                 // no de un control aparte aquí arriba.
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Descubrir', style: context.textStyles.titleLarge),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Descubrir',
+                              style: context.textStyles.headlineSmall,
+                            ),
+                            Text(
+                              _subtitle(controller),
+                              style: context.textStyles.bodySmall?.copyWith(
+                                color: context.colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       IconButton(
                         onPressed: _openFilters,
                         tooltip: 'Filtros',
@@ -172,14 +191,63 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
                 if (_showIntro) DiscoveryIntroBanner(onDismiss: _dismissIntro),
 
-                const SizedBox(height: 8),
-
                 Expanded(child: _buildBody(context, controller)),
+
+                // La pista del gesto vive aqui abajo y no dentro de una
+                // tarjeta: es una instruccion de la pantalla, no de una
+                // persona concreta, y de paso ocupa el hueco que dejaban
+                // las tarjetas escalonadas.
+                if (controller.stack.isNotEmpty) _swipeHint(context),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  /// Dice de que va la pantalla con datos reales en vez de una frase
+  /// generica: cuanta gente queda por mirar y en que deporte.
+  String _subtitle(DiscoveryController controller) {
+    final sports = controller.sports;
+    final deporte = sports.length == 1 ? sports.first.label.toLowerCase() : null;
+    final count = controller.stack.length;
+    if (count == 0) return deporte == null ? 'Sin perfiles' : 'Sin perfiles de $deporte';
+    final gente = count == 1 ? '1 perfil' : '$count perfiles';
+    return deporte == null ? '$gente cerca de ti' : '$gente de $deporte cerca de ti';
+  }
+
+  Widget _swipeHint(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.west, size: 14, color: colors.error),
+          const SizedBox(width: 6),
+          Text(
+            'Pasar',
+            style: context.textStyles.labelSmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            '   ·   ',
+            style: context.textStyles.labelSmall?.copyWith(
+              color: colors.outline,
+            ),
+          ),
+          Text(
+            'Quiero jugar',
+            style: context.textStyles.labelSmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(Icons.east, size: 14, color: colors.primary),
+        ],
+      ),
     );
   }
 
@@ -254,15 +322,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         ? stack
         : stack.sublist(stack.length - _maxVisible);
 
-    // Non-overlapping, stacked in a Column with margin on every side — none
-    // of them touch the screen edges or reach into the bottom nav below
-    // Discovery, since this all lives inside the Expanded body area handed
-    // to us by build(). Card height is fixed at "1/4 of the available
-    // space" regardless of how many cards are actually left — so a card
-    // never grows just because there are fewer of them; only how many rows
-    // are stacked (and their position) changes as the deck empties out.
+    // Alto fijo por tarjeta ("un tercio del hueco disponible") aunque
+    // queden menos: así una tarjeta no crece de golpe sólo porque se haya
+    // vaciado el mazo. Lo único que cambia al swipear es cuántas filas
+    // hay, no el tamaño de cada una.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final cardHeight =
@@ -272,9 +337,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             children: [
               for (var i = 0; i < visible.length; i++) ...[
                 if (i > 0) const SizedBox(height: _cardSpacing),
-                SizedBox(
-                  height: cardHeight,
-                  child: _buildCard(context, controller, visible[i]),
+                Padding(
+                  // Zigzag: pares desplazados a la derecha, impares a la
+                  // izquierda.
+                  padding: i.isEven
+                      ? const EdgeInsets.only(left: _stagger)
+                      : const EdgeInsets.only(right: _stagger),
+                  child: SizedBox(
+                    height: cardHeight,
+                    child: _buildCard(context, controller, visible[i]),
+                  ),
                 ),
               ],
             ],
@@ -301,8 +373,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             : SwipeType.pass;
         _handleSwipe(user, type);
       },
-      background: _swipeOverlay(context, Alignment.centerLeft, Icons.handshake, Colors.green),
-      secondaryBackground: _swipeOverlay(context, Alignment.centerRight, Icons.close, Colors.red),
+      background: _swipeOverlay(
+        context,
+        Alignment.centerLeft,
+        Icons.handshake,
+        context.colors.primary,
+      ),
+      secondaryBackground: _swipeOverlay(
+        context,
+        Alignment.centerRight,
+        Icons.close,
+        context.colors.error,
+      ),
       child: DiscoveryMiniCard(
         user: user,
         onTap: () => showDiscoveryPreviewSheet(context, user),

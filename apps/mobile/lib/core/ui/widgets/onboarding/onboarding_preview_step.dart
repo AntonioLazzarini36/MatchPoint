@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/utils/landscape_crop.dart';
 import 'package:match_point/core/utils/pace_format.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
@@ -70,10 +71,13 @@ class OnboardingPreviewStep extends StatelessWidget {
             style: t.bodyLarge,
           ),
           const SizedBox(height: 20),
+          // 16:9 y todas en vertical: es exactamente como se va a ver el
+          // perfil de verdad, que es el sentido de esta pantalla. Antes
+          // era un cuadrado y un "+2 foto(s) mas" que no enseñaba nada.
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
-              aspectRatio: 1,
+              aspectRatio: kPhotoAspectRatio,
               child: photos.isNotEmpty
                   ? Image.memory(photos.first, fit: BoxFit.cover)
                   : Container(
@@ -86,13 +90,17 @@ class OnboardingPreviewStep extends StatelessWidget {
                     ),
             ),
           ),
-          if (photos.length > 1) ...[
-            const SizedBox(height: 8),
-            Text(
-              '+${photos.length - 1} foto(s) más',
-              style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          for (final photo in photos.skip(1))
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: kPhotoAspectRatio,
+                  child: Image.memory(photo, fit: BoxFit.cover),
+                ),
+              ),
             ),
-          ],
           const SizedBox(height: 16),
           Text(
             age == null ? displayName : '$displayName, $age',
