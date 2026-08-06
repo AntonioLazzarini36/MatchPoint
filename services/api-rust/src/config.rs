@@ -360,6 +360,20 @@ impl AppConfig {
             }
         }
 
+        // Una ruta relativa no puede ser un volumen montado: el punto de
+        // montaje siempre es absoluto. Con `PHOTOS_DIR=apps/uploads` y el
+        // volumen en `/app/uploads`, las fotos van a `/app/apps/uploads`,
+        // que es sistema de ficheros normal del contenedor — se escriben
+        // bien, se sirven bien, y desaparecen en el siguiente despliegue.
+        // Un fallo que sólo se nota horas después y parece cosa del
+        // volumen, no de una letra de más.
+        if !self.photos_dir.starts_with('/') {
+            problems.push(format!(
+                "PHOTOS_DIR es {:?}, una ruta relativa: no puede coincidir con el punto de montaje de un volumen, y lo que se suba se perderá en cada despliegue",
+                self.photos_dir
+            ));
+        }
+
         if self.public_base_url.starts_with("http://localhost") {
             problems.push(format!(
                 "PUBLIC_BASE_URL es {} — las URLs de las fotos apuntarían al dispositivo de cada usuario, no al servidor",

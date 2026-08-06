@@ -111,8 +111,17 @@ ficheros de un contenedor se borra en cada despliegue: sin volumen, cada
 vez que subas una versión **todo el mundo pierde sus fotos** (y los
 perfiles dejan de aparecer en Discovery, que exige al menos una).
 
-Servicio → **Settings → Volumes → Add Volume**, punto de montaje
-`/app/uploads`. Que coincida con `PHOTOS_DIR`.
+En el lienzo del proyecto: **clic derecho sobre la tarjeta del servicio →
+Attach Volume** (o **Ctrl+K** → `volume`). No está en Settings. Punto de
+montaje: `/app/uploads`.
+
+⚠️ **`PHOTOS_DIR` tiene que ser exactamente el mismo texto**, con la barra
+inicial: `/app/uploads`. Una ruta relativa como `apps/uploads` se resuelve
+contra el `WORKDIR` y acaba en `/app/apps/uploads`, que **no es el
+volumen**: las fotos se suben bien, se ven bien, y desaparecen en el
+siguiente despliegue. Parece un problema del volumen y es una letra de
+más. Con `APP_ENV=production` el arranque aborta si detecta una ruta
+relativa, precisamente por esto.
 
 ## 8. Apunta la app al backend
 
