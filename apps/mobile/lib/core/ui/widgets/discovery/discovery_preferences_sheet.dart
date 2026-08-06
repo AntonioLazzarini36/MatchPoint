@@ -61,7 +61,10 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
       (prefs?.ageMax ?? 60).toDouble(),
     );
     final wanted = prefs?.sportsWanted ?? const <Sport>[];
-    _sportsWanted = wanted.isEmpty ? widget.mySports.toSet() : wanted.toSet();
+    // Se recorta a los propios por si quedo guardado un deporte que el
+    // usuario ha dejado de practicar desde entonces.
+    final shared = wanted.where(widget.mySports.contains).toSet();
+    _sportsWanted = shared.isEmpty ? widget.mySports.toSet() : shared;
     _genderPreference = prefs?.genderPreference;
   }
 
@@ -156,7 +159,11 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  for (final sport in Sport.values)
+                  // Sólo tus deportes: esto acota lo que ves, no lo
+                  // amplia. Ofrecer uno que no juegas sería ofrecer
+                  // matches que luego no se pueden convertir en una
+                  // quedada, porque proponer exige que ambos lo practiquen.
+                  for (final sport in widget.mySports)
                     FilterChip(
                       label: Text(sport.label),
                       avatar: Icon(

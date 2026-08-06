@@ -24,6 +24,7 @@ class DiscoveryMiniCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final highlighted = user.likesYou || user.matchesYourLevel;
+    final accent = sportAccent(_primarySport);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.md),
@@ -52,12 +53,17 @@ class DiscoveryMiniCard extends StatelessWidget {
                 child: Icon(
                   sportIcon(_primarySport),
                   size: 120,
-                  color: Colors.white.withValues(alpha: 0.13),
+                  color: Colors.white.withValues(alpha: 0.16),
                 ),
               ),
 
               // Degradado sólo abajo: el texto tiene que leerse sobre
               // cualquier foto, pero tapar la foto entera la desperdicia.
+              //
+              // Teñido del color del deporte, no negro puro: es lo que hace
+              // que se distinga de un vistazo si esa tarjeta acabará en un
+              // match de tenis o de correr, sin tener que leer la píldora.
+              // Muy sutil a propósito — lo que tiene que verse es la foto.
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -66,7 +72,11 @@ class DiscoveryMiniCard extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.black.withValues(alpha: 0),
-                        Colors.black.withValues(alpha: 0.78),
+                        Color.lerp(
+                          Colors.black,
+                          accent,
+                          0.35,
+                        )!.withValues(alpha: 0.82),
                       ],
                       stops: const [0.35, 1.0],
                     ),
@@ -108,7 +118,8 @@ class DiscoveryMiniCard extends StatelessWidget {
                             icon: sportIcon(sport),
                             label: user.skillLevels[sport] == null
                                 ? sport.label
-                                : user.skillLevels[sport]!.label,
+                                : '${sport.label} · ${user.skillLevels[sport]!.label}',
+                            background: sportAccent(sport),
                           ),
                         if (user.distanceKm != null)
                           _pill(
@@ -122,24 +133,26 @@ class DiscoveryMiniCard extends StatelessWidget {
                 ),
               ),
 
-              // Borde de acento por encima de todo, para que se vea
-              // también sobre la parte clara de la foto.
-              if (highlighted)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: user.likesYou
-                              ? colors.tertiary
-                              : colors.primary,
-                          width: 2.5,
-                        ),
+              // Borde por encima de todo, para que se vea también sobre la
+              // parte clara de la foto. Grueso y en color de estado cuando
+              // la tarjeta está destacada; fino y del color del deporte
+              // cuando no — así el deporte se lee siempre, pero nunca
+              // compite con "te ha dado like".
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                        color: highlighted
+                            ? (user.likesYou ? colors.tertiary : colors.primary)
+                            : accent.withValues(alpha: 0.85),
+                        width: highlighted ? 2.5 : 1.5,
                       ),
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ),
@@ -192,15 +205,19 @@ class DiscoveryMiniCard extends StatelessWidget {
     );
   }
 
+  /// `background` sólo lo pasan las píldoras de deporte: el resto (la
+  /// distancia) va en gris neutro para que el color signifique una cosa
+  /// sola.
   Widget _pill(
     BuildContext context, {
     required IconData icon,
     required String label,
+    Color? background,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.42),
+        color: (background ?? Colors.black).withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
       ),

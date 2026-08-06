@@ -200,6 +200,8 @@ fn haversine_km(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
 
 #[derive(Debug, thiserror::Error)]
 pub enum DiscoverError {
+    #[error("Tú no juegas a ese deporte")]
+    SportNotYours,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -216,6 +218,30 @@ pub async fn discover(
         .get()
         .await
         .map_err(|e| DiscoverError::Pool(e.to_string()))?;
+
+    // Los deportes propios mandan sobre lo que se pida por query.
+    //
+    // El filtro por deporte se aplicaba solo a los **candidatos**: pedir
+    // `?sport=RUNNING` sin correr devolvía corredores igualmente, y de ahí
+    // salían matches entre gente sin ningún deporte en común — un match
+    // que no puede terminar en ninguna quedada, porque proponer exige que
+    // los dos practiquen ese deporte.
+    let my_sports = profiles::table
+        .filter(profiles::user_id.eq(current_user_id))
+        .select(profiles::sports)
+        .first::<Vec<Sport>>(&mut conn)
+        .await
+        .optional()?
+        .unwrap_or_default();
+
+    if let Some(requested) = sport {
+        // Sin perfil todavía (lista vacía) no se bloquea: no hay dato con
+        // el que contradecir, y quien no ha terminado el onboarding
+        // tampoco tiene nada que descubrir.
+        if !my_sports.is_empty() && !my_sports.contains(&requested) {
+            return Err(DiscoverError::SportNotYours);
+        }
+    }
 
     // Gente a la que ya di LIKE o PASS (para el deporte pedido, si se
     // pidió uno) no debe volver a aparecer — ni siquiera tras un unmatch,
@@ -303,6 +329,10 @@ pub async fn discover(
         // Postgres `@>` ("contains") — equivalent of Prisma's
         // `sports: { has: sport }` for an array column.
         query = query.filter(profiles::sports.contains(vec![sport]));
+    } else if !my_sports.is_empty() {
+        // Sin `?sport=`, se enseña a quien comparta **alguno** de los tuyos
+        // (`&&`, "se solapan"), no a todo el mundo.
+        query = query.filter(profiles::sports.overlaps_with(my_sports.clone()));
     }
 
     // When we'll need to filter by distance afterwards (in Rust, no

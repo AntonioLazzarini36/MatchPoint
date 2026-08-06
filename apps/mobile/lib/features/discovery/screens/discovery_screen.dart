@@ -96,9 +96,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     await created.init();
   }
 
+  /// Qué deportes pedirle al backend.
+  ///
+  /// Siempre **dentro de los tuyos**: `sportsWanted` puede acotar (sólo
+  /// quiero ver tenis aunque juegue a los dos) pero no ampliar. Sin este
+  /// cruce, alguien que sólo juega al tenis podía pedir corredores, darles
+  /// like y acabar en un match que no puede terminar en ninguna quedada:
+  /// proponer exige que ambos practiquen ese deporte.
   static List<Sport> _sportsToFetch(Preferences? prefs, List<Sport> mySports) {
     final wanted = prefs?.sportsWanted ?? const <Sport>[];
-    return wanted.isEmpty ? mySports : wanted;
+    if (wanted.isEmpty) return mySports;
+    final shared = wanted.where(mySports.contains).toList();
+    return shared.isEmpty ? mySports : shared;
   }
 
   /// Abre los filtros y, si se guardaron, vuelve a montar el feed desde

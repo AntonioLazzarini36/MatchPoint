@@ -869,6 +869,29 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     `Image.network` a pelo deja un recuadro gris cuando la URL da 404, y
     eso pasa de verdad mientras no haya volumen persistente.
 
+- **Los deportes, bien cerrados (2026-08-06):**
+  - **Agujero real en `/discover`**: el filtro por deporte se aplicaba sólo
+    a los **candidatos**, nunca al que mira. Pedir `?sport=RUNNING` jugando
+    sólo al tenis devolvía corredores, y de ahí salían matches sin ningún
+    deporte en común — matches que no pueden acabar en ninguna quedada,
+    porque proponer exige que ambos lo practiquen. Ahora devuelve 400, y
+    sin `?sport=` sólo enseña a quien comparta alguno de los tuyos.
+  - En el móvil, `sportsWanted` **acota pero no amplía**: se cruza siempre
+    con tus propios deportes, y la hoja de filtros sólo ofrece los que
+    juegas. Antes podías marcar uno que no practicas.
+  - **Regla de propuestas confirmada**: es la intersección de los dos
+    perfiles. Si uno juega a un solo deporte, sólo ese (que es
+    necesariamente el del match); si los dos juegan a ambos, cualquiera de
+    los dos en la misma conversación. Verificado con curl: Hugo(ambos) +
+    Lucía(sólo tenis) → tenis 200, correr 400; Hugo + Sofía (ambos) → los
+    dos 200.
+  - **Color por deporte en las tarjetas de Discovery**: degradado teñido,
+    borde fino y píldora del deporte en tierra batida (tenis) o azul de
+    tartán (correr). No sale del `ColorScheme` a propósito — el verde ya
+    significa "primario" en botones y estados, y reutilizarlo mezclaría dos
+    cosas. El borde grueso de "te ha dado like"/"a tu nivel" sigue mandando
+    sobre el fino del deporte: el estado importa más que la categoría.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

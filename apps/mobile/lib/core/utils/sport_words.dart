@@ -23,3 +23,18 @@ String sportSessionNoun(Sport sport) =>
 
 IconData sportIcon(Sport sport) =>
     sport == Sport.tennis ? Icons.sports_tennis : Icons.directions_run;
+
+/// Color de acento del deporte, para distinguir de un vistazo si una
+/// tarjeta de Discovery es de tenis o de correr sin tener que leer nada.
+///
+/// No sale del `ColorScheme` a propósito: el verde de la app ya significa
+/// "primario" en botones y estados, así que reutilizarlo para el deporte
+/// mezclaría dos cosas distintas. Estos dos son de la misma familia que la
+/// paleta (tierra batida y tartán de atletismo, igual que las fotos
+/// generadas de `datagen`) pero inequívocamente diferentes entre sí.
+Color sportAccent(Sport sport) => sport == Sport.tennis
+    ? const Color(0xFFC65F3B) // tierra batida
+    : const Color(0xFF3B7BC6); // azul pista de atletismo
+
+/// Versión para texto sobre el acento.
+Color sportOnAccent(Sport sport) => const Color(0xFFFFFFFF);

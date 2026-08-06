@@ -52,6 +52,11 @@ async fn discover(
 ) -> impl IntoResponse {
     match service::discover(&state, &user.user_id, params.sport).await {
         Ok(profiles) => Json(profiles).into_response(),
+        Err(err @ DiscoverError::SportNotYours) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "message": err.to_string() })),
+        )
+            .into_response(),
         Err(DiscoverError::Db(e)) => {
             tracing::error!("discover query failed: {e}");
             (
