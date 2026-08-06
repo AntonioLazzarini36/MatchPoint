@@ -1,4 +1,9 @@
-### MatchPoint es una app de citas basada en deporte. Aquí encuentras tu compañero/a perfecto/a para tu partido de tenis o tu sesión de running.
+### MatchPoint es una app para encontrar con quién jugar a tu nivel, cerca de ti. Tenis o running.
+
+> **No es una app de citas con deporte de excusa** — el objetivo es organizar el partido o la salida,
+> no una cita. De ahí que el perfil gire alrededor del nivel y de señales que se puedan reconocer
+> (años jugando, club, torneos) y que la app no se quede en el match: sigue hasta la quedada
+> acordada. Ver "Reposicionamiento de producto" en `claude_helpers/status.md`.
 
 ## Estado del backend
 
@@ -89,16 +94,20 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 
 #### Base / misc
 - GET /
-- GET /health
+- GET /health → consulta la base de datos de verdad (timeout 2s) y devuelve **503** si no responde; un healthcheck que siempre dice `{ok:true}` es peor que ninguno
 #### Auth (JWT access/refresh)
 - POST /auth/register
 - POST /auth/login
 - POST /auth/refresh
 - POST /auth/logout
 - GET /auth/email-available?email=
+- POST /auth/send-verification → manda un código de 6 dígitos al email de la cuenta (autenticado: así sólo puedes pedirlo para la tuya y nadie puede usarlo para bombardear el buzón de otro). 15 min de vida, 5 intentos, 60s entre reenvíos
+- POST /auth/verify-email { code } → marca el email como verificado
   (`login`/`register`/`email-available` tienen rate limit: 10 req/60s por IP, 429 a partir de ahí)
+  (los dos de verificación responden 503 si `EMAIL_VERIFICATION_ENABLED=false` — ver "Despliegue" abajo)
 #### Me (perfil + preferencias, autenticado)
-- GET /me
+- GET /me (incluye `emailVerified` y `emailVerificationEnabled`)
+- DELETE /me → **borra la cuenta entera**, sin vuelta atrás: perfil, fotos, swipes, matches, mensajes y propuestas. Las tablas caen por `ON DELETE CASCADE`, pero los ficheros de las fotos se borran a mano (ningún cascade toca el disco). La confirmación — escribir "BORRAR" — la pide la app, no el endpoint
 - PATCH /me/profile (ya no acepta `photos` — eso solo se gestiona por los endpoints de abajo; incluye `yearsPlaying`/`club`/`achievements`/`avgPaceMinPerKm`/`avgDistanceKm`)
 - PATCH /me/preferences (`genderPreference` se manda como null explícito para volver a "cualquiera" — omitirlo significa "no lo toques")
 - GET /me/notifications → `{ unreadMessages, pendingProposals }`, contadores para los badges de la barra de navegación
@@ -114,7 +123,7 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 - GET /matches → array de matches con info del otro usuario, deporte, último mensaje (desencriptado) y contador real de no-leídos
 - DELETE /matches/:matchId → deshace el match (borra match + chat; solo un miembro del match puede hacerlo)
 #### Proposals (quedar de verdad)
-- POST /matches/:matchId/proposals { sport, scheduledAt, placeName?, placeLat?, placeLng? } → crea la propuesta y **cancela cualquier otra que siguiera pendiente en ese match** (dos ofertas vivas a la vez dejan a ambas partes sin saber cuál aceptan)
+- POST /matches/:matchId/proposals { sport, scheduledAt, placeName?, placeLat?, placeLng? } → crea la propuesta y **cancela cualquier otra que siguiera pendiente en ese match** (dos ofertas vivas a la vez dejan a ambas partes sin saber cuál aceptan). El `sport` **no tiene que coincidir con el del match**: ese sólo dice por qué feed os cruzasteis. Basta con que lo practiquéis los dos, para que quien juega al tenis y además corre pueda proponer cualquiera de los dos en la misma conversación
 - GET /matches/:matchId/proposals → historial de propuestas del match, más reciente primero
 - PATCH /proposals/:proposalId { action: ACCEPT|DECLINE|CANCEL } → aceptar/rechazar solo lo puede hacer quien la recibió, y solo mientras está PENDING. `CANCEL` funciona también sobre una ya ACCEPTED (los planes cambian) y en ese caso puede hacerlo cualquiera de los dos; mientras solo está propuesta, cancelar es cosa de quien la hizo
 - GET /me/proposals → tu agenda: sesiones aceptadas **y** propuestas pendientes aún por jugar, de todos tus matches, con lo justo del otro usuario para pintar la fila
@@ -153,7 +162,38 @@ Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al
 8. ✅ **Rediseño de Discovery** (2026-08-02): deck de una tarjeta a la vez → columna de hasta 4 tarjetas horizontales de altura fija, sin superponerse, arrastrables para like/pass, preview al tocar.
 9. ✅ **Bug de Discovery ignorando el/los deporte(s) reales del usuario** (2026-08-02/03): antes pedía siempre solo tenis sin importar qué eligió el usuario; ahora respeta `Profile.sports` de verdad y se puede editar desde Settings.
 10. ✅ **Segunda pasada de validación de inputs (2026-08-03)**: rangos/longitudes en `/me/profile` y `/me/preferences` (antes sin ningún límite server-side), email/password mínimos en registro (antes solo el cliente los chequeaba, trivial de saltarse), motivo de reporte acotado.
-11. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, cobertura del backend hoy es prácticamente cero), UI de preferencias/filtros de discovery (no existe ninguna pantalla para editar edad/deporte — distancia sí se puede desde Settings), campo de género en el perfil, super-like, login con Google/Apple + verificación de email (necesita credenciales externas). Detalle completo en `claude_helpers/status.md`.
+11. ✅ **Filtros de Discovery y campo de género (2026-08-04)**: la hoja de filtros (edad, deportes que quieres ver, género) es real y se abre desde Discovery y desde Ajustes; `Preferences.sportsWanted` y `genderPreference` por fin **hacen algo** — antes se guardaban y no los leía nadie.
+12. ✅ **Quedadas con estado (2026-08-04)**: tabla `Proposal` y su ciclo completo (proponer → aceptar/rechazar/cancelar), pantalla propia y ficha de la quedada con mapa. Antes "proponer un partido" era un mensaje de texto que se perdía scrolleando.
+13. ✅ **Verificación de email (2026-08-05)**: código de 6 dígitos, backend y pantalla. Apagable con `EMAIL_VERIFICATION_ENABLED` mientras no haya un dominio de correo propio — ver "Despliegue".
+14. ✅ **Borrar cuenta (2026-08-05)**: `DELETE /me`, con confirmación escribiendo "BORRAR". Cierra el hueco de RGPD.
+15. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, la cobertura sigue siendo mínima), super-like, y **login con Google/Apple** — esto último necesita credenciales externas (proyecto de Google Cloud, cuenta de Apple Developer) que hay que crear antes de que escribir código sirva de algo. Igual que **push de verdad (FCM)**: hoy los badges se refrescan sondeando cada 15s, pero sólo con la app abierta. Detalle completo en `claude_helpers/status.md`.
+
+## Despliegue
+
+La app corre en producción en **Railway** (API + Postgres). El paso a paso completo — variables,
+volumen para las fotos, y qué se rompe sin cada cosa — está en **`services/api-rust/DEPLOY.md`**.
+
+Lo mínimo que conviene saber:
+
+- Con `APP_ENV=production` el proceso **se niega a arrancar** si los secretos siguen siendo los del
+  repo (que son públicos), si `CORS_ALLOWED_ORIGINS` está sin poner o si `PUBLIC_BASE_URL` sigue
+  apuntando a localhost. Un fallo ruidoso al desplegar es mejor que un servicio en pie con secretos
+  publicados.
+- **Las migraciones van dentro del binario** y se aplican al arrancar: un despliegue no tiene consola
+  donde correr `diesel migration run`.
+- **Hace falta un volumen montado en `/app/uploads`.** Sin él, el sistema de ficheros del contenedor
+  se borra en cada despliegue y todo el mundo pierde sus fotos — y como `/discover` exige al menos
+  una foto, esos perfiles desaparecen del feed.
+- `CORS_ALLOWED_ORIGINS=none` es la respuesta correcta mientras sólo exista la app móvil: CORS lo
+  aplican los navegadores, y una app nativa no pasa por ahí. Cuando haya web, su URL.
+
+Para compilar la app apuntando al backend desplegado:
+
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://tu-servicio.up.railway.app
+```
+
+Sin `--dart-define`, la app apunta a `localhost`, que en un móvil es el propio móvil.
 
 ## Documentar un endpoint nuevo (OpenAPI)
 
