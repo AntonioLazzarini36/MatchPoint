@@ -455,15 +455,14 @@ pub async fn discover(
 
     // Quién te ha dado LIKE ya. Una sola consulta para todos los
     // candidatos, no una por tarjeta.
-    let mut liked_me_query = swipes::table
+    // Sin filtrar por deporte, igual que el match: un like es "quiero
+    // jugar contigo". Filtrarlo aqui hacia que la chapa "te ha dado like"
+    // apareciera o no segun que feed estuvieras mirando, con la misma
+    // persona — y que a veces prometiera un match que luego no saltaba.
+    let liked_me: HashSet<String> = swipes::table
         .filter(swipes::to_user_id.eq(current_user_id))
         .filter(swipes::from_user_id.eq_any(&ids))
         .filter(swipes::swipe_type.eq(SwipeType::Like))
-        .into_boxed();
-    if let Some(sport) = sport {
-        liked_me_query = liked_me_query.filter(swipes::sport.eq(sport));
-    }
-    let liked_me: HashSet<String> = liked_me_query
         .select(swipes::from_user_id)
         .load::<String>(&mut conn)
         .await?

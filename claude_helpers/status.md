@@ -892,6 +892,31 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     cosas. El borde grueso de "te ha dado like"/"a tu nivel" sigue mandando
     sobre el fino del deporte: el estado importa más que la categoría.
 
+- **El bug de los matches que no saltaban (2026-08-06):** reportado como
+  "me sale que me ha dado like pero el match no salta" y, con otra
+  persona, "no me sale que me ha dado like, le doy like y sí salta". Los
+  dos síntomas son la misma causa.
+  - Los swipes llevan deporte, y el match exigía que **ambos likes fueran
+    del mismo deporte**. Pero cada uno elige por su cuenta qué feed está
+    mirando: dos personas que juegan a los dos deportes se daban like en
+    deportes distintos y no pasaba nada. Encima el cliente elegía el
+    deporte del swipe con `_sportFor` (el primero de *tu* lista que la
+    otra persona también juega), así que dos perfiles con los deportes en
+    orden distinto no coincidían nunca.
+  - `likesYou` tenía el mismo filtro, de ahí que la chapa apareciera o no
+    según el feed que estuvieras mirando — y que prometiera un match que
+    luego no llegaba.
+  - Arreglado: el like recíproco cuenta **sea del deporte que sea**, y
+    `likesYou` tampoco filtra. Un like es "quiero jugar contigo", y desde
+    que `/discover` sólo enseña a quien comparte deporte contigo, un like
+    recíproco ya implica que hay uno en común. Antes de insertar se busca
+    un match existente entre los dos **en cualquier deporte**: la unique es
+    (userA, userB, sport), así que sin eso dos personas que juegan a ambos
+    acabarían con dos matches y dos chats separados.
+  - Verificado reproduciendo el caso: like de Hugo en tenis + like de Sofía
+    en correr → match, un solo match, y volver a darse like en el otro
+    deporte devuelve el mismo id.
+
 ## Pendiente / próximos pasos
 
 ### Sin empezar, esperando tu decisión

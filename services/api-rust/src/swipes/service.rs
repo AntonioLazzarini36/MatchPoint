@@ -87,11 +87,20 @@ pub async fn create_swipe(
         });
     }
 
-    // Look for the reverse LIKE (dto.toUserId -> me) on the same sport.
+    // El like de vuelta cuenta **sea del deporte que sea**.
+    //
+    // Antes se exigía el mismo deporte, y eso rompía el match entre dos
+    // personas que juegan a los dos: cada una elige por su cuenta qué feed
+    // está mirando, así que una daba like en tenis y la otra en correr y no
+    // pasaba nada — con el agravante de que "te ha dado like" sí salía
+    // (cuando mirabas el feed del deporte correcto) y el match no llegaba
+    // nunca. Un like significa "quiero jugar contigo", no "quiero jugar
+    // contigo exactamente a esto": desde que `/discover` sólo enseña a
+    // quien comparte deporte contigo, un like recíproco ya implica que hay
+    // al menos uno en común, que es lo único que hace falta para quedar.
     let reverse = swipes::table
         .filter(swipes::from_user_id.eq(&dto.to_user_id))
         .filter(swipes::to_user_id.eq(from_user_id))
-        .filter(swipes::sport.eq(dto.sport))
         .filter(swipes::swipe_type.eq(SwipeType::Like))
         .order(swipes::created_at.desc())
         .select(swipes::id)
@@ -108,6 +117,26 @@ pub async fn create_swipe(
     }
 
     let (user_a_id, user_b_id, sport) = order_pair(from_user_id, &dto.to_user_id, dto.sport);
+
+    // ¿Ya hay match con esta persona, aunque fuera por el otro deporte?
+    // Sin esta comprobación, dos que juegan a ambos acabarían con dos
+    // matches y dos chats separados con la misma persona. La unique de la
+    // tabla es por (userA, userB, sport), así que no lo impide sola.
+    let existing = matches::table
+        .filter(matches::user_a_id.eq(&user_a_id))
+        .filter(matches::user_b_id.eq(&user_b_id))
+        .order(matches::created_at.asc())
+        .first::<Match>(&mut conn)
+        .await
+        .optional()?;
+
+    if let Some(found) = existing {
+        return Ok(SwipeResult {
+            matched: true,
+            match_id: Some(found.id),
+            swipe_id,
+        });
+    }
 
     // Upsert the match. Prisma's `update: {}` is a no-op update that
     // still returns the existing row; `.set(matches::sport.eq(sport))`

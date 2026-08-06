@@ -367,7 +367,11 @@ impl AppConfig {
         // bien, se sirven bien, y desaparecen en el siguiente despliegue.
         // Un fallo que sólo se nota horas después y parece cosa del
         // volumen, no de una letra de más.
-        if !self.photos_dir.starts_with('/') {
+        // Solo en produccion: en local `./uploads` es lo correcto y no hay
+        // ningun volumen que pueda no coincidir. Avisar aqui seria un
+        // falso positivo en cada `cargo run`, y los avisos que siempre
+        // saltan acaban ignorandose — incluidos los de verdad.
+        if self.env.is_production() && !self.photos_dir.starts_with('/') {
             problems.push(format!(
                 "PHOTOS_DIR es {:?}, una ruta relativa: no puede coincidir con el punto de montaje de un volumen, y lo que se suba se perderá en cada despliegue",
                 self.photos_dir
