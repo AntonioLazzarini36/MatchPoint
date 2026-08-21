@@ -917,6 +917,100 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     en correr → match, un solo match, y volver a darse like en el otro
     deporte devuelve el mismo id.
 
+- **Identidad de la app: de "proyecto de Flutter" a app publicable
+  (2026-08-21)** — primera tanda de [`nextsteps.md`](nextsteps.md), la de los
+  bloqueos que Google Play rechaza automáticamente. Se hizo esto y no otra
+  cosa porque es **lo único irreversible** de la lista y no depende de
+  comprar ni contratar nada.
+  - **`applicationId`: `com.example.match_point` → `com.matchpoint.app`**
+    (también el `namespace`, el paquete Kotlin de `MainActivity` y el
+    `PRODUCT_BUNDLE_IDENTIFIER` de iOS, que iba por su cuenta en
+    `com.example.matchPoint`). Play prohíbe el prefijo `com.example`, y esto
+    **no se puede cambiar nunca** una vez publicada la app: cambiarlo
+    significa publicar otra app y perder usuarios, valoraciones e historial.
+    Efecto secundario esperado: en un móvil que ya tuviera la versión vieja,
+    esta se instala **al lado**, no encima.
+  - **Firma de release de verdad.** El `build.gradle.kts` llevaba desde el
+    principio un `TODO` firmando con la clave de *debug*, que Play no acepta.
+    Keystore PKCS12 (no JKS, que `keytool` ya marca como formato propietario
+    obsoleto) generado **fuera del repo**, en `~/keys/matchpoint-release.p12`,
+    y leído desde `android/key.properties` — que ya estaba en el
+    `.gitignore` de Android junto con `*.jks`, así que ni el keystore ni las
+    contraseñas entran en git. Si el archivo no existe, el build cae a la
+    clave de debug a propósito: así `flutter run --release` sigue
+    funcionando en una máquina recién clonada sin montar nada.
+    ⚠️ **El keystore es lo único de todo el proyecto que no se puede
+    regenerar.** Sin él no hay forma de volver a actualizar la app publicada.
+  - **Nombre `MatchPoint`** en Android (`android:label`, era `match_point`),
+    iOS (`CFBundleName` era `match_point` y `CFBundleDisplayName`
+    `Match Point` — dos nombres distintos en el mismo archivo), y web
+    (`manifest.json` + `<title>`). De paso, la `description` del `pubspec` y
+    del manifest web dejaron de ser "A new Flutter project.".
+  - **Icono propio**, en vez del rombo azul de Flutter de 544 bytes. El
+    dibujo es **tuyo** (`apps/mobile/tool/logo_source.png`, el logo circular
+    partido por la mitad: raqueta a un lado, zapatilla al otro) — dice
+    "tenis **y** correr", que es el posicionamiento real de la app; un primer
+    intento mío con una pelota de tenis sólo hablaba de la mitad del
+    producto y se descartó.
+    `apps/mobile/tool/gen_app_icon.dart` lo toma como entrada y produce los
+    tres PNG que hacen falta, **leyendo y escribiendo PNG a mano** (`dart:io`
+    ya trae zlib, no hizo falta ningún paquete de imágenes) — mismo criterio
+    que `datagen` con las fotos de prueba: se regenera en cualquier máquina y
+    los ajustes son constantes con nombre, no un binario que nadie sabe de
+    dónde salió. `flutter_launcher_icons` (dev dependency, sólo a mano)
+    reparte los tamaños. Qué le hace al original y por qué:
+    1. **El marco blanco pasa a pizarra** (`secondary` de la paleta). El
+       original era un círculo sobre blanco opaco, que en el escritorio de un
+       móvil se lee como un cuadrado blanco con un círculo dentro. Se
+       descartó el verde de marca: quedaría pegado al azul de la mitad
+       derecha.
+    2. **Las dos mitades se recolorean** de `#F4511E`/`#2E7D32` a los colores
+       que la app **ya** usa por deporte (`sport_words.dart`: tierra batida
+       y azul de tartán). El naranja del original es justo el que la app dejó
+       atrás al pasar a la paleta de pista, y el verde es el `primary`, que
+       aquí significa "acción/estado" y no "deporte" — reutilizarlo mezclaría
+       las dos cosas, que es la razón por la que los colores de deporte no
+       salen del `ColorScheme`.
+    3. **Se separa el dibujo del fondo** para darle a Android un icono
+       adaptativo de verdad: capa de atrás el círculo, capa de delante
+       raqueta y zapatilla. La máscara sale de proyectar cada píxel sobre la
+       recta fondo→blanco, así que el antialiasing del original se hereda
+       gratis en vez de reconstruirlo con umbrales.
+    4. **El círculo se dimensiona distinto en cada destino**, y esto es lo
+       que más vueltas costó: la capa adaptativa mide 108 dp pero Android
+       sólo enseña los 72 centrales, así que con la fracción del icono plano
+       el logo salía cortado, y con una "prudente" (0.58) el filete de
+       pizarra se convertía en un aro grueso que se comía el icono. Queda en
+       0.645 (≈70 dp). Además la capa de delante se dibuja dentro del 68%
+       central (el `inset` que escribe `flutter_launcher_icons`), así que
+       lleva su factor de compensación para que raqueta y zapatilla caigan
+       justo donde toca del círculo que tienen detrás. **Verificado
+       simulando la composición** (capa de atrás + capa de delante con su
+       `inset`, recortado en círculo), no a ojo.
+  - **`AppLogoPlaceholder` → `AppLogo`**: el logo de dentro de la app
+    (Welcome, login/registro) ya no es un círculo con `Icons.sports_tennis`,
+    es **el mismo PNG que el icono del lanzador**. Que sean el mismo archivo
+    y no dos dibujos parecidos evita que cambiar uno deje el otro
+    desincronizado.
+  - **Fuera los dos controles que no llevaban a ninguna parte**: los botones
+    desactivados "Google (próximamente)"/"Apple (próximamente)" de la
+    pantalla de bienvenida (la primera pantalla de la app anunciaba algo que
+    depende de credenciales externas que no existen) y la pantalla fantasma
+    `/partner`, que estaba registrada en el router, era alcanzable, y sólo
+    decía "Partner Detail (proximamente)".
+  - **`org.gradle.java.home` fuera del repo.** Estaba sin commitear en
+    `android/gradle.properties` apuntando a `C:/Program Files/Java/jdk-21`,
+    una ruta de una máquina concreta: commitearlo habría roto el build a
+    cualquier otro y a CI. Movido a `~/.gradle/gradle.properties`.
+  - Verificado: `flutter analyze` y `flutter test` en verde,
+    `flutter build web --release` limpio, y **`flutter build apk --release`
+    de verdad**, que es lo único que demuestra que la firma y el
+    `applicationId` nuevos funcionan. Comprobado sobre el APK resultante con
+    `aapt2 dump badging` (`package: com.matchpoint.app`,
+    `application-label:'MatchPoint'`) y con `apksigner verify --print-certs`:
+    firma `CN=MatchPoint, …, C=ES` con huella SHA-256 `5d18be53…4ce2dd`,
+    idéntica a la del keystore nuevo — o sea, ya no es la clave de debug.
+
 ## Pendiente / próximos pasos
 
 > **Para publicar en Google Play, ver [`nextsteps.md`](nextsteps.md)**:

@@ -7,7 +7,6 @@ class AppRoutes {
 
   // Main app
   static const discovery = '/discovery';
-  static const partnerDetail = '/partner';
 
   // Matches / chat
   static const matches = '/matches';

@@ -1,5 +1,5 @@
 name: match_point
-description: "A new Flutter project."
+description: "MatchPoint — encuentra con quién jugar a tu nivel, cerca de ti."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -47,6 +47,31 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Sólo se ejecuta a mano (`dart run flutter_launcher_icons`) para repartir
+  # el icono por Android/iOS/web; no entra en el build de la app.
+  flutter_launcher_icons: ^0.14.3
+
+# Los tres PNG de `assets/icon/` los produce `tool/gen_app_icon.dart` a partir
+# del logo en `tool/logo_source.png` (ver ese archivo). Regenerarlo entero:
+#   dart run tool/gen_app_icon.dart && dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: assets/icon/app_icon.png
+  android: true
+  # El icono adaptativo va en dos capas porque Android las mueve por separado
+  # (el efecto de profundidad al tocar el icono) y recorta el conjunto con la
+  # forma que decida cada fabricante: detrás, la división en dos mitades, que
+  # tiene que llegar hasta el borde para que no aparezca ningún marco al
+  # recortar; delante, sólo la raqueta y la zapatilla.
+  adaptive_icon_background: assets/icon/app_icon_background.png
+  adaptive_icon_foreground: assets/icon/app_icon_foreground.png
+  ios: true
+  # iOS rechaza iconos con canal alfa; `app_icon.png` es opaco, pero esto lo
+  # deja explícito por si alguien cambia el generador.
+  remove_alpha_ios: true
+  web:
+    generate: true
+    background_color: "#0E7A57"
+    theme_color: "#0E7A57"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -68,7 +93,13 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
      - assets/images/
-     #- assets/icons/
+     # El mismo icono que la app lleva en el lanzador se usa como logo
+     # dentro de la app (Welcome, login/registro), para que la marca sea una
+     # sola cosa y no dos dibujos parecidos. Se lista el archivo suelto y no
+     # la carpeta: `app_icon_foreground.png` vive ahí al lado, pero es la
+     # capa del icono adaptativo de Android y dentro de la app no la usa
+     # nadie.
+     - assets/icon/app_icon.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

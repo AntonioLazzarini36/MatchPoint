@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/routes.dart';
-import '../../../core/ui/widgets/app_logo_placeholder.dart';
+import '../../../core/ui/widgets/app_logo.dart';
 import '../../../core/ui/widgets/background_scaffold.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Spacer(),
-                  const Center(child: AppLogoPlaceholder(size: 88)),
+                  const Center(child: AppLogo(size: 88)),
                   const SizedBox(height: 20),
                   Text(
                     'MatchPoint',
@@ -43,21 +43,15 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const Spacer(),
 
+                  // Aquí había además dos botones desactivados, "Google
+                  // (próximamente)" y "Apple (próximamente)". Prometían algo
+                  // que no existe y que depende de credenciales externas
+                  // (Google Cloud Console, cuenta de Apple Developer), así
+                  // que la primera pantalla de la app anunciaba una función
+                  // que nadie puede usar. Vuelven cuando funcionen.
                   FilledButton(
                     onPressed: () => context.go(AppRoutes.onboardingAuth),
                     child: const Text('Empezar'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  OutlinedButton(
-                    onPressed: null,
-                    child: const Text('Google (próximamente)'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  OutlinedButton(
-                    onPressed: null,
-                    child: const Text('Apple (próximamente)'),
                   ),
                   const SizedBox(height: 16),
                 ],

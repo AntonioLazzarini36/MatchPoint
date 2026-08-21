@@ -12,29 +12,35 @@
 
 ## 🔴 Bloqueos duros — Google Play la rechaza automáticamente
 
-### 1. El applicationId es `com.example.match_point`
-Google **prohíbe** el prefijo `com.example`. Tiene que ser algo propio, tipo
-`com.matchpoint.app`.
+### 1. ~~El applicationId es `com.example.match_point`~~ ✅ hecho (2026-08-21)
+Ahora es **`com.matchpoint.app`** (Android y iOS). Detalle en `status.md`.
 
-⚠️ **Es la decisión más irreversible de toda la lista**: el applicationId no
-se puede cambiar nunca una vez publicas. Cambiarlo obligaría a publicar una
-app distinta y perder usuarios, valoraciones e historial.
+⚠️ Sigue siendo **la decisión más irreversible de toda la lista**, sólo que
+ya está tomada: a partir de la primera publicación no se puede cambiar. Si
+por lo que sea hay que cambiarlo (p. ej. porque el dominio que se compre
+sugiera otro), **el momento es antes de subirla a Play**, no después.
 
-Dónde: `apps/mobile/android/app/build.gradle.kts`.
+### 2. ~~Firmada con la clave de debug~~ ✅ hecho (2026-08-21)
+Keystore PKCS12 en `~/keys/matchpoint-release.p12`, credenciales en
+`apps/mobile/android/key.properties` (ignorado por git). El APK de release ya
+sale firmado con él, comprobado con `apksigner`.
 
-### 2. Firmada con la clave de debug
-Hay un `TODO` en `build.gradle.kts` desde el principio: el build de release
-usa `signingConfigs.getByName("debug")`. Play no acepta un APK/AAB firmado
-así.
+🔴 **Lo que falta y le toca al usuario: la copia de seguridad del keystore.**
+Ahora mismo existe en **un solo disco**. Si se pierde ese archivo o su
+contraseña, la app publicada no se puede volver a actualizar jamás — hay que
+publicar otra app desde cero. Guardar copia del `.p12` **y** de la contraseña
+en sitios distintos del portátil.
 
-Hace falta generar un keystore propio y guardarlo **fuera del repo** (y con
-copia de seguridad): si se pierde, no se puede volver a actualizar la app
-nunca más.
+### 3. ~~Nombre e icono de fábrica~~ ✅ hecho (2026-08-21)
+Se llama **MatchPoint** en Android, iOS y web, y tiene icono propio: el logo
+circular partido (raqueta / zapatilla) que aportaste, recoloreado a los
+colores de deporte de la app y con el blanco cambiado por pizarra.
+`apps/mobile/tool/gen_app_icon.dart` lo deriva del original en
+`tool/logo_source.png`.
 
-### 3. Nombre e icono de fábrica
-- Se llama **`match_point`** en el móvil (minúsculas, guión bajo):
-  `android:label` en `AndroidManifest.xml`.
-- El icono es el **rombo azul de Flutter por defecto** (544 bytes).
+Pendiente sólo si se quiere: un logotipo con **la palabra "MatchPoint"** y
+tipografía propia, para la ficha de Play y la cabecera de la web. El icono
+actual es sólo el símbolo.
 
 ### 4. Política de privacidad
 Obligatoria, con URL pública y accesible. Se recogen email, fotos y
@@ -95,13 +101,11 @@ creada y vacía.
 
 ## 🟡 Pulido que se nota al usarla
 
-### 12. Botones muertos en la pantalla de bienvenida
-"Google (próximamente)" y "Apple (próximamente)", desactivados. Prometen algo
-que no existe: mejor quitarlos hasta que funcionen.
+### 12. ~~Botones muertos en la pantalla de bienvenida~~ ✅ hecho (2026-08-21)
+Quitados. Vuelven cuando el login social funcione de verdad.
 
-### 13. Pantalla fantasma
-`/partner` (`partner_detail_screen.dart`) está registrada en el router y sólo
-dice "Partner Detail (proximamente)". Es alcanzable.
+### 13. ~~Pantalla fantasma~~ ✅ hecho (2026-08-21)
+`/partner` borrada entera: ruta, import y archivo.
 
 ### 14. Sin manejo de "no hay conexión"
 Cada pantalla falla a su manera cuando se cae la red. Falta un estado común.

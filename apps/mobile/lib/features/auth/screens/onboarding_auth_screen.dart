@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import 'package:match_point/core/network/api.dart';
-import 'package:match_point/core/ui/widgets/app_logo_placeholder.dart';
+import 'package:match_point/core/ui/widgets/app_logo.dart';
 import '../auth_controller.dart';
 import '../models/register_request.dart';
 import '../services/auth_service.dart';
@@ -161,7 +161,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(child: AppLogoPlaceholder(size: 64)),
+                const Center(child: AppLogo(size: 64)),
                 const SizedBox(height: 20),
                 Text(
                   isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta',

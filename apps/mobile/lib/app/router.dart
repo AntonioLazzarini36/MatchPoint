@@ -10,7 +10,6 @@ import 'package:match_point/features/auth/screens/onboarding_auth_screen.dart';
 import 'package:match_point/features/onboarding/screens/onboarding_profile_screen.dart';
 
 import 'package:match_point/features/discovery/screens/discovery_screen.dart';
-import 'package:match_point/features/discovery/screens/partner_detail_screen.dart';
 import 'package:match_point/features/matches/models/match_item.dart';
 import 'package:match_point/features/matches/screens/matches_screen.dart';
 import 'package:match_point/features/matches/screens/chat_screen.dart';
@@ -57,10 +56,6 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.discovery,
         builder: (context, state) => const DiscoveryScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.partnerDetail,
-        builder: (context, state) => const PartnerDetailScreen(),
       ),
 
       // --- MATCHES ---

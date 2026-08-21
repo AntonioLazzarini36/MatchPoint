@@ -1,4 +1,4 @@
-package com.example.match_point
+package com.matchpoint.app
 
 import io.flutter.embedding.android.FlutterActivity
 

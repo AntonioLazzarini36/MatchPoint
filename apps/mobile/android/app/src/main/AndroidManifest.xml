@@ -7,7 +7,7 @@
          nota hasta el primer build de release. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="match_point"
+        android:label="MatchPoint"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

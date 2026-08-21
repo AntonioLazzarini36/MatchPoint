@@ -1,11 +1,11 @@
 {
-    "name": "match_point",
-    "short_name": "match_point",
+    "name": "MatchPoint",
+    "short_name": "MatchPoint",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0E7A57",
+    "theme_color": "#0E7A57",
+    "description": "Encuentra con quién jugar a tu nivel, cerca de ti.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
