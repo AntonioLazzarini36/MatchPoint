@@ -1294,6 +1294,26 @@ punto 1) también queda fuera, ver el punto en sí.
 
 ## Notas del entorno local
 
+- **La API desplegada está en `https://matchpoint-production-bfd0.up.railway.app`.**
+  Queda anotado aquí porque no estaba escrito en ningún archivo del repo
+  (`DEPLOY.md` y el README usan el marcador `tu-servicio.up.railway.app`) y
+  recuperarla costó. Ojo al buscarla a ciegas: probando nombres por defecto
+  de Railway, `matchpoint-production.up.railway.app` **existe y devuelve 200**,
+  pero es **otro proyecto de otra persona** (CourtSwap, un marketplace
+  holandés de deportes de raqueta) — hay que mirar el cuerpo de la
+  respuesta, no el código de estado. La nuestra responde `Hello World!` en
+  `/` y `{"ok":true}` en `/health`.
+- **El APK no lleva esa URL por defecto.** `api.dart` sólo cae en
+  `10.0.2.2:3000` (el alias del emulador) si no se pasa nada, así que un
+  build de release sin `--dart-define` **no funciona en un móvil real**, y
+  falla de la peor forma: instala bien y luego ninguna petición llega.
+  Para que sirva:
+  ```powershell
+  flutter build apk --release --split-per-abi `
+    --dart-define=API_BASE_URL=https://matchpoint-production-bfd0.up.railway.app
+  ```
+  `--split-per-abi` porque el APK universal pesa 56 MB y el de arm64 (el de
+  cualquier móvil actual) 22 MB.
 - La DB de dev en Docker (`matchpoint_db`) está mapeada al puerto **15432**,
   no el 5432 que asume `.env`/`docker-compose.yml`. Al levantar el backend a
   mano hace falta `DATABASE_URL` apuntando a `127.0.0.1:15432`.
