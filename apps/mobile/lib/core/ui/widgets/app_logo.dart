@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// Logo de la app. Es **el mismo PNG que el icono del lanzador**
-/// (`assets/icon/app_icon.png`, dibujado por `tool/gen_app_icon.dart`), no un
-/// segundo dibujo parecido: así lo que alguien toca en el escritorio y lo que
-/// ve al abrir la app son la misma marca, y un cambio de icono no deja el de
-/// dentro desincronizado.
+/// Logo de la app. Sale del **mismo dibujo** que el icono del lanzador y del
+/// mismo generador (`tool/gen_app_icon.dart`), así que no puede
+/// desincronizarse, pero es un archivo distinto a propósito: aquí va
+/// recortado en círculo (`app_logo.png`), mientras que el del lanzador llega
+/// hasta el borde porque el sistema lo recorta con su propia forma y rellena
+/// de negro lo que sobre.
 ///
 /// Sustituye al antiguo `AppLogoPlaceholder` (círculo + `Icons.sports_tennis`),
 /// que existía sólo mientras no hubiera un logo de verdad.
@@ -17,7 +18,7 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     // Sin recortar: el PNG ya es el círculo y sus esquinas son transparentes.
     return Image.asset(
-      'assets/icon/app_icon.png',
+      'assets/icon/app_logo.png',
       width: size,
       height: size,
       // El PNG es de 1024 px y aquí se pinta a menos de 100: sin esto,

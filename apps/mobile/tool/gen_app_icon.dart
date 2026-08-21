@@ -9,11 +9,21 @@
 //
 // Qué le hace al original y por qué:
 //
-//  1. **Quita el marco.** El logo es el círculo y nada más: lo que había
-//     alrededor era blanco opaco, que en el escritorio de un móvil se lee
-//     como un cuadrado blanco con un círculo dentro. Ahora es transparente y
-//     el círculo se dimensiona para llenar el icono, así que no se ve ningún
-//     fondo por detrás.
+//  1. **Quita el marco, de dos formas distintas según a dónde vaya.** El
+//     original es un círculo sobre blanco opaco, que en el escritorio de un
+//     móvil se lee como un cuadrado blanco con un círculo dentro.
+//     - **Para el lanzador**, las dos mitades se extienden **hasta el borde**.
+//       Un icono adaptativo no tiene "fuera": el sistema lo recorta con la
+//       forma que quiera y espera que la capa de fondo llene el lienzo. Se
+//       probó dejarla transparente por fuera del círculo y HyperOS rellenó
+//       el hueco **de negro**, porque la máscara de ese lanzador es un
+//       cuadrado redondeado y no un círculo: en el escritorio salía el logo
+//       metido en una pastilla negra. Llegando al borde, con máscara redonda
+//       se ve el logo circular tal cual, y con cualquier otra la misma
+//       división con esa forma — nunca hay relleno, porque no hay hueco.
+//     - **Para dentro de la app** (`app_logo.png`) sí se mantiene el círculo
+//       recortado con las esquinas transparentes: ahí lo dibuja Flutter
+//       sobre el fondo de la pantalla, no lo recorta ningún sistema.
 //
 //  2. **Recolorea las dos mitades.** El original venía en naranja `#F4511E` y
 //     verde `#2E7D32`. Ese naranja es justo el que la app dejó atrás al pasar
@@ -28,10 +38,10 @@
 //     capa de delante = raqueta y zapatilla. Es lo que hace que el lanzador
 //     pueda moverlas por separado en vez de tratar el icono como una estampa.
 //
-//  4. **Ajusta el tamaño del círculo a cada destino.** En el icono plano el
-//     círculo es el lienzo entero; en el adaptativo tiene que ser 72 de los
-//     108 dp de la capa, que es la parte que Android enseña. Por eso hay dos
-//     fracciones y no una.
+//  4. **Ajusta el tamaño del dibujo a cada destino.** La capa de delante del
+//     icono adaptativo no se dibuja sobre los 108 dp de la capa sino dentro
+//     del 68% central, así que lleva su propia escala para acabar viéndose
+//     igual de grande que en el icono plano.
 //
 // La geometría (centro, radio, ancho del separador, colores de cada mitad) se
 // **mide** del original en vez de estar escrita a mano, para que volver a
@@ -48,21 +58,21 @@ const _tennis = [0xC6, 0x5F, 0x3B]; // tierra batida
 const _running = [0x3B, 0x7B, 0xC6]; // azul pista de atletismo
 const _white = [0xFF, 0xFF, 0xFF];
 
-/// Qué parte del lienzo ocupa el círculo en el icono plano (iOS, web y
-/// Android antiguo): todo. Fuera del círculo el PNG es transparente.
-const _flatCircleFraction = 1.0;
+/// Escala del dibujo (raqueta y zapatilla) en el icono del lanzador. En el
+/// original ocupan el 61% del ancho porque estaban pensados para caber dentro
+/// del círculo con su marco alrededor; sin marco se quedan pequeños y a 48 px
+/// las cuerdas de la raqueta desaparecen. Con 1.25 pasan al 76%.
+const _launcherArtScale = 1.25;
 
-/// Y en el icono adaptativo de Android, donde no puede ser la misma: la capa
-/// mide 108 dp pero el sistema sólo enseña los 72 centrales. 72/108 hace que
-/// el círculo llene exactamente lo que se ve, así que en un lanzador con
-/// máscara redonda el logo va de borde a borde y no asoma nada por detrás.
-const _adaptiveCircleFraction = 72 / 108;
+/// El mismo tamaño aparente, pero en la capa de delante del icono adaptativo,
+/// que Android dibuja dentro del 68% central de la capa (el
+/// `<inset android:inset="16%">` que escribe `flutter_launcher_icons`)
+/// mientras que la de atrás ocupa los 108 dp enteros. Sale de igualar las dos
+/// fracciones vistas, y de paso deja el dibujo dentro del círculo de 66 dp
+/// que Android garantiza que no recorta en ningún móvil (su esquina más
+/// lejana queda a ~31 dp del centro, de los 33 disponibles).
+const _adaptiveArtScale = 1.22;
 
-/// La capa de delante del icono adaptativo no se dibuja sobre los 108 dp de
-/// la capa, sino dentro del 68% central: es el `<inset android:inset="16%">`
-/// que escribe `flutter_launcher_icons`. Sin compensarlo, el dibujo saldría
-/// encogido respecto al círculo que tiene detrás.
-const _foregroundInsetCompensation = 108 / (108 * 0.68);
 
 void main() {
   final src = _decodePng(File(_sourcePath).readAsBytesSync());
@@ -71,46 +81,54 @@ void main() {
 
   Directory('assets/icon').createSync(recursive: true);
 
-  // Una sola escala mueve círculo y dibujo a la vez, así que las proporciones
-  // del logo original se mantienen intactas en las tres salidas.
-  final flat = geo.size * _flatCircleFraction / (geo.radius * 2);
-  final adaptive = geo.size * _adaptiveCircleFraction / (geo.radius * 2);
+  // --- Icono del lanzador: a sangre, sin nada transparente ---
 
-  // Icono plano: web, iOS y el icono "de siempre" de Android para móviles
-  // anteriores a los adaptativos. iOS no admite canal alfa, así que ahí
-  // `flutter_launcher_icons` rellena las esquinas (`remove_alpha_ios`).
+  // Plano: web, iOS y el icono "de siempre" de Android para móviles
+  // anteriores a los adaptativos.
   _write(
     'assets/icon/app_icon.png',
-    _compose(geo, art, withCircle: true, withArtwork: true, scale: flat),
+    _compose(geo, art, fill: _Fill.bleed, artScale: _launcherArtScale),
   );
 
-  // Capa de atrás del icono adaptativo: el círculo, sin el dibujo.
+  // Capa de atrás del adaptativo: la división sola.
   _write(
     'assets/icon/app_icon_background.png',
-    _compose(geo, art, withCircle: true, withArtwork: false, scale: adaptive),
+    _compose(geo, art, fill: _Fill.bleed, artScale: null),
   );
 
-  // Capa de delante: sólo raqueta y zapatilla, sobre transparente y
-  // compensando el `inset`, para que caigan justo donde toca del círculo de
-  // la capa de atrás.
+  // Capa de delante: sólo raqueta y zapatilla, sobre transparente y con su
+  // escala, para caer justo donde toca de la capa de atrás.
   _write(
     'assets/icon/app_icon_foreground.png',
+    _compose(geo, art, fill: _Fill.none, artScale: _adaptiveArtScale),
+  );
+
+  // --- Logo de dentro de la app: el círculo, con las esquinas transparentes ---
+
+  final circleScale = geo.size / (geo.radius * 2);
+  _write(
+    'assets/icon/app_logo.png',
     _compose(
       geo,
       art,
-      withCircle: false,
-      withArtwork: true,
-      scale: adaptive * _foregroundInsetCompensation,
+      fill: _Fill.circle,
+      circleScale: circleScale,
+      artScale: circleScale,
     ),
   );
 
   stdout.writeln(
-    'Escritos assets/icon/app_icon{,_background,_foreground}.png '
-    'desde $_sourcePath '
+    'Escritos assets/icon/app_icon{,_background,_foreground}.png y '
+    'app_logo.png desde $_sourcePath '
     '(círculo r=${geo.radius.toStringAsFixed(0)}, '
     'separador ${(geo.dividerHalfWidth * 2).toStringAsFixed(0)} px)',
   );
 }
+
+/// Qué se pinta de fondo: nada (capa de delante del adaptativo), las dos
+/// mitades hasta el borde (icono del lanzador) o el círculo recortado (logo
+/// de dentro de la app).
+enum _Fill { none, bleed, circle }
 
 // --- Medir el original ---
 
@@ -243,18 +261,21 @@ Float32List _artworkMask(_Image src, _Geometry g) {
 _Image _compose(
   _Geometry g,
   Float32List art, {
-  required bool withCircle,
-  required bool withArtwork,
-  required double scale,
+  required _Fill fill,
+  required double? artScale,
+  double circleScale = 1.0,
 }) {
   final n = g.size;
   final px = Uint8List(n * n * 4);
-  // Todo se escala respecto al centro del lienzo, no al del círculo original
+  // Todo se mide desde el centro del lienzo, no desde el del círculo original
   // (que estaba un píxel descentrado): así el resultado queda centrado de
   // verdad, que es lo que importa cuando el sistema lo recorta.
   final centre = n / 2.0;
-  final radius = g.radius * scale;
-  final dividerHalf = g.dividerHalfWidth * scale;
+  final radius = g.radius * circleScale;
+  // El separador acompaña al fondo que lleve: al círculo cuando se recorta, y
+  // al lienzo cuando va a sangre.
+  final dividerHalf =
+      g.dividerHalfWidth * (fill == _Fill.circle ? circleScale : 1.0);
 
   for (var y = 0; y < n; y++) {
     for (var x = 0; x < n; x++) {
@@ -275,24 +296,23 @@ _Image _compose(
       final dx = x + 0.5 - centre;
       final dy = y + 0.5 - centre;
 
-      if (withCircle) {
-        // El círculo sobre transparente, con un píxel de transición en el
-        // borde para que no salga dentado. Es la misma cobertura que luego
-        // recorta el separador, así que ninguno de los dos se sale del logo.
-        final inside = (0.5 - (math.sqrt(dx * dx + dy * dy) - radius)).clamp(
-          0.0,
-          1.0,
-        );
+      if (fill != _Fill.none) {
+        // Con `circle`, un píxel de transición en el borde para que no salga
+        // dentado; con `bleed`, cobertura 1 en todo el lienzo. El separador se
+        // multiplica por esa misma cobertura, así que nunca se sale del fondo.
+        final inside = fill == _Fill.circle
+            ? (0.5 - (math.sqrt(dx * dx + dy * dy) - radius)).clamp(0.0, 1.0)
+            : 1.0;
         paint(dx < 0 ? _tennis : _running, inside);
         paint(_white, (0.5 - (dx.abs() - dividerHalf)).clamp(0.0, 1.0) * inside);
       }
 
-      if (withArtwork) {
+      if (artScale != null) {
         // Deshacer la escala para saber de qué punto del original viene este
         // píxel. Al ir todo referido al mismo centro, raqueta y zapatilla
         // caen siempre en su mitad, sea cual sea la escala.
-        final sx = g.cx + dx / scale;
-        final sy = g.cy + dy / scale;
+        final sx = g.cx + dx / artScale;
+        final sy = g.cy + dy / artScale;
         paint(_white, _sample(art, g.size, sx, sy));
       }
 
