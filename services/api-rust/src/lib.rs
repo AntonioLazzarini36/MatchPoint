@@ -20,6 +20,7 @@ pub mod models;
 pub mod notifications;
 pub mod openapi;
 pub mod proposals;
+pub mod push;
 pub mod schema;
 pub mod state;
 pub mod swipes;
@@ -128,12 +129,13 @@ pub async fn run() {
         }
     }
 
-    let cfg_for_mailer = cfg.clone();
+    let cfg_for_services = cfg.clone();
     let state = AppState {
         db: pool,
         config: Arc::new(cfg),
         rate_limiter: auth::rate_limit::RateLimiter::new(),
-        mailer: mail::Mailer::from_config(&cfg_for_mailer),
+        mailer: mail::Mailer::from_config(&cfg_for_services),
+        pusher: push::Pusher::from_config(&cfg_for_services),
     };
 
     // Con la lista vacía se permite cualquier origen, que es lo comodo en

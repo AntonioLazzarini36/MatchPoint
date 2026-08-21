@@ -88,3 +88,20 @@ pub struct UpdatePreferencesDto {
 pub struct DeletePhotoDto {
     pub url: String,
 }
+
+/// Alta de un dispositivo para recibir notificaciones push.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterDeviceDto {
+    /// Token de FCM que da el SDK en el móvil.
+    pub token: String,
+    /// `android` / `ios` / `web`. Se guarda sin validar contra una lista
+    /// cerrada: sólo sirve para diagnosticar, y una plataforma nueva no
+    /// debería hacer fallar el registro.
+    pub platform: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UnregisterDeviceDto {
+    pub token: String,
+}

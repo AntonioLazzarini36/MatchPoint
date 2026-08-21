@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 
 use crate::chats::crypto;
 use crate::models::{Match, NewMessage};
-use crate::schema::{matches, messages};
+use crate::schema::{matches, messages, profiles};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -153,7 +153,7 @@ pub async fn send_message(
         .await
         .map_err(|e| ChatsError::Pool(e.to_string()))?;
 
-    assert_member(&mut conn, match_id, user_id).await?;
+    let found = assert_member(&mut conn, match_id, user_id).await?;
 
     let key = &state.config.message_key_base64;
     let ciphertext = crypto::encrypt_text(text, key)?;
@@ -174,6 +174,37 @@ pub async fn send_message(
         ))
         .get_result::<(String, String, String, DateTime<Utc>, Option<DateTime<Utc>>)>(&mut conn)
         .await?;
+
+    // Aviso al otro. Va después de guardar el mensaje y sin esperarlo: el
+    // mensaje ya está a salvo, y que FCM tarde o falle no es motivo para que
+    // quien escribió vea un error.
+    //
+    // **El texto del mensaje no viaja en la notificación** a propósito. Los
+    // mensajes se guardan cifrados en la base de datos precisamente para que
+    // no queden legibles fuera del móvil de cada uno; meter el texto en el
+    // aviso lo haría pasar en claro por los servidores de Google y por la
+    // pantalla de bloqueo, tirando por tierra esa decisión. Si algún día se
+    // prefiere la comodidad al sigilo, es cambiar este `body`.
+    let other_id = if found.user_a_id == user_id {
+        found.user_b_id.clone()
+    } else {
+        found.user_a_id.clone()
+    };
+    let sender_name = profiles::table
+        .filter(profiles::user_id.eq(user_id))
+        .select(profiles::display_name)
+        .first::<String>(&mut conn)
+        .await
+        .optional()?
+        .unwrap_or_else(|| "Alguien".to_string());
+
+    crate::push::spawn_notify(
+        state,
+        &other_id,
+        sender_name,
+        "Te ha enviado un mensaje".to_string(),
+        serde_json::json!({ "type": "message", "matchId": match_id }),
+    );
 
     Ok(MessageResponse {
         id,

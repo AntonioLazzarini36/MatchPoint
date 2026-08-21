@@ -14,7 +14,8 @@ use crate::auth::jwt::AuthUser;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
 use crate::discover::service::SkillLevelEntry;
 use crate::me::dto::{
-    DeletePhotoDto, UpdatePreferencesDto, UpdateProfileDto, UpdateSkillLevelsDto,
+    DeletePhotoDto, RegisterDeviceDto, UnregisterDeviceDto, UpdatePreferencesDto, UpdateProfileDto,
+    UpdateSkillLevelsDto,
 };
 use crate::me::photos::PhotoError;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
@@ -33,6 +34,10 @@ pub fn router() -> Router<AppState> {
         .route("/me/preferences", patch(update_preferences))
         .route("/me/skill-levels", patch(update_skill_levels))
         .route("/me/photos", post(add_photo).delete(remove_photo))
+        .route(
+            "/me/devices",
+            post(register_device).delete(unregister_device),
+        )
 }
 
 /// Doc-only shape of the multipart body `POST /me/photos` expects — never
@@ -213,6 +218,56 @@ fn me_error_response(err: MeError) -> axum::response::Response {
 )]
 async fn delete_account(State(state): State<AppState>, user: AuthUser) -> impl IntoResponse {
     match service::delete_account(&state, &user.user_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => me_error_response(err),
+    }
+}
+
+/// Alta del dispositivo para recibir notificaciones push.
+///
+/// Idempotente a propósito: el móvil lo llama en cada arranque y cada vez
+/// que FCM rota el token, sin comprobar antes si ya estaba.
+#[utoipa::path(
+    post,
+    path = "/me/devices",
+    tag = "me",
+    security(("bearerAuth" = [])),
+    request_body = RegisterDeviceDto,
+    responses(
+        (status = 204, description = "Dispositivo registrado"),
+        (status = 400, description = "Token o plataforma inválidos", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+    )
+)]
+async fn register_device(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(dto): Json<RegisterDeviceDto>,
+) -> impl IntoResponse {
+    match service::register_device(&state, &user.user_id, dto).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => me_error_response(err),
+    }
+}
+
+/// Baja del dispositivo, al cerrar sesión.
+#[utoipa::path(
+    delete,
+    path = "/me/devices",
+    tag = "me",
+    security(("bearerAuth" = [])),
+    request_body = UnregisterDeviceDto,
+    responses(
+        (status = 204, description = "Dispositivo dado de baja"),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+    )
+)]
+async fn unregister_device(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(dto): Json<UnregisterDeviceDto>,
+) -> impl IntoResponse {
+    match service::unregister_device(&state, &user.user_id, &dto.token).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => me_error_response(err),
     }

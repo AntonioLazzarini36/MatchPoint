@@ -17,10 +17,14 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::discover::service::{fetch_skill_levels, SkillLevelEntry};
-use crate::me::dto::{UpdatePreferencesDto, UpdateProfileDto, UpdateSkillLevelsDto};
+use crate::me::dto::{
+    RegisterDeviceDto, UpdatePreferencesDto, UpdateProfileDto, UpdateSkillLevelsDto,
+};
 use crate::me::photos::{self, PhotoError, MAX_PHOTOS};
-use crate::models::{NewPreferences, NewProfile, NewUserSkillLevel, Preferences, Profile, Sport};
-use crate::schema::{preferences, profiles, skill_levels, users};
+use crate::models::{
+    NewDeviceToken, NewPreferences, NewProfile, NewUserSkillLevel, Preferences, Profile, Sport,
+};
+use crate::schema::{device_tokens, preferences, profiles, skill_levels, users};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -585,5 +589,81 @@ pub async fn delete_account(state: &AppState, user_id: &str) -> Result<(), MeErr
     }
 
     tracing::info!("cuenta borrada: {user_id}");
+    Ok(())
+}
+
+/// Da de alta (o reasigna) el token de un dispositivo.
+///
+/// La clave está en el `ON CONFLICT (token)`: el mismo dispositivo puede
+/// pasar por varias cuentas —te deslogueas y entra otra persona, o vuelves a
+/// entrar con otro correo— y FCM le da **el mismo token**. Sin reasignar el
+/// dueño acumularíamos filas y el usuario anterior seguiría recibiendo los
+/// mensajes de la cuenta nueva en su móvil.
+pub async fn register_device(
+    state: &AppState,
+    user_id: &str,
+    dto: RegisterDeviceDto,
+) -> Result<(), MeError> {
+    let token = dto.token.trim().to_string();
+    if token.is_empty() || token.len() > 4096 {
+        return Err(MeError::InvalidInput(
+            "token de dispositivo vacío o demasiado largo".into(),
+        ));
+    }
+    let platform = dto.platform.trim().to_string();
+    if platform.is_empty() || platform.len() > 32 {
+        return Err(MeError::InvalidInput("plataforma inválida".into()));
+    }
+
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
+
+    let now = Utc::now();
+    diesel::insert_into(device_tokens::table)
+        .values(NewDeviceToken {
+            id: uuid::Uuid::new_v4().to_string(),
+            user_id: user_id.to_string(),
+            token,
+            platform,
+            updated_at: now,
+        })
+        .on_conflict(device_tokens::token)
+        .do_update()
+        .set((
+            device_tokens::user_id.eq(user_id),
+            device_tokens::updated_at.eq(now),
+        ))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+/// Baja del token, al cerrar sesión.
+///
+/// Se filtra también por usuario a propósito: sin eso, cualquiera que
+/// conociera un token ajeno podría dejar a otra persona sin notificaciones.
+pub async fn unregister_device(
+    state: &AppState,
+    user_id: &str,
+    token: &str,
+) -> Result<(), MeError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| MeError::Pool(e.to_string()))?;
+
+    diesel::delete(
+        device_tokens::table
+            .filter(device_tokens::token.eq(token))
+            .filter(device_tokens::user_id.eq(user_id)),
+    )
+    .execute(&mut conn)
+    .await?;
+
     Ok(())
 }

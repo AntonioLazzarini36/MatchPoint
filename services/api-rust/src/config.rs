@@ -107,6 +107,12 @@ pub struct AppConfig {
     /// que ser `onboarding@resend.dev` y solo se puede enviar al email con
     /// el que se creo la cuenta de Resend.
     pub email_from: String,
+
+    /// JSON de la cuenta de servicio de Firebase, tal cual o en base64.
+    /// Sin esto las notificaciones se escriben en el log en vez de
+    /// enviarse (ver `push.rs`), que es lo que permite desarrollar el
+    /// flujo entero sin credenciales.
+    pub firebase_service_account_json: Option<String>,
 }
 
 /// Quita de la URL de conexion los parametros que libpq no entiende.
@@ -283,6 +289,10 @@ impl AppConfig {
         let email_from = env::var("EMAIL_FROM")
             .unwrap_or_else(|_| "MatchPoint <onboarding@resend.dev>".to_string());
 
+        let firebase_service_account_json = env::var("FIREBASE_SERVICE_ACCOUNT_JSON")
+            .ok()
+            .filter(|v| !v.trim().is_empty());
+
         let cfg = Self {
             env: app_env,
             port,
@@ -301,6 +311,7 @@ impl AppConfig {
             email_verification_enabled,
             resend_api_key,
             email_from,
+            firebase_service_account_json,
         };
 
         cfg.validate();

@@ -5,6 +5,11 @@ dist/
 # Env
 .env
 .env.*
+# ...salvo el ejemplo, que es documentación y no lleva ningún secreto. Sin
+# esta excepción, `.env.*` se lo llevaba también: el archivo existía en la
+# máquina de quien lo escribió pero no en el repo, así que un clon nuevo se
+# quedaba sin la única lista de las variables que hacen falta.
+!.env.example
 
 # Prisma
 prisma/dev.db

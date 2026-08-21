@@ -63,6 +63,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    #[sql_name = "DeviceToken"]
+    device_tokens (id) {
+        id -> Text,
+        #[sql_name = "userId"]
+        user_id -> Text,
+        token -> Text,
+        platform -> Text,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
+        #[sql_name = "updatedAt"]
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::{Gender, Sport};
 
@@ -256,6 +271,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     preferences,
     refresh_tokens,
     email_verifications,
+    device_tokens,
     swipes,
     matches,
     messages,

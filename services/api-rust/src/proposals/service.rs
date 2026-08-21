@@ -246,7 +246,54 @@ pub async fn create(
         .get_result::<Proposal>(&mut conn)
         .await?;
 
+    // A quien la recibe. Es la notificación más valiosa de la app: una
+    // propuesta caduca sola (la fecha pasa), así que enterarse tarde equivale
+    // a no enterarse.
+    let other_id = if found.user_a_id == user_id {
+        found.user_b_id.clone()
+    } else {
+        found.user_a_id.clone()
+    };
+    let name = display_name_of(&mut conn, user_id).await;
+    crate::push::spawn_notify(
+        state,
+        &other_id,
+        format!("{name} te propone una quedada"),
+        when_label(when, created.sport),
+        serde_json::json!({
+            "type": "proposal",
+            "matchId": match_id,
+            "proposalId": created.id,
+        }),
+    );
+
     Ok(ProposalResponse::from_row(created, user_id))
+}
+
+/// Nombre visible de un usuario, con recambio si aún no tiene perfil.
+async fn display_name_of(conn: &mut AsyncPgConnection, user_id: &str) -> String {
+    profiles::table
+        .filter(profiles::user_id.eq(user_id))
+        .select(profiles::display_name)
+        .first::<String>(conn)
+        .await
+        .optional()
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "Alguien".to_string())
+}
+
+/// Cuerpo del aviso: qué deporte y cuándo.
+///
+/// La fecha se da en UTC porque el servidor no sabe en qué huso está quien
+/// lee — el cliente ya la muestra bien en la ficha de la quedada, y aquí lo
+/// que importa es que se reconozca de un vistazo.
+fn when_label(when: DateTime<Utc>, sport: Sport) -> String {
+    let que = match sport {
+        Sport::Tennis => "Partido de tenis",
+        Sport::Running => "Salida a correr",
+    };
+    format!("{que} · {}", when.format("%d/%m a las %H:%M UTC"))
 }
 
 pub async fn list_for_match(
@@ -333,6 +380,50 @@ pub async fn respond(
         ))
         .get_result::<Proposal>(&mut conn)
         .await?;
+
+    // Se avisa a la otra parte, sea quien sea: quien propuso necesita saber
+    // si hay partido, y quien aceptó necesita enterarse si el otro se echa
+    // atrás — presentarse en la pista y que no venga nadie es justo lo que
+    // esto evita.
+    let other_id = if existing.proposed_by_id == user_id {
+        // Cancelación del proponente: hay que avisar al que recibió.
+        let m = assert_member(&mut conn, &existing.match_id, user_id).await?;
+        if m.user_a_id == user_id {
+            m.user_b_id
+        } else {
+            m.user_a_id
+        }
+    } else {
+        existing.proposed_by_id.clone()
+    };
+
+    let name = display_name_of(&mut conn, user_id).await;
+    let (titulo, cuerpo) = match new_status {
+        ProposalStatus::Accepted => (
+            format!("{name} ha aceptado"),
+            when_label(existing.scheduled_at, existing.sport),
+        ),
+        ProposalStatus::Declined => (
+            format!("{name} no puede"),
+            "Propón otro día si te viene mejor".to_string(),
+        ),
+        _ => (
+            format!("{name} ha cancelado la quedada"),
+            when_label(existing.scheduled_at, existing.sport),
+        ),
+    };
+
+    crate::push::spawn_notify(
+        state,
+        &other_id,
+        titulo,
+        cuerpo,
+        serde_json::json!({
+            "type": "proposal",
+            "matchId": existing.match_id,
+            "proposalId": existing.id,
+        }),
+    );
 
     Ok(ProposalResponse::from_row(updated, user_id))
 }

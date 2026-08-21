@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::schema::{
-    email_verifications, matches, messages, preferences, profiles, proposals, refresh_tokens,
-    reports, skill_levels, swipes, users,
+    device_tokens, email_verifications, matches, messages, preferences, profiles, proposals,
+    refresh_tokens, reports, skill_levels, swipes, users,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
@@ -139,6 +139,31 @@ pub struct NewEmailVerification {
     pub user_id: String,
     pub code_hash: String,
     pub expires_at: DateTime<Utc>,
+}
+
+/// Token de FCM de un dispositivo concreto. Una fila por dispositivo y no por
+/// usuario: la misma persona puede querer que le suene en el movil y en la
+/// tablet.
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = device_tokens)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct DeviceToken {
+    pub id: String,
+    pub user_id: String,
+    pub token: String,
+    pub platform: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = device_tokens)]
+pub struct NewDeviceToken {
+    pub id: String,
+    pub user_id: String,
+    pub token: String,
+    pub platform: String,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Insertable)]

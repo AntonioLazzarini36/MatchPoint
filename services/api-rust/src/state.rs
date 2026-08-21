@@ -9,6 +9,7 @@ use crate::auth::rate_limit::RateLimiter;
 use crate::config::AppConfig;
 use crate::db::DbPool;
 use crate::mail::Mailer;
+use crate::push::Pusher;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -16,4 +17,5 @@ pub struct AppState {
     pub config: Arc<AppConfig>,
     pub rate_limiter: RateLimiter,
     pub mailer: Mailer,
+    pub pusher: Pusher,
 }

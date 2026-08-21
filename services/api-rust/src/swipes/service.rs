@@ -7,7 +7,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::models::{Match, NewMatch, NewSwipe, Sport, SwipeType};
-use crate::schema::{matches, swipes};
+use crate::schema::{matches, profiles, swipes};
 use crate::state::AppState;
 use crate::swipes::dto::CreateSwipeDto;
 
@@ -155,6 +155,26 @@ pub async fn create_swipe(
         .set(matches::sport.eq(sport))
         .get_result::<Match>(&mut conn)
         .await?;
+
+    // Sólo se avisa al **otro**: quien acaba de deslizar ya está mirando la
+    // pantalla y verá el match al instante. Y sólo aquí, en el match recién
+    // creado — el `return` de más arriba (match que ya existía) no debe
+    // volver a avisar de algo de hace semanas.
+    let name = profiles::table
+        .filter(profiles::user_id.eq(from_user_id))
+        .select(profiles::display_name)
+        .first::<String>(&mut conn)
+        .await
+        .optional()?
+        .unwrap_or_else(|| "Alguien".to_string());
+
+    crate::push::spawn_notify(
+        state,
+        &dto.to_user_id,
+        "¡Nuevo match!".to_string(),
+        format!("{name} también quiere jugar contigo"),
+        serde_json::json!({ "type": "match", "matchId": saved_match.id }),
+    );
 
     Ok(SwipeResult {
         matched: true,
