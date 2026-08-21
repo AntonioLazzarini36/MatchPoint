@@ -12,7 +12,6 @@ class WelcomeScreen extends StatelessWidget {
     final t = Theme.of(context).textTheme;
 
     return BackgroundScaffold(
-      assetPath: 'assets/images/welcome.jpg',
       // Los dos `Spacer` reparten el hueco sobrante cuando lo hay, pero no
       // pueden encogerse por debajo de cero: en pantallas cortas el
       // contenido fijo (logo + textos + tres botones) no cabía y esto
@@ -36,10 +35,15 @@ class WelcomeScreen extends StatelessWidget {
                     style: t.headlineLarge?.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    'Encuentra con quién jugar\na tu nivel, cerca de ti.',
-                    textAlign: TextAlign.center,
-                    style: t.bodyLarge?.copyWith(color: Colors.white70),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'Encuentra a tu compañero ideal para jugar al tenis '
+                      'o preparar tu próxima carrera, a tu nivel y cerca '
+                      'de ti.',
+                      textAlign: TextAlign.center,
+                      style: t.bodyLarge?.copyWith(color: Colors.white70),
+                    ),
                   ),
                   const Spacer(),
 

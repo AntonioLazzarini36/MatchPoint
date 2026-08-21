@@ -9,12 +9,11 @@
 //
 // Qué le hace al original y por qué:
 //
-//  1. **Cambia el marco blanco por el gris pizarra de la app.** El logo es
-//     circular y se queda circular; lo que había alrededor era blanco opaco,
-//     que en el escritorio de un móvil se lee como un cuadrado blanco con un
-//     círculo dentro. El pizarra (`secondary` de la paleta) es neutro y hace
-//     resaltar tanto la tierra batida como el azul, cosa que un fondo verde
-//     de marca no haría: quedaría pegado al azul de la mitad derecha.
+//  1. **Quita el marco.** El logo es el círculo y nada más: lo que había
+//     alrededor era blanco opaco, que en el escritorio de un móvil se lee
+//     como un cuadrado blanco con un círculo dentro. Ahora es transparente y
+//     el círculo se dimensiona para llenar el icono, así que no se ve ningún
+//     fondo por detrás.
 //
 //  2. **Recolorea las dos mitades.** El original venía en naranja `#F4511E` y
 //     verde `#2E7D32`. Ese naranja es justo el que la app dejó atrás al pasar
@@ -29,10 +28,10 @@
 //     capa de delante = raqueta y zapatilla. Es lo que hace que el lanzador
 //     pueda moverlas por separado en vez de tratar el icono como una estampa.
 //
-//  4. **Ajusta el tamaño del círculo a cada destino.** El icono plano puede
-//     llenar casi todo el lienzo; el adaptativo no, porque Android sólo
-//     garantiza que se ve el círculo central de 66 de los 108 dp de la capa.
-//     Por eso hay dos fracciones distintas y no una.
+//  4. **Ajusta el tamaño del círculo a cada destino.** En el icono plano el
+//     círculo es el lienzo entero; en el adaptativo tiene que ser 72 de los
+//     108 dp de la capa, que es la parte que Android enseña. Por eso hay dos
+//     fracciones y no una.
 //
 // La geometría (centro, radio, ancho del separador, colores de cada mitad) se
 // **mide** del original en vez de estar escrita a mano, para que volver a
@@ -49,22 +48,15 @@ const _tennis = [0xC6, 0x5F, 0x3B]; // tierra batida
 const _running = [0x3B, 0x7B, 0xC6]; // azul pista de atletismo
 const _white = [0xFF, 0xFF, 0xFF];
 
-/// Pizarra: `secondary` de la paleta (`lib/core/theme/app_theme.dart`).
-const _backdrop = [0x1E, 0x29, 0x3B];
-
 /// Qué parte del lienzo ocupa el círculo en el icono plano (iOS, web y
-/// Android antiguo). En el original era 0.75 y sobraba marco por todos lados.
-const _flatCircleFraction = 0.86;
+/// Android antiguo): todo. Fuera del círculo el PNG es transparente.
+const _flatCircleFraction = 1.0;
 
 /// Y en el icono adaptativo de Android, donde no puede ser la misma: la capa
-/// mide 108 dp pero el sistema sólo enseña los 72 centrales, y la forma del
-/// recorte la elige cada fabricante. Con la fracción del icono plano el logo
-/// se saldría y aparecería cortado. 0.645 · 108 ≈ 70 dp deja el logo justo
-/// dentro de esos 72, con un filete de pizarra alrededor que en los
-/// lanzadores que recortan en círculo se lee como un borde fino y a
-/// propósito. Más pequeño (se probó 0.58) el filete se convierte en un aro
-/// grueso que se come el icono.
-const _adaptiveCircleFraction = 0.645;
+/// mide 108 dp pero el sistema sólo enseña los 72 centrales. 72/108 hace que
+/// el círculo llene exactamente lo que se ve, así que en un lanzador con
+/// máscara redonda el logo va de borde a borde y no asoma nada por detrás.
+const _adaptiveCircleFraction = 72 / 108;
 
 /// La capa de delante del icono adaptativo no se dibuja sobre los 108 dp de
 /// la capa, sino dentro del 68% central: es el `<inset android:inset="16%">`
@@ -84,17 +76,18 @@ void main() {
   final flat = geo.size * _flatCircleFraction / (geo.radius * 2);
   final adaptive = geo.size * _adaptiveCircleFraction / (geo.radius * 2);
 
-  // Icono plano y opaco: iOS (que rechaza el canal alfa), web, y el icono
-  // "de siempre" de Android para móviles anteriores a los adaptativos.
+  // Icono plano: web, iOS y el icono "de siempre" de Android para móviles
+  // anteriores a los adaptativos. iOS no admite canal alfa, así que ahí
+  // `flutter_launcher_icons` rellena las esquinas (`remove_alpha_ios`).
   _write(
     'assets/icon/app_icon.png',
-    _compose(geo, art, withBackdrop: true, withArtwork: true, scale: flat),
+    _compose(geo, art, withCircle: true, withArtwork: true, scale: flat),
   );
 
   // Capa de atrás del icono adaptativo: el círculo, sin el dibujo.
   _write(
     'assets/icon/app_icon_background.png',
-    _compose(geo, art, withBackdrop: true, withArtwork: false, scale: adaptive),
+    _compose(geo, art, withCircle: true, withArtwork: false, scale: adaptive),
   );
 
   // Capa de delante: sólo raqueta y zapatilla, sobre transparente y
@@ -105,7 +98,7 @@ void main() {
     _compose(
       geo,
       art,
-      withBackdrop: false,
+      withCircle: false,
       withArtwork: true,
       scale: adaptive * _foregroundInsetCompensation,
     ),
@@ -250,7 +243,7 @@ Float32List _artworkMask(_Image src, _Geometry g) {
 _Image _compose(
   _Geometry g,
   Float32List art, {
-  required bool withBackdrop,
+  required bool withCircle,
   required bool withArtwork,
   required double scale,
 }) {
@@ -282,12 +275,10 @@ _Image _compose(
       final dx = x + 0.5 - centre;
       final dy = y + 0.5 - centre;
 
-      if (withBackdrop) {
-        paint(_backdrop, 1.0);
-
-        // El círculo, con un píxel de transición en el borde para que no
-        // salga dentado. Es la misma cobertura que luego recorta el
-        // separador, así que ninguno de los dos se sale del logo.
+      if (withCircle) {
+        // El círculo sobre transparente, con un píxel de transición en el
+        // borde para que no salga dentado. Es la misma cobertura que luego
+        // recorta el separador, así que ninguno de los dos se sale del logo.
         final inside = (0.5 - (math.sqrt(dx * dx + dy * dy) - radius)).clamp(
           0.0,
           1.0,

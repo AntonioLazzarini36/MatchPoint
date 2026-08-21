@@ -15,21 +15,15 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      // El icono se genera cuadrado y con fondo hasta el borde, porque cada
-      // sistema lo recorta a su manera. Aquí lo recortamos nosotros: redondeo
-      // proporcional al tamaño para que se vea igual a 64 y a 88.
-      borderRadius: BorderRadius.circular(size * 0.28),
-      child: Image.asset(
-        'assets/icon/app_icon.png',
-        width: size,
-        height: size,
-        // El PNG es de 1024 px y aquí se pinta a menos de 100: sin esto,
-        // Flutter se guarda en memoria la imagen entera a resolución
-        // completa.
-        cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
-        filterQuality: FilterQuality.medium,
-      ),
+    // Sin recortar: el PNG ya es el círculo y sus esquinas son transparentes.
+    return Image.asset(
+      'assets/icon/app_icon.png',
+      width: size,
+      height: size,
+      // El PNG es de 1024 px y aquí se pinta a menos de 100: sin esto,
+      // Flutter se guarda en memoria la imagen entera a resolución completa.
+      cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+      filterQuality: FilterQuality.medium,
     );
   }
 }
