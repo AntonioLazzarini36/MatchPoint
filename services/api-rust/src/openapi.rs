@@ -67,6 +67,7 @@ pub struct OkResponse {
         crate::admin::controller::review_report,
         crate::admin::controller::list_incomplete,
         crate::admin::controller::purge_incomplete,
+        crate::admin::controller::reset,
     ),
     components(schemas(
         ErrorResponse,
@@ -119,6 +120,7 @@ pub struct OkResponse {
         crate::admin::service::ReportEntry,
         crate::admin::service::IncompleteAccount,
         crate::admin::controller::PurgeResult,
+        crate::admin::service::ResetResult,
         crate::admin::controller::ReviewReportDto,
         crate::admin::controller::ListReportsQuery,
     )),

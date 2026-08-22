@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, patch},
+    routing::{get, patch, post},
     Json, Router,
 };
 use serde::Deserialize;
@@ -11,7 +11,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::admin::service::{self, AdminError};
 #[allow(unused_imports)] // referenciado solo dentro de #[utoipa::path]
-use crate::admin::service::{IncompleteAccount, ReportEntry};
+use crate::admin::service::{IncompleteAccount, ReportEntry, ResetResult};
 #[allow(unused_imports)]
 use crate::openapi::ErrorResponse;
 use crate::state::AppState;
@@ -24,6 +24,7 @@ pub fn router() -> Router<AppState> {
             "/admin/incomplete-accounts",
             get(list_incomplete).delete(purge_incomplete),
         )
+        .route("/admin/reset", post(reset))
 }
 
 /// Comprueba la clave de administración.
@@ -202,4 +203,48 @@ async fn purge_incomplete(State(state): State<AppState>, headers: HeaderMap) -> 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PurgeResult {
     pub deleted: usize,
+}
+
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+pub struct ResetQuery {
+    /// Tiene que valer exactamente `BORRAR-TODO`.
+    pub confirm: Option<String>,
+}
+
+/// Deja la instalación vacía: borra **todas** las cuentas y **todas** las
+/// fotos del disco. No se puede deshacer.
+///
+/// Pide la palabra exacta `?confirm=BORRAR-TODO` además de la clave de
+/// administración. La clave sola ya autoriza, pero es la misma que se usa
+/// para mirar la cola de moderación desde una terminal: un error de tecleo
+/// no puede tener como consecuencia vaciar la base entera.
+#[utoipa::path(
+    post,
+    path = "/admin/reset",
+    tag = "admin",
+    params(ResetQuery),
+    responses(
+        (status = 200, description = "Todo borrado", body = ResetResult),
+        (status = 400, description = "Falta la confirmación exacta", body = ErrorResponse),
+        (status = 404, description = "Clave de administración ausente o incorrecta", body = ErrorResponse),
+    )
+)]
+async fn reset(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<ResetQuery>,
+) -> Response {
+    if !authorised(&state, &headers) {
+        return not_found();
+    }
+    if q.confirm.as_deref() != Some("BORRAR-TODO") {
+        return crate::http_error::respond(
+            StatusCode::BAD_REQUEST,
+            "Para vaciar la instalación hace falta ?confirm=BORRAR-TODO",
+        );
+    }
+    match service::reset_everything(&state).await {
+        Ok(result) => Json(result).into_response(),
+        Err(e) => error_response(e),
+    }
 }

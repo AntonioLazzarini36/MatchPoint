@@ -290,3 +290,58 @@ pub async fn delete_incomplete(state: &AppState) -> Result<usize, AdminError> {
     tracing::warn!("admin: borradas {deleted} cuentas incompletas");
     Ok(deleted)
 }
+
+/// Lo que dejó el reset.
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetResult {
+    pub users_deleted: usize,
+    pub photo_files_deleted: usize,
+}
+
+/// Deja la instalación como recién creada: **cero cuentas y cero fotos**.
+///
+/// Existe para el momento de enseñar la app a gente de verdad, cuando lo que
+/// hay dentro son perfiles sembrados y cuentas de prueba. No es una
+/// herramienta de mantenimiento: no hay nada que recuperar después.
+///
+/// Las fotos se borran del disco además de la base porque no cuelgan de
+/// ningún `ON DELETE CASCADE` — son ficheros en el volumen. Borrar sólo las
+/// filas dejaría el volumen lleno de caras de gente que ya no tiene cuenta,
+/// que es exactamente lo que un reset debería evitar.
+pub async fn reset_everything(state: &AppState) -> Result<ResetResult, AdminError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AdminError::Pool(e.to_string()))?;
+
+    let users_deleted = diesel::delete(users::table).execute(&mut conn).await?;
+
+    // Best-effort, igual que `photos::delete_photo_file`: un fichero que no
+    // se deja borrar no debe dejar la base a medio limpiar, y a estas alturas
+    // las filas ya no están.
+    let mut photo_files_deleted = 0usize;
+    if let Ok(mut dir) = tokio::fs::read_dir(&state.config.photos_dir).await {
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            let is_file = entry
+                .file_type()
+                .await
+                .map(|t| t.is_file())
+                .unwrap_or(false);
+            if is_file && tokio::fs::remove_file(entry.path()).await.is_ok() {
+                photo_files_deleted += 1;
+            }
+        }
+    }
+
+    tracing::warn!(
+        "admin: RESET completo — {users_deleted} cuentas y {photo_files_deleted} \
+         ficheros de fotos borrados"
+    );
+
+    Ok(ResetResult {
+        users_deleted,
+        photo_files_deleted,
+    })
+}
