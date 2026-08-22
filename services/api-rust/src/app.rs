@@ -11,6 +11,7 @@ use tower_http::services::ServeDir;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::admin;
 use crate::app;
 use crate::discover;
 use crate::matches;
@@ -39,6 +40,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(notifications::controller::router())
         .merge(chats::controller::router(state.clone())) // next: ChatsModule
         .merge(users::controller::router(state.clone())) // next: UsersModule
+        .merge(admin::controller::router())
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .nest_service("/uploads", ServeDir::new(photos_dir))
         .with_state(state)

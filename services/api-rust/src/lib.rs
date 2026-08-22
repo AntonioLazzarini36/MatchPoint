@@ -6,6 +6,7 @@
 //! via routes/services. As part of a lib target, pub items are considered
 //! part of the crate's public surface and are exempt from that check.
 
+pub mod admin;
 pub mod app;
 pub mod auth;
 pub mod chats;

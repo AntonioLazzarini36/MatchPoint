@@ -434,6 +434,10 @@ pub struct Report {
     pub reporter_user_id: String,
     pub reported_user_id: String,
     pub reason: String,
+    /// `None` = sin revisar. Fecha y no booleano: "cuando se reviso" es dato
+    /// util para responder a quien denuncio, y el booleano se deduce.
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub review_note: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 

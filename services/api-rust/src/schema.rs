@@ -223,6 +223,10 @@ diesel::table! {
         #[sql_name = "reportedUserId"]
         reported_user_id -> Text,
         reason -> Text,
+        #[sql_name = "reviewedAt"]
+        reviewed_at -> Nullable<Timestamptz>,
+        #[sql_name = "reviewNote"]
+        review_note -> Nullable<Text>,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
     }

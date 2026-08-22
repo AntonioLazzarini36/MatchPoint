@@ -113,6 +113,11 @@ pub struct AppConfig {
     /// enviarse (ver `push.rs`), que es lo que permite desarrollar el
     /// flujo entero sin credenciales.
     pub firebase_service_account_json: Option<String>,
+
+    /// Clave para la cola de moderacion (`/admin/*`). Sin ella esos
+    /// endpoints responden 404: no existe una puerta que abrir, que es mejor
+    /// que dejarlos abiertos "porque no hay clave puesta".
+    pub admin_api_key: Option<String>,
 }
 
 /// Quita de la URL de conexion los parametros que libpq no entiende.
@@ -293,6 +298,10 @@ impl AppConfig {
             .ok()
             .filter(|v| !v.trim().is_empty());
 
+        let admin_api_key = env::var("ADMIN_API_KEY")
+            .ok()
+            .filter(|v| !v.trim().is_empty());
+
         let cfg = Self {
             env: app_env,
             port,
@@ -312,6 +321,7 @@ impl AppConfig {
             resend_api_key,
             email_from,
             firebase_service_account_json,
+            admin_api_key,
         };
 
         cfg.validate();

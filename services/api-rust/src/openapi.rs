@@ -63,6 +63,8 @@ pub struct OkResponse {
         crate::chats::controller::mark_read,
         crate::users::controller::get_profile,
         crate::users::controller::report_user,
+        crate::admin::controller::list_reports,
+        crate::admin::controller::review_report,
     ),
     components(schemas(
         ErrorResponse,
@@ -112,6 +114,9 @@ pub struct OkResponse {
         crate::chats::service::MessageResponse,
         crate::chats::service::MarkReadResponse,
         crate::users::dto::ReportUserDto,
+        crate::admin::service::ReportEntry,
+        crate::admin::controller::ReviewReportDto,
+        crate::admin::controller::ListReportsQuery,
     )),
     tags(
         (name = "misc", description = "Endpoints de estado"),
@@ -123,6 +128,7 @@ pub struct OkResponse {
         (name = "proposals", description = "Propuestas de partido/sesión dentro de un match"),
         (name = "chats", description = "Mensajes dentro de un match"),
         (name = "users", description = "Perfiles públicos de otros usuarios"),
+        (name = "admin", description = "Cola de moderación — requiere ADMIN_API_KEY"),
     ),
     modifiers(&SecurityAddon)
 )]
