@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../utils/pace_format.dart';
 import '../../../utils/sport_words.dart';
+import '../../../../features/onboarding/models/intention.dart';
 import '../../../../features/discovery/models/discover_profile.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import '../../../../features/discovery/models/sport.dart';
@@ -30,11 +32,32 @@ class DiscoveryMiniCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Material(
         color: colors.surfaceContainerHighest,
+        // El borde va en el Material y no superpuesto a la foto: ahora la
+        // tarjeta tiene dos zonas (foto y datos) y un borde que solo
+        // rodeara la foto se leeria como un recuadro suelto.
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(
+            color: highlighted
+                ? (user.likesYou ? colors.tertiary : colors.primary)
+                : accent.withValues(alpha: 0.85),
+            width: highlighted ? 2.5 : 1.5,
+          ),
+        ),
         child: InkWell(
           onTap: onTap,
-          child: Stack(
-            fit: StackFit.expand,
+          // Foto arriba y tira de datos abajo, en vez de la foto ocupando la
+          // tarjeta entera. La foto sigue importando —vas a quedar con un
+          // desconocido y quieres verle la cara— pero deja de ser lo unico:
+          // lo que decide si merece la pena deslizar son los años jugando,
+          // la distancia real y a que viene, que hasta ahora solo se veian
+          // abriendo el perfil, o sea cuando ya habias decidido.
+          child: Column(
             children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
               if (user.mainPhoto != null)
                 Image.network(
                   user.mainPhoto!,
@@ -138,24 +161,71 @@ class DiscoveryMiniCard extends StatelessWidget {
               // la tarjeta está destacada; fino y del color del deporte
               // cuando no — así el deporte se lee siempre, pero nunca
               // compite con "te ha dado like".
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(
-                        color: highlighted
-                            ? (user.likesYou ? colors.tertiary : colors.primary)
-                            : accent.withValues(alpha: 0.85),
-                        width: highlighted ? 2.5 : 1.5,
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ),
+              _statsStrip(context),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// La tira que responde "¿me interesa esta persona?" sin abrir el perfil.
+  ///
+  /// Se enseña como mucho tres datos, y sólo los que existan: rellenar
+  /// huecos con guiones haría que un perfil a medias pareciera vacío en vez
+  /// de simplemente más corto.
+  Widget _statsStrip(BuildContext context) {
+    final items = <(String, String)>[];
+
+    if (user.distanceKm != null) {
+      items.add((distanceLabel(user.distanceKm!), 'de ti'));
+    }
+    if (user.yearsPlaying != null) {
+      items.add(('${user.yearsPlaying} años', 'jugando'));
+    } else if (user.avgPaceMinPerKm != null) {
+      items.add((formatPaceMinPerKm(user.avgPaceMinPerKm!), 'min/km'));
+    }
+    if (user.intention != null) {
+      items.add((user.intention!.label, 'a qué viene'));
+    }
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: context.colors.surface,
+      child: Row(
+        children: [
+          for (final (value, caption) in items.take(3))
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

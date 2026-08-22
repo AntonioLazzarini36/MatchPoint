@@ -8,9 +8,9 @@ import '../matches_controller.dart';
 import '../models/match_item.dart';
 import '../services/matches_service.dart';
 import '../../../core/ui/dialogs/confirm_dialog.dart';
-import '../../../core/ui/widgets/matches/matches_section_title.dart';
-import '../../../core/ui/widgets/matches/new_match_avatar_item.dart';
-import '../../../core/ui/widgets/matches/match_chat_item.dart';
+import '../../../core/ui/widgets/matches/partner_row.dart';
+import '../models/proposal.dart';
+import '../services/proposal_service.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
@@ -32,7 +32,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
   @override
   void initState() {
     super.initState();
-    controller = MatchesController(MatchesService(Api.client));
+    controller = MatchesController(
+      MatchesService(Api.client),
+      ProposalService(Api.client),
+    );
     controller.init();
     _searchCtrl.addListener(() {
       setState(() => _query = _searchCtrl.text.trim().toLowerCase());
@@ -104,7 +107,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                       border: InputBorder.none,
                     ),
                   )
-                : const Text('Mensajes'),
+                : const Text('Tus compañeros'),
             actions: [
               // El acceso al mapa de clubes vivia aqui arriba, pero se
               // solapaba con el boton de proponer del chat (que ademas
@@ -149,12 +152,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
       );
     }
 
-    // “Nuevos matches” (horizontal): los 12 mas recientes
-    final newMatches = matches.take(12).toList();
-
-    // El buscador solo filtra la lista de conversaciones, no "Nuevos
-    // Matches" — buscar es para encontrar un chat existente, no para
-    // esa fila.
+    // El buscador filtra la lista entera. Ya no hay una fila de "nuevos
+    // matches" aparte que quedara fuera del filtro.
     final filteredMatches = _query.isEmpty
         ? matches
         : matches
@@ -165,80 +164,70 @@ class _MatchesScreenState extends State<MatchesScreen> {
               )
               .toList();
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const MatchesSectionTitle('Nuevos Matches'),
-        const SizedBox(height: 12),
-
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final m in newMatches)
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: NewMatchAvatarItem(
-                    name: m.otherUser.profile?.displayName ?? 'Sin nombre',
-                    imageUrl: (m.otherUser.profile?.photos.isNotEmpty ?? false)
-                        ? m.otherUser.profile!.photos.first
-                        : null,
-                    onTap: () => _openChat(m),
-                  ),
-                ),
-            ],
+    if (filteredMatches.isEmpty && _query.isNotEmpty) {
+      return Center(
+        child: Text(
+          'Sin resultados para "$_query"',
+          style: context.textStyles.bodyMedium?.copyWith(
+            color: context.colors.onSurfaceVariant,
           ),
         ),
+      );
+    }
 
-        const SizedBox(height: 24),
-        const MatchesSectionTitle('Mensajes'),
-        const SizedBox(height: 12),
+    // Agrupado por lo que hay que hacer, no por hora del ultimo mensaje.
+    // Ordenar por recencia es lo correcto en una bandeja de chat; aqui lo
+    // que caduca es una propuesta sin contestar, no una conversacion.
+    final conQuedada = <MatchItem>[];
+    final esperanRespuesta = <MatchItem>[];
+    final sinPlanes = <MatchItem>[];
 
-        if (filteredMatches.isEmpty && _query.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Sin resultados para "$_query"',
-              style: context.textStyles.bodyMedium?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
-          ),
+    for (final m in filteredMatches) {
+      final session = controller.sessionFor(m.matchId);
+      if (session == null) {
+        sinPlanes.add(m);
+      } else if (session.status == ProposalStatus.accepted) {
+        conQuedada.add(m);
+      } else if (session.isPending && !session.mine) {
+        esperanRespuesta.add(m);
+      } else {
+        // Pendiente pero la propuse yo: no hay nada que hacer con ella
+        // todavia, asi que no reclama atencion.
+        sinPlanes.add(m);
+      }
+    }
 
-        for (final m in filteredMatches)
-          MatchChatItem(
-            name: m.otherUser.profile?.displayName ?? 'Sin nombre',
-            message: m.lastMessage?.text ?? 'Nuevo match',
-            time: _formatTime(m.lastMessage?.createdAt ?? m.createdAt),
-            imageUrl: (m.otherUser.profile?.photos.isNotEmpty ?? false)
-                ? m.otherUser.profile!.photos.first
-                : null,
-            unread: m.unreadCount > 0,
-            sport: m.sport,
-            isGroup: false,
-            onTap: () => _openChat(m),
-            onLongPress: () => _confirmUnmatch(m),
-          ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        ..._group(context, 'Esperan tu respuesta', esperanRespuesta),
+        ..._group(context, 'Con quedada', conQuedada),
+        ..._group(context, 'Sin planes todavía', sinPlanes),
       ],
     );
   }
 
-  String _formatTime(DateTime dt) {
-    final local = dt.toLocal();
-    final now = DateTime.now();
-    final sameDay =
-        local.year == now.year &&
-        local.month == now.month &&
-        local.day == now.day;
-
-    if (sameDay) {
-      final hh = local.hour.toString().padLeft(2, '0');
-      final mm = local.minute.toString().padLeft(2, '0');
-      return '$hh:$mm';
-    }
-
-    final dd = local.day.toString().padLeft(2, '0');
-    final mo = local.month.toString().padLeft(2, '0');
-    return '$dd/$mo';
+  List<Widget> _group(BuildContext context, String title, List<MatchItem> ms) {
+    if (ms.isEmpty) return const [];
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
+        child: Text(
+          '$title · ${ms.length}',
+          style: context.textStyles.labelMedium?.copyWith(
+            color: context.colors.onSurfaceVariant,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ),
+      for (final m in ms)
+        PartnerRow(
+          match: m,
+          session: controller.sessionFor(m.matchId),
+          skillLevel: m.otherUser.skillLevels[m.sport],
+          onTap: () => _openChat(m),
+          onLongPress: () => _confirmUnmatch(m),
+        ),
+    ];
   }
 }

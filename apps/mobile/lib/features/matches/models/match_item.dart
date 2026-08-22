@@ -1,4 +1,5 @@
 import 'package:match_point/features/onboarding/models/profile.dart';
+import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 
 class MatchItem {
@@ -58,12 +59,27 @@ class MatchUser {
   final String userId;
   final Profile? profile;
 
-  const MatchUser({required this.userId, required this.profile});
+  /// El nivel por deporte viene dentro de `profile` en el JSON (el backend
+  /// manda ahi un `DiscoverProfile` completo), pero el modelo `Profile` de
+  /// Dart no lo guarda porque en `/me` es un campo hermano y no anidado. Se
+  /// recoge aqui para que la lista de matches pueda enseñarlo sin pedir el
+  /// perfil entero de cada persona.
+  final Map<Sport, SkillLevel> skillLevels;
 
-  factory MatchUser.fromJson(Map<String, dynamic> json) => MatchUser(
-    userId: json['userId'] as String,
-    profile: json['profile'] == null
-        ? null
-        : Profile.fromJson(json['profile'] as Map<String, dynamic>),
-  );
+  const MatchUser({
+    required this.userId,
+    required this.profile,
+    this.skillLevels = const {},
+  });
+
+  factory MatchUser.fromJson(Map<String, dynamic> json) {
+    final profileJson = json['profile'] as Map<String, dynamic>?;
+    return MatchUser(
+      userId: json['userId'] as String,
+      profile: profileJson == null ? null : Profile.fromJson(profileJson),
+      skillLevels: profileJson == null
+          ? const {}
+          : skillLevelsFromJson(profileJson['skillLevels']),
+    );
+  }
 }
