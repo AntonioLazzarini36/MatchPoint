@@ -72,12 +72,38 @@ un problema legal y humano.
 Lo mínimo: una consulta SQL documentada. Lo razonable: un endpoint de
 administración protegido.
 
-### 8. Sin notificaciones push de verdad
-El chat sondea cada 4 s y los contadores cada 15 s, **sólo con la app
-abierta**. Con la app cerrada no llega nada — y en una app para quedar, eso
-la mata: te escriben para jugar el sábado y te enteras el lunes.
+### 8. Notificaciones push — construidas, a falta de **un paso tuyo**
 
-Necesita un proyecto de Firebase (`google-services.json`) para FCM.
+Hecho y desplegado (2026-08-22): proyecto de Firebase, tabla `DeviceToken`,
+`POST/DELETE /me/devices`, envío por FCM HTTP v1 desde el backend, y avisos
+al recibir mensaje, propuesta, respuesta a una propuesta y match nuevo. En el
+móvil: SDK, permiso de Android 13+ (comprobado concedido en el Xiaomi) y
+registro del token al arrancar y al iniciar sesión.
+
+🔴 **PENDIENTE — pegar la variable en Railway.** Es lo único que queda entre
+"todo montado" y "suena el móvil":
+
+1. Railway → el servicio → pestaña **Variables** → *New Variable*.
+2. Nombre: `FIREBASE_SERVICE_ACCOUNT_JSON`.
+3. Valor: el base64 de una sola línea que está en `services/api-rust/.env`
+   (ignorado por git). El original está fuera del repo, en la carpeta `keys`
+   del usuario, junto al keystore.
+4. Sin comillas. **En base64 y en una línea a propósito**: el JSON lleva la
+   clave privada con saltos de línea reales y el panel de Railway la corta en
+   el primero, dejando la variable a medias — es el fallo más común montando
+   esto.
+
+Cómo saber si está bien, en el log de Railway al arrancar:
+`push: usando FCM, proyecto matchpoint-7112f` (bien) frente a
+`push: sin FIREBASE_SERVICE_ACCOUNT_JSON` (todavía no).
+
+Y para probarlo hacen falta **dos cuentas**: el aviso va siempre al *otro*,
+nunca a quien realiza la acción, así que con una sola no hay forma de
+dispararlo.
+
+Queda además un detalle de acabado: el icono de la barra de estado saldrá
+como silueta blanca hasta que se genere uno monocromo (mismo
+`tool/gen_app_icon.dart`) y se declare en el manifest.
 
 ### 9. Verificación de email desactivada
 `EMAIL_VERIFICATION_ENABLED=false` mientras no haya dominio de correo. Con
