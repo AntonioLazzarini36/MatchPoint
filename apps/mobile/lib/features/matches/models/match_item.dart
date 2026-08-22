@@ -11,6 +11,11 @@ class MatchItem {
   final LastMessagePreview? lastMessage;
   final int unreadCount;
 
+  /// Cuántas veces habéis jugado ya. Es la señal de confianza más fuerte de
+  /// la app, porque es la única que no se puede inflar: sale de que alguien
+  /// confirmó después de la quedada que se jugó.
+  final int playedTogether;
+
   const MatchItem({
     required this.matchId,
     required this.createdAt,
@@ -19,6 +24,7 @@ class MatchItem {
     required this.me,
     required this.lastMessage,
     required this.unreadCount,
+    this.playedTogether = 0,
   });
 
   factory MatchItem.fromJson(Map<String, dynamic> json) => MatchItem(
@@ -33,6 +39,9 @@ class MatchItem {
             json['lastMessage'] as Map<String, dynamic>,
           ),
     unreadCount: json['unreadCount'] as int,
+    // Con `?? 0` y no `as int`: una app nueva contra un backend viejo no
+    // debe reventar por un campo que todavia no manda.
+    playedTogether: (json['playedTogether'] as num?)?.toInt() ?? 0,
   );
 }
 

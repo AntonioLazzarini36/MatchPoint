@@ -64,6 +64,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
           city: p.city,
           bio: p.bio,
           intention: p.intention,
+          availability: p.availability,
           photos: p.photos,
           sports: p.sports,
           skillLevels: p.skillLevels,

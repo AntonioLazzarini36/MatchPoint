@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:match_point/core/ui/widgets/availability_picker.dart';
+import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/onboarding/models/intention.dart';
 
@@ -20,6 +22,12 @@ class OnboardingPreferencesStep extends StatelessWidget {
   final Intention? intention;
   final ValueChanged<Intention?> onIntentionChanged;
 
+  /// Cuando puedes jugar. Va en este paso y no en el de perfil porque
+  /// responde a la misma pregunta que la intencion: como juegas, no quien
+  /// eres. Y es lo que mas decide si dos personas acaban coincidiendo.
+  final Set<AvailabilitySlot> availability;
+  final ValueChanged<Set<AvailabilitySlot>> onAvailabilityChanged;
+
   final RangeValues ageRange;
   final ValueChanged<RangeValues> onAgeRangeChanged;
 
@@ -34,6 +42,8 @@ class OnboardingPreferencesStep extends StatelessWidget {
     super.key,
     required this.intention,
     required this.onIntentionChanged,
+    required this.availability,
+    required this.onAvailabilityChanged,
     required this.ageRange,
     required this.onAgeRangeChanged,
     required this.genderPreference,
@@ -70,6 +80,23 @@ class OnboardingPreferencesStep extends StatelessWidget {
               onTap: () =>
                   onIntentionChanged(intention == option ? null : option),
             ),
+
+          const SizedBox(height: 28),
+          const Divider(),
+          const SizedBox(height: 20),
+
+          Text('Cuando puedes jugar', style: t.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Lo mas util de todo el registro: sin coincidir en horario no hay '
+            'partido posible, por bien que encajeis en lo demas.',
+            style: t.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          AvailabilityPicker(
+            selected: availability,
+            onChanged: onAvailabilityChanged,
+          ),
 
           const SizedBox(height: 28),
           const Divider(),

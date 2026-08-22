@@ -103,6 +103,38 @@ void main() {
     _compose(geo, art, fill: _Fill.none, artScale: _adaptiveArtScale),
   );
 
+  // --- Icono de la barra de notificaciones ---
+  //
+  // Android lo pinta **monocromo** a 24 dp: coge la silueta y la rellena de
+  // un color. Si no se le da uno, aplasta el del lanzador y sale una mancha.
+  //
+  // Y no vale la raqueta con la zapatilla: se probó, y a 24 dp dos objetos
+  // uno al lado del otro dan doce píxeles cada uno — se convierten en dos
+  // borrones grises. Ni siquiera cerrando la rejilla de cuerdas se salvaba.
+  //
+  // Lo que sí funciona a ese tamaño es **la silueta del propio logo**: un
+  // círculo partido por su separador. Es una sola forma, se lee de un
+  // vistazo, y es exactamente la marca — nadie tiene que reconocer una
+  // raqueta de doce píxeles para saber de qué app es.
+  final notification = _notificationIcon(geo.size);
+  _write('assets/icon/app_icon_notification.png', notification);
+
+  // Y directamente en `res/`, a los tamaños que Android espera: 24 dp en
+  // cada densidad. `flutter_launcher_icons` no toca el icono de
+  // notificación, así que este es el único sitio de donde puede salir.
+  const densities = {
+    'mdpi': 24,
+    'hdpi': 36,
+    'xhdpi': 48,
+    'xxhdpi': 72,
+    'xxxhdpi': 96,
+  };
+  densities.forEach((density, size) {
+    final dir = Directory('android/app/src/main/res/drawable-$density');
+    dir.createSync(recursive: true);
+    _write('${dir.path}/ic_notification.png', _resize(notification, size));
+  });
+
   // --- Logo de dentro de la app: el círculo, con las esquinas transparentes ---
 
   final circleScale = geo.size / (geo.radius * 2);
@@ -123,6 +155,76 @@ void main() {
     '(círculo r=${geo.radius.toStringAsFixed(0)}, '
     'separador ${(geo.dividerHalfWidth * 2).toStringAsFixed(0)} px)',
   );
+}
+
+/// Reduce una imagen promediando cada bloque de origen.
+///
+/// Promediar y no coger el píxel más cercano: al bajar de 1024 a 24 el
+/// vecino más cercano se come el antialiasing entero y deja el borde
+/// escalonado, que en un icono redondo se nota mucho.
+_Image _resize(_Image src, int size) {
+  final out = Uint8List(size * size * 4);
+
+  for (var y = 0; y < size; y++) {
+    for (var x = 0; x < size; x++) {
+      final x0 = x * src.width ~/ size;
+      final x1 = ((x + 1) * src.width ~/ size).clamp(x0 + 1, src.width);
+      final y0 = y * src.height ~/ size;
+      final y1 = ((y + 1) * src.height ~/ size).clamp(y0 + 1, src.height);
+
+      var a = 0.0;
+      var count = 0;
+      for (var sy = y0; sy < y1; sy++) {
+        for (var sx = x0; sx < x1; sx++) {
+          a += src.at(sx, sy)[3];
+          count++;
+        }
+      }
+
+      final i = (y * size + x) * 4;
+      // Blanco puro siempre: sólo el alfa define la silueta, y Android va a
+      // recolorearla de todas formas.
+      out[i] = 255;
+      out[i + 1] = 255;
+      out[i + 2] = 255;
+      out[i + 3] = (a / count).round().clamp(0, 255);
+    }
+  }
+
+  return _Image(size, size, out);
+}
+
+/// El icono de la barra de estado: el logo reducido a una sola forma.
+///
+/// Un círculo sólido con el corte del separador. Nada más — a 24 dp cualquier
+/// detalle interior se convierte en ruido, y lo que tiene que quedar es la
+/// silueta.
+_Image _notificationIcon(int n) {
+  final px = Uint8List(n * n * 4);
+  final c = n / 2.0;
+  // Con margen: el sistema añade el suyo, y un dibujo a sangre sale cortado.
+  final r = n * 0.40;
+  // El separador, proporcionalmente más ancho que en el logo: a 24 dp un
+  // corte fino desaparece y el círculo se ve macizo.
+  final gap = r * 0.13;
+
+  for (var y = 0; y < n; y++) {
+    for (var x = 0; x < n; x++) {
+      final dx = x + 0.5 - c;
+      final dy = y + 0.5 - c;
+      final inside = (0.5 - (math.sqrt(dx * dx + dy * dy) - r)).clamp(0.0, 1.0);
+      final cut = (0.5 - (gap - dx.abs())).clamp(0.0, 1.0);
+      final alpha = inside * cut;
+
+      final i = (y * n + x) * 4;
+      px[i] = 255;
+      px[i + 1] = 255;
+      px[i + 2] = 255;
+      px[i + 3] = (alpha * 255).round().clamp(0, 255);
+    }
+  }
+
+  return _Image(n, n, px);
 }
 
 /// Qué se pinta de fondo: nada (capa de delante del adaptativo), las dos

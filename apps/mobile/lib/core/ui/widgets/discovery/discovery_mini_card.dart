@@ -188,6 +188,14 @@ class DiscoveryMiniCard extends StatelessWidget {
     } else if (user.avgPaceMinPerKm != null) {
       items.add((formatPaceMinPerKm(user.avgPaceMinPerKm!), 'min/km'));
     }
+    // Coincidir en horario es lo que decide si podéis llegar a jugar, así
+    // que va antes que la intención cuando existe.
+    if (user.sharedSlots > 0) {
+      items.add((
+        user.sharedSlots == 1 ? '1 franja' : '${user.sharedSlots} franjas',
+        'en común',
+      ));
+    }
     if (user.intention != null) {
       items.add((user.intention!.label, 'a qué viene'));
     }

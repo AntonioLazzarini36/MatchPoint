@@ -1,4 +1,5 @@
 import '../../../features/discovery/models/skill_level.dart';
+import '../../../features/onboarding/models/availability.dart';
 import '../../../features/onboarding/models/intention.dart';
 import '../../../features/discovery/models/sport.dart';
 
@@ -12,6 +13,9 @@ class ProfileHeaderData {
   /// de la bio: es un dato estructurado y meterlo en el texto libre es
   /// justo lo que hacia que todos los perfiles se leyeran igual.
   final Intention? intention;
+
+  /// Cuándo puede jugar. Vacío = no lo ha dicho.
+  final List<AvailabilitySlot> availability;
   final List<String> photos;
   final List<Sport> sports;
 
@@ -32,6 +36,7 @@ class ProfileHeaderData {
     this.city,
     this.bio,
     this.intention,
+    this.availability = const [],
     this.skillLevels = const {},
     this.yearsPlaying,
     this.club,

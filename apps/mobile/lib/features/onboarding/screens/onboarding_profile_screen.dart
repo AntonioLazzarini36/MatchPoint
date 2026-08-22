@@ -26,6 +26,7 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
+import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/onboarding/models/intention.dart';
 import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
@@ -74,6 +75,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   /// null = no lo ha dicho. Antes esto era un String con la frase del
   /// "objetivo" que acababa guardada como bio; ahora es un campo propio.
   Intention? _intention;
+  Set<AvailabilitySlot> _availability = {};
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
 
@@ -309,6 +311,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // Mismo motivo que el género: null es una respuesta válida ("no lo
       // digo") y `UpdateProfileRequest` omitiría la clave.
       await controller.service.updateIntention(_intention);
+      await controller.service.updateAvailability(_availability.toList());
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
       await controller.service.updatePreferences(
         ageMin: _ageRange.start.round(),
@@ -568,6 +571,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               OnboardingPreferencesStep(
                 intention: _intention,
                 onIntentionChanged: (v) => setState(() => _intention = v),
+                availability: _availability,
+                onAvailabilityChanged: (v) =>
+                    setState(() => _availability = v),
                 ageRange: _ageRange,
                 onAgeRangeChanged: (v) => setState(() => _ageRange = v),
                 genderPreference: _genderPreference,

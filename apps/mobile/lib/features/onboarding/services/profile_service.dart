@@ -4,6 +4,7 @@ import '../../../core/location/location_result.dart';
 import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
 import '../models/gender.dart';
+import '../models/availability.dart';
 import '../models/intention.dart';
 import '../models/profile.dart';
 import '../../discovery/models/discover_profile.dart';
@@ -77,6 +78,20 @@ class ProfileService {
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(res, fallback: 'No se ha podido guardar');
+    }
+  }
+
+  /// Cuándo puede jugar. Mandar la lista la reemplaza entera, y una lista
+  /// vacía borra la disponibilidad — mismo comportamiento que `sports`.
+  Future<void> updateAvailability(List<AvailabilitySlot> slots) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {'availability': slots.map((s) => s.apiValue).toList()},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw apiError(res, fallback: 'No se ha podido guardar tu disponibilidad');
     }
   }
 

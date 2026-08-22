@@ -5,6 +5,7 @@ import '../../utils/landscape_crop.dart';
 import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
+import '../../../features/onboarding/models/availability.dart';
 import '../../../features/onboarding/models/intention.dart';
 import 'profile_header_data.dart';
 import 'network_photo.dart';
@@ -121,6 +122,17 @@ class ProfileView extends StatelessWidget {
                 _sportsWrap(context, data.sports),
 
                 const SizedBox(height: 24),
+
+                if (data.availability.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text('Cuándo juega', style: context.textStyles.titleMedium),
+                  const SizedBox(height: 8),
+                  _infoRow(
+                    context,
+                    Icons.schedule,
+                    availabilitySummary(data.availability),
+                  ),
+                ],
 
                 if (data.intention != null) ...[
                   const SizedBox(height: 24),

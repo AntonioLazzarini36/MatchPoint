@@ -17,6 +17,9 @@ import '../../auth/screens/email_verification_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
+import '../../../core/network/connection_error.dart';
+import '../../../core/ui/widgets/availability_picker.dart';
+import '../../onboarding/models/availability.dart';
 import '../../onboarding/models/gender.dart';
 import '../../onboarding/models/intention.dart';
 import '../../onboarding/models/profile.dart';
@@ -47,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingRadius = false;
   bool _savingSports = false;
   bool _savingIntention = false;
+  bool _savingAvailability = false;
   bool _savingBio = false;
   bool _savingSkillLevels = false;
   bool _savingCredentials = false;
@@ -206,6 +210,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingSports = false);
+    }
+  }
+
+  /// Cuándo puede jugar. Es lo que decide si dos personas pueden llegar a
+  /// coincidir, y hasta ahora la app no lo sabía en absoluto.
+  Future<void> _changeAvailability() async {
+    final current = (_profile?.availability ?? const <AvailabilitySlot>[])
+        .toSet();
+    final chosen = await showModalBottomSheet<Set<AvailabilitySlot>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AvailabilitySheet(initial: current),
+    );
+    if (chosen == null || !mounted) return;
+
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar tu disponibilidad',
+      changes: [
+        FieldChange(
+          label: 'Cuándo puedes jugar',
+          before: availabilitySummary(current.toList()),
+          after: availabilitySummary(chosen.toList()),
+        ),
+      ],
+    );
+    if (!ok || !mounted) return;
+
+    setState(() => _savingAvailability = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateAvailability(chosen.toList());
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+    } finally {
+      if (mounted) setState(() => _savingAvailability = false);
     }
   }
 
@@ -630,6 +672,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingSports ? null : _changeSports,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.schedule,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Cuándo puedes jugar',
+                      subtitle: availabilitySummary(
+                        _profile?.availability ?? const [],
+                      ),
+                      trailing: _savingAvailability
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingAvailability ? null : _changeAvailability,
                     ),
                     _SettingsRow(
                       icon: Icons.flag_outlined,
@@ -1605,6 +1667,57 @@ class _BioSheetState extends State<_BioSheet> {
           const SizedBox(height: 16),
           FilledButton(onPressed: _save, child: const Text('Guardar')),
         ],
+      ),
+    );
+  }
+}
+
+
+class _AvailabilitySheet extends StatefulWidget {
+  final Set<AvailabilitySlot> initial;
+  const _AvailabilitySheet({required this.initial});
+
+  @override
+  State<_AvailabilitySheet> createState() => _AvailabilitySheetState();
+}
+
+class _AvailabilitySheetState extends State<_AvailabilitySheet> {
+  late Set<AvailabilitySlot> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = {...widget.initial};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Cuándo puedes jugar', style: context.textStyles.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Se usa para enseñarte antes a quien puede coincidir contigo. '
+              'Marca todo lo que te valga.',
+              style: context.textStyles.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            AvailabilityPicker(
+              selected: _selected,
+              onChanged: (v) => setState(() => _selected = v),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(_selected),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
       ),
     );
   }

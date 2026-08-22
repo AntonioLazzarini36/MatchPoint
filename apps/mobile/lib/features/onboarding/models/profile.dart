@@ -1,3 +1,4 @@
+import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/onboarding/models/intention.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
@@ -26,6 +27,9 @@ class Profile {
   final List<String> photos;
   final List<Sport> sports;
 
+  /// Cuándo puede jugar. Vacío = no lo ha dicho.
+  final List<AvailabilitySlot> availability;
+
   /// Ubicación elegida a mano (Hinge-style), null hasta que el usuario la
   /// setea. Solo viene en el propio perfil (`/me`) — nunca en el de otros
   /// usuarios, por privacidad (igual que `birthDate` exacto).
@@ -51,6 +55,7 @@ class Profile {
     required this.displayName,
     required this.photos,
     required this.sports,
+    this.availability = const [],
     this.birthDate,
     int? age,
     this.gender,
@@ -100,6 +105,7 @@ class Profile {
       sports: (json['sports'] as List<dynamic>? ?? const [])
           .map((e) => SportApi.fromApi(e.toString()))
           .toList(),
+      availability: AvailabilitySlotApi.listFromJson(json['availability']),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       yearsPlaying: (json['yearsPlaying'] as num?)?.toInt(),

@@ -143,6 +143,17 @@ class PartnerRow extends StatelessWidget {
     final s = session;
 
     if (s == null) {
+      // Haber jugado juntos es la señal más fuerte que puede llevar esta
+      // fila, así que gana a "aún no habéis quedado": lo primero cuenta una
+      // historia, lo segundo sólo constata un hueco.
+      if (match.playedTogether > 0) {
+        final veces = match.playedTogether == 1
+            ? 'Habéis jugado una vez'
+            : 'Habéis jugado ${match.playedTogether} veces';
+        return _state(context, Icons.verified_outlined, veces,
+            context.colors.primary,
+            bold: true);
+      }
       return Text(
         'Aún no habéis quedado',
         style: context.textStyles.bodySmall?.copyWith(

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Verde pista (`primary` en lib/core/theme/app_theme.dart). Tiñe el
+         icono de la barra de estado en las notificaciones. -->
+    <color name="notification_color">#0E7A57</color>
+</resources>

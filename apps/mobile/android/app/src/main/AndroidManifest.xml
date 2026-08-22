@@ -38,6 +38,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Icono de la barra de estado. Android lo pinta monocromo a 24 dp:
+             sin declararlo, aplasta el del lanzador y sale una mancha blanca.
+             Es la silueta del logo (circulo partido), no la raqueta con la
+             zapatilla — dos objetos a ese tamaño no se resuelven. Lo genera
+             tool/gen_app_icon.dart en las cinco densidades. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <!-- Y el color con el que se tiñe: el verde pista de la app, en vez
+             del gris por defecto del sistema. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
