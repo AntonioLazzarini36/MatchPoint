@@ -1,4 +1,5 @@
 import 'package:match_point/features/onboarding/models/gender.dart';
+import 'package:match_point/features/onboarding/models/intention.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 
@@ -15,6 +16,10 @@ class Profile {
 
   /// Opcional — null es "prefiero no decirlo", no "sin rellenar".
   final Gender? gender;
+
+  /// A qué viene. Antes esto vivía dentro de `bio`, que es justo lo que
+  /// hacía que todos los perfiles se leyeran igual — ver `intention.dart`.
+  final Intention? intention;
 
   final String? city;
   final String? bio;
@@ -49,6 +54,7 @@ class Profile {
     this.birthDate,
     int? age,
     this.gender,
+    this.intention,
     this.city,
     this.bio,
     this.latitude,
@@ -85,6 +91,7 @@ class Profile {
           : DateTime.tryParse(json['birthDate'].toString()),
       age: json['age'] is int ? json['age'] as int : null,
       gender: GenderApi.fromApi(json['gender']),
+      intention: IntentionApi.fromApi(json['intention']),
       city: json['city']?.toString(),
       bio: json['bio']?.toString(),
       photos: (json['photos'] as List<dynamic>? ?? const [])

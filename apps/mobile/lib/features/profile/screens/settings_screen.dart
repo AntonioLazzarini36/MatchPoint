@@ -18,6 +18,7 @@ import '../../auth/services/auth_service.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/gender.dart';
+import '../../onboarding/models/intention.dart';
 import '../../onboarding/models/profile.dart';
 import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
 import '../../onboarding/services/profile_service.dart';
@@ -45,6 +46,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingLocation = false;
   bool _savingRadius = false;
   bool _savingSports = false;
+  bool _savingIntention = false;
+  bool _savingBio = false;
   bool _savingSkillLevels = false;
   bool _savingCredentials = false;
   bool _savingPreferences = false;
@@ -203,6 +206,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingSports = false);
+    }
+  }
+
+  /// A que viene. Antes esto solo se preguntaba en el onboarding y, peor,
+  /// la frase elegida se guardaba como la bio.
+  Future<void> _changeIntention() async {
+    final chosen = await showModalBottomSheet<_IntentionChoice>(
+      context: context,
+      builder: (_) => _IntentionSheet(initial: _profile?.intention),
+    );
+    if (chosen == null || !mounted) return;
+
+    final ok = await confirmChanges(
+      context,
+      title: 'Cambiar a que vienes',
+      changes: [
+        FieldChange(
+          label: 'A que vienes',
+          before: _profile?.intention?.label ?? 'Sin definir',
+          after: chosen.value?.label ?? 'Sin definir',
+        ),
+      ],
+    );
+    if (!ok || !mounted) return;
+
+    setState(() => _savingIntention = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateIntention(chosen.value);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingIntention = false);
+    }
+  }
+
+  /// La descripcion libre. Hasta ahora no se podia editar en ningun sitio.
+  Future<void> _changeBio() async {
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _BioSheet(initial: _profile?.bio ?? ''),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _savingBio = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _profileService.updateBio(chosen);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar la descripcion: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingBio = false);
     }
   }
 
@@ -566,6 +630,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingSports ? null : _changeSports,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.flag_outlined,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'A que vienes',
+                      subtitle: _profile?.intention?.label ?? 'Sin definir',
+                      trailing: _savingIntention
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingIntention ? null : _changeIntention,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.notes_outlined,
+                      iconBackground: context.colors.tertiaryContainer,
+                      iconColor: context.colors.onTertiaryContainer,
+                      title: 'Descripcion',
+                      subtitle: (_profile?.bio ?? '').trim().isEmpty
+                          ? 'Sin escribir'
+                          : _profile!.bio!.trim(),
+                      trailing: _savingBio
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              color: context.colors.outline,
+                            ),
+                      onTap: _savingBio ? null : _changeBio,
                     ),
                     _SettingsRow(
                       icon: Icons.military_tech_outlined,
@@ -1332,6 +1434,177 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Envuelve la elección para poder distinguir "he elegido no decirlo"
+/// (`value == null`) de "he cerrado la hoja sin tocar nada" (la hoja
+/// devuelve null a secas). Sin esto no habría forma de retirar la respuesta.
+class _IntentionChoice {
+  final Intention? value;
+  const _IntentionChoice(this.value);
+}
+
+class _IntentionSheet extends StatefulWidget {
+  final Intention? initial;
+  const _IntentionSheet({required this.initial});
+
+  @override
+  State<_IntentionSheet> createState() => _IntentionSheetState();
+}
+
+class _IntentionSheetState extends State<_IntentionSheet> {
+  Intention? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initial;
+  }
+
+  /// Fila seleccionable. No se usa `RadioListTile` porque su `groupValue`
+  /// está deprecado desde Flutter 3.32 y además el resto de la app ya elige
+  /// con tarjetas marcadas por un check, no con radios.
+  Widget _choice({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      trailing: selected
+          ? Icon(Icons.check_circle, color: context.colors.primary)
+          : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('A qué vienes', style: context.textStyles.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Aparece en tu perfil, para que quien te vea sepa si busca lo '
+              'mismo.',
+              style: context.textStyles.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            for (final option in Intention.values)
+              _choice(
+                icon: option.icon,
+                title: option.label,
+                subtitle: option.description,
+                selected: _selected == option,
+                onTap: () => setState(() => _selected = option),
+              ),
+            _choice(
+              icon: Icons.remove_circle_outline,
+              title: 'Prefiero no decirlo',
+              selected: _selected == null,
+              onTap: () => setState(() => _selected = null),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_IntentionChoice(_selected)),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BioSheet extends StatefulWidget {
+  final String initial;
+  const _BioSheet({required this.initial});
+
+  @override
+  State<_BioSheet> createState() => _BioSheetState();
+}
+
+class _BioSheetState extends State<_BioSheet> {
+  late final TextEditingController _ctrl;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initial);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final text = _ctrl.text.trim();
+    // El mismo tope que valida el backend. Se comprueba al guardar y no con
+    // un `maxLength`, que dibujaría un contador permanente bajo el campo —
+    // ruido visual que ya se quitó del resto de la app a petición tuya.
+    if (text.length > 500) {
+      setState(() => _error = 'Máximo 500 caracteres (llevas ${text.length}).');
+      return;
+    }
+    Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Deja sitio al teclado: sin esto el campo queda debajo y no se ve lo
+      // que se escribe.
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Sobre ti', style: context.textStyles.titleLarge),
+          const SizedBox(height: 4),
+          Text(
+            'Cuándo juegas, qué buscas en un compañero, lo que sea. Es lo que '
+            'hace que tu perfil no sea uno más.',
+            style: context.textStyles.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            maxLines: 5,
+            minLines: 3,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'Juego los martes por la tarde cerca del centro. '
+                  'Busco a alguien constante más que competitivo.',
+              errorText: _error,
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _save, child: const Text('Guardar')),
+        ],
       ),
     );
   }

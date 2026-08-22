@@ -3,6 +3,7 @@ import '../../../core/location/location_result.dart';
 import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
 import '../models/gender.dart';
+import '../models/intention.dart';
 import '../models/profile.dart';
 import '../../discovery/models/discover_profile.dart';
 import '../../discovery/models/skill_level.dart';
@@ -75,6 +76,34 @@ class ProfileService {
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('UpdateGender failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  /// A qué viene la persona. Manda la clave siempre, por la misma razón
+  /// que `updateGender`: hay que poder volver a no decirlo.
+  Future<void> updateIntention(Intention? intention) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {'intention': intention?.apiValue},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UpdateIntention failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  /// La descripción libre del perfil. Antes no se podía editar en ningún
+  /// sitio: se rellenaba sola con la frase del "objetivo" del onboarding.
+  Future<void> updateBio(String bio) async {
+    final res = await api.patch(
+      '/me/profile',
+      body: {'bio': bio},
+      auth: true,
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('UpdateBio failed: ${res.statusCode} ${res.body}');
     }
   }
 

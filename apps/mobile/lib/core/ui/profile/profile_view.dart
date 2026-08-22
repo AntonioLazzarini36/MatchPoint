@@ -5,6 +5,7 @@ import '../../utils/landscape_crop.dart';
 import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
+import '../../../features/onboarding/models/intention.dart';
 import 'profile_header_data.dart';
 import 'network_photo.dart';
 
@@ -118,6 +119,19 @@ class ProfileView extends StatelessWidget {
                 Text(sportsTitle, style: context.textStyles.titleMedium),
                 const SizedBox(height: 12),
                 _sportsWrap(context, data.sports),
+
+                const SizedBox(height: 24),
+
+                if (data.intention != null) ...[
+                  const SizedBox(height: 24),
+                  Text('A que viene', style: context.textStyles.titleMedium),
+                  const SizedBox(height: 8),
+                  _infoRow(
+                    context,
+                    data.intention!.icon,
+                    '${data.intention!.label} — ${data.intention!.description}',
+                  ),
+                ],
 
                 const SizedBox(height: 24),
 

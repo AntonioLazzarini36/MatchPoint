@@ -5,7 +5,7 @@
 use serde::{Deserialize, Deserializer};
 use utoipa::ToSchema;
 
-use crate::models::{Gender, SkillLevel, Sport};
+use crate::models::{Gender, Intention, SkillLevel, Sport};
 
 /// Distinguishes "field absent" (`None` — leave whatever is stored) from
 /// "field present and explicitly null" (`Some(None)` — clear it). Plain
@@ -32,6 +32,10 @@ pub struct UpdateProfileDto {
     /// explicit `null` clears it back to "prefiero no decirlo".
     #[serde(default, deserialize_with = "double_option")]
     pub gender: Option<Option<Gender>>,
+    /// A qué viene. Mismo `double_option` que `gender`: hay que poder
+    /// volver a no decirlo, no sólo cambiar de opción.
+    #[serde(default, deserialize_with = "double_option")]
+    pub intention: Option<Option<Intention>>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub latitude: Option<f64>,

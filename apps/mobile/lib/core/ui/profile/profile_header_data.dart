@@ -1,4 +1,5 @@
 import '../../../features/discovery/models/skill_level.dart';
+import '../../../features/onboarding/models/intention.dart';
 import '../../../features/discovery/models/sport.dart';
 
 class ProfileHeaderData {
@@ -6,6 +7,11 @@ class ProfileHeaderData {
   final int? age;
   final String? city;
   final String? bio;
+
+  /// A que viene. Se ensena como etiqueta junto a los deportes, no dentro
+  /// de la bio: es un dato estructurado y meterlo en el texto libre es
+  /// justo lo que hacia que todos los perfiles se leyeran igual.
+  final Intention? intention;
   final List<String> photos;
   final List<Sport> sports;
 
@@ -25,6 +31,7 @@ class ProfileHeaderData {
     this.age,
     this.city,
     this.bio,
+    this.intention,
     this.skillLevels = const {},
     this.yearsPlaying,
     this.club,

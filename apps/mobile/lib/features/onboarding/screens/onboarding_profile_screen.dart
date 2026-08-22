@@ -26,6 +26,7 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
+import 'package:match_point/features/onboarding/models/intention.dart';
 import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
 import 'package:match_point/core/ui/profile/photo_source_sheet.dart';
@@ -70,7 +71,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   // quedaba claro qué habías elegido vos y qué no (feedback del usuario,
   // 2026-08-02) — mejor forzar una elección explícita, validada abajo.
   final Set<String> _selectedSports = {};
-  String _goal = 'Jugar por nivel';
+  /// null = no lo ha dicho. Antes esto era un String con la frase del
+  /// "objetivo" que acababa guardada como bio; ahora es un campo propio.
+  Intention? _intention;
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
 
@@ -96,6 +99,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   List<String> _achievements = [];
 
   final displayNameCtrl = TextEditingController();
+  final bioCtrl = TextEditingController();
   DateTime? birthDate;
 
   final List<_PickedPhoto> _localPhotos = [];
@@ -122,6 +126,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   void dispose() {
     _pageController.dispose();
     displayNameCtrl.dispose();
+    bioCtrl.dispose();
     super.dispose();
   }
 
@@ -291,7 +296,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         displayName: displayNameCtrl.text.trim(),
         birthDate: _formatDate(birthDate!),
         city: _selectedLocation?.displayName,
-        bio: _goal,
+        bio: bioCtrl.text.trim().isEmpty ? null : bioCtrl.text.trim(),
         sports: _sportsForBackend(), // ✅ solo Tenis/Correr
         latitude: _selectedLocation?.latitude,
         longitude: _selectedLocation?.longitude,
@@ -301,6 +306,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // mandarse como null explícito ("prefiero no decirlo") y
       // `UpdateProfileRequest` omite los nulos — ver `updateGender`.
       await controller.service.updateGender(_gender);
+      // Mismo motivo que el género: null es una respuesta válida ("no lo
+      // digo") y `UpdateProfileRequest` omitiría la clave.
+      await controller.service.updateIntention(_intention);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
       await controller.service.updatePreferences(
         ageMin: _ageRange.start.round(),
@@ -523,6 +531,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                     : _formatDate(birthDate!),
                 gender: _gender,
                 onGenderChanged: (g) => setState(() => _gender = g),
+                bioCtrl: bioCtrl,
                 selectedSports: _selectedSports,
                 onSportToggle: (sport, selected) {
                   setState(() {
@@ -557,8 +566,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 onFieldSubmitted: _goNextOrFinish,
               ),
               OnboardingPreferencesStep(
-                goal: _goal,
-                onGoalChanged: (g) => setState(() => _goal = g),
+                intention: _intention,
+                onIntentionChanged: (v) => setState(() => _intention = v),
                 ageRange: _ageRange,
                 onAgeRangeChanged: (v) => setState(() => _ageRange = v),
                 genderPreference: _genderPreference,
@@ -584,7 +593,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 displayName: displayNameCtrl.text.trim(),
                 age: _age,
                 city: _selectedLocation?.displayName,
-                bio: _goal,
+                bio: bioCtrl.text.trim().isEmpty
+                    ? null
+                    : bioCtrl.text.trim(),
                 sports: _sportsAsEnum(),
                 skillLevels: _skillLevels,
                 yearsPlaying: _yearsPlaying,

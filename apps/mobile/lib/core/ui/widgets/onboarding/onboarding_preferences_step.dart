@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 
 import 'package:match_point/features/onboarding/models/gender.dart';
+import 'package:match_point/features/onboarding/models/intention.dart';
 
-/// Antes era solo el paso de "objetivo" (3 tarjetas, guardado como `bio`).
-/// Ahora ademas es donde se setean las preferencias reales de a quien
-/// mostrar en Discovery mas adelante (edad, genero) - el objetivo sigue
-/// existiendo (primera seccion), pero ya no es lo unico de este paso.
+/// Antes la primera seccion era un "objetivo" de 3 tarjetas cuya frase se
+/// guardaba **como la bio**: el resultado era que en toda la app solo habia
+/// tres descripciones posibles y todos los perfiles se leian igual. Ahora esa
+/// seccion es la **intencion**, un campo propio y estructurado (ver
+/// `intention.dart`), y la descripcion se escribe a mano en el paso de
+/// perfil. Ademas aqui se setean las preferencias de a quien mostrar en
+/// Discovery (edad, genero).
 /// `distanceKm` sigue viviendo en el paso de ubicacion (tiene mas sentido
 /// ahi, ligado al mapa) - no se duplica aqui. Los deportes que quiere ver
 /// no se preguntan aqui: por defecto son los mismos que ya eligio como
 /// propios (ver `_effectiveSportsWanted` en onboarding_profile_screen.dart)
 /// - cambiarlo es cosa de Settings, no del onboarding.
 class OnboardingPreferencesStep extends StatelessWidget {
-  final String goal;
-  final ValueChanged<String> onGoalChanged;
+  /// null = todavia no ha elegido. No bloquea avanzar: decirlo es opcional.
+  final Intention? intention;
+  final ValueChanged<Intention?> onIntentionChanged;
 
   final RangeValues ageRange;
   final ValueChanged<RangeValues> onAgeRangeChanged;
@@ -27,8 +32,8 @@ class OnboardingPreferencesStep extends StatelessWidget {
 
   const OnboardingPreferencesStep({
     super.key,
-    required this.goal,
-    required this.onGoalChanged,
+    required this.intention,
+    required this.onIntentionChanged,
     required this.ageRange,
     required this.onAgeRangeChanged,
     required this.genderPreference,
@@ -44,39 +49,27 @@ class OnboardingPreferencesStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Que buscas', style: t.headlineMedium),
+          Text('A que vienes', style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Esto ayuda a mostrarte a la gente que encaja con lo que '
-            'buscas, y a ti a quien encaja con ellos.',
+            'Aparece en tu perfil. Es lo que hace que alguien sepa, antes de '
+            'escribirte, si busca lo mismo que tu.',
             style: t.bodyLarge,
           ),
           const SizedBox(height: 20),
 
-          _optionCard(
-            context,
-            title: 'Jugar por nivel',
-            subtitle: 'Busco mejorar y competir',
-            icon: Icons.trending_up,
-            selected: goal == 'Jugar por nivel',
-            onTap: () => onGoalChanged('Jugar por nivel'),
-          ),
-          _optionCard(
-            context,
-            title: 'Conocer gente',
-            subtitle: 'Busco socializar y divertirme',
-            icon: Icons.people,
-            selected: goal == 'Conocer gente',
-            onTap: () => onGoalChanged('Conocer gente'),
-          ),
-          _optionCard(
-            context,
-            title: 'Ambos',
-            subtitle: 'Un poco de todo',
-            icon: Icons.all_inclusive,
-            selected: goal == 'Ambos',
-            onTap: () => onGoalChanged('Ambos'),
-          ),
+          for (final option in Intention.values)
+            _optionCard(
+              context,
+              title: option.label,
+              subtitle: option.description,
+              icon: option.icon,
+              selected: intention == option,
+              // Volver a tocar la elegida la desmarca: decirlo es opcional y
+              // sin esto no habria forma de retirar la respuesta.
+              onTap: () =>
+                  onIntentionChanged(intention == option ? null : option),
+            ),
 
           const SizedBox(height: 28),
           const Divider(),

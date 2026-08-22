@@ -19,7 +19,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::models::{Gender, SkillLevel, Sport, SwipeType};
+use crate::models::{Gender, Intention, SkillLevel, Sport, SwipeType};
 use crate::schema::{preferences, profiles, skill_levels, swipes};
 use crate::state::AppState;
 
@@ -97,6 +97,9 @@ pub struct DiscoverProfile {
     /// Stating it is optional, so `None` genuinely means "prefiero no
     /// decirlo" and the client shows nothing rather than guessing.
     pub gender: Option<Gender>,
+    /// A qué viene. Misma visibilidad que `bio`/`sports`: es justo la señal
+    /// que hace decidir si merece la pena deslizar.
+    pub intention: Option<Intention>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,
@@ -145,6 +148,7 @@ impl From<crate::models::Profile> for DiscoverProfile {
             display_name: p.display_name,
             age: age_from_birth_date(p.birth_date),
             gender: p.gender,
+            intention: p.intention,
             city: p.city,
             bio: p.bio,
             photos: p.photos,
@@ -347,6 +351,7 @@ pub async fn discover(
             profiles::display_name,
             profiles::birth_date,
             profiles::gender,
+            profiles::intention,
             profiles::city,
             profiles::bio,
             profiles::photos,
@@ -365,6 +370,7 @@ pub async fn discover(
             String,
             chrono::DateTime<chrono::Utc>,
             Option<Gender>,
+            Option<Intention>,
             Option<String>,
             Option<String>,
             Vec<String>,
@@ -387,6 +393,7 @@ pub async fn discover(
                 display_name,
                 birth_date,
                 gender,
+                intention,
                 city,
                 bio,
                 photos,
@@ -424,6 +431,7 @@ pub async fn discover(
                     display_name,
                     age: age_from_birth_date(birth_date),
                     gender,
+                    intention,
                     city,
                     bio,
                     photos,

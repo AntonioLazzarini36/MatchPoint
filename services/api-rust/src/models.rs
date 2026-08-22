@@ -76,6 +76,35 @@ pub enum Gender {
     Other,
 }
 
+/// A qué viene la persona. Antes esto se preguntaba en el onboarding y la
+/// frase elegida se guardaba **como la bio**, así que en toda la app sólo
+/// existían tres descripciones posibles y la bio no describía a nadie. Son
+/// dos datos distintos: esto es estructurado (etiqueta, y algún día filtro),
+/// la bio es texto libre de la persona.
+///
+/// Nullable: no declararla es una respuesta válida, y los perfiles anteriores
+/// a la columna no la tienen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+#[ExistingTypePath = "crate::schema::sql_types::Intention"]
+pub enum Intention {
+    /// Partidos serios, con marcador.
+    #[db_rename = "COMPETE"]
+    #[serde(rename = "COMPETE")]
+    Compete,
+    /// Preparar una carrera o mantenerse en forma.
+    #[db_rename = "TRAIN"]
+    #[serde(rename = "TRAIN")]
+    Train,
+    /// Busca a alguien mejor que le haga subir de nivel.
+    #[db_rename = "LEARN"]
+    #[serde(rename = "LEARN")]
+    Learn,
+    /// Sin presión, por el gusto de jugar.
+    #[db_rename = "FUN"]
+    #[serde(rename = "FUN")]
+    Fun,
+}
+
 /// Lifecycle of a `Proposal`. `Cancelled` is the proposer withdrawing;
 /// `Declined` is the other side saying no -- kept apart so the chat can
 /// word them differently.
@@ -185,6 +214,7 @@ pub struct Profile {
     pub display_name: String,
     pub birth_date: DateTime<Utc>,
     pub gender: Option<Gender>,
+    pub intention: Option<Intention>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,
@@ -218,6 +248,7 @@ pub struct NewProfile {
     pub display_name: String,
     pub birth_date: DateTime<Utc>,
     pub gender: Option<Gender>,
+    pub intention: Option<Intention>,
     pub city: Option<String>,
     pub bio: Option<String>,
     pub photos: Vec<String>,

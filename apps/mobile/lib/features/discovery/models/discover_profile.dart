@@ -1,3 +1,4 @@
+import 'package:match_point/features/onboarding/models/intention.dart';
 import 'skill_level.dart';
 import 'sport.dart';
 
@@ -7,6 +8,10 @@ class DiscoverProfile {
   final int age;
   final String? city;
   final String? bio;
+
+  /// A que viene. Misma visibilidad que `bio`/`sports`: es la senal que
+  /// hace decidir si merece la pena deslizar.
+  final Intention? intention;
   final List<String> photos;
   final List<Sport> sports;
 
@@ -41,6 +46,7 @@ class DiscoverProfile {
     required this.sports,
     this.city,
     this.bio,
+    this.intention,
     this.yearsPlaying,
     this.club,
     this.achievements = const [],
@@ -68,6 +74,7 @@ class DiscoverProfile {
       age: p['age'] is int ? p['age'] as int : int.parse(p['age'].toString()),
       city: p['city']?.toString(),
       bio: p['bio']?.toString(),
+      intention: IntentionApi.fromApi(p['intention']),
       photos: (p['photos'] as List<dynamic>? ?? const [])
           .map((e) => e.toString())
           .toList(),

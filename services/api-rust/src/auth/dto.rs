@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::models::{Gender, Sport};
+use crate::models::{Gender, Intention, Sport};
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -12,6 +12,9 @@ pub struct RegisterDto {
     pub display_name: Option<String>,
     pub birth_date: Option<String>, // ISO o "YYYY-MM-DD", igual que en TS
     pub gender: Option<Gender>,
+    /// A qué viene. Se manda ya en el registro porque el onboarding lo
+    /// pregunta antes de crear la cuenta (el wizard entero se envía junto).
+    pub intention: Option<Intention>,
 
     pub city: Option<String>,
     pub bio: Option<String>,

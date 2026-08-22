@@ -252,6 +252,10 @@ pub async fn update_profile(
         Some(value) => value,
         None => existing.as_ref().and_then(|p| p.gender),
     };
+    let intention = match dto.intention {
+        Some(value) => value,
+        None => existing.as_ref().and_then(|p| p.intention),
+    };
     let city = dto
         .city
         .or_else(|| existing.as_ref().and_then(|p| p.city.clone()));
@@ -297,6 +301,7 @@ pub async fn update_profile(
             display_name: display_name.clone(),
             birth_date,
             gender,
+            intention,
             city: city.clone(),
             bio: bio.clone(),
             photos: photos.clone(),
@@ -316,6 +321,7 @@ pub async fn update_profile(
             profiles::display_name.eq(display_name),
             profiles::birth_date.eq(birth_date),
             profiles::gender.eq(gender),
+            profiles::intention.eq(intention),
             profiles::city.eq(city),
             profiles::bio.eq(bio),
             profiles::photos.eq(photos),

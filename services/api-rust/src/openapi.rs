@@ -95,6 +95,7 @@ pub struct OkResponse {
         crate::matches::service::LastMessagePreview,
         crate::matches::service::MatchListItem,
         crate::models::Gender,
+        crate::models::Intention,
         crate::models::ProposalStatus,
         crate::notifications::service::NotificationCounts,
         crate::proposals::dto::CreateProposalDto,

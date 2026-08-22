@@ -14,6 +14,11 @@ class OnboardingProfileStep extends StatelessWidget {
   final Gender? gender;
   final ValueChanged<Gender?> onGenderChanged;
 
+  /// Descripcion libre. Antes este campo no existia en ningun sitio: la bio
+  /// se rellenaba sola con la frase del "objetivo", asi que solo habia tres
+  /// descripciones posibles en toda la app y ninguna la habia escrito nadie.
+  final TextEditingController bioCtrl;
+
   final Set<String> selectedSports;
   final void Function(String sport, bool selected) onSportToggle;
   final VoidCallback? onNameSubmitted;
@@ -26,6 +31,7 @@ class OnboardingProfileStep extends StatelessWidget {
     required this.birthDateLabel,
     required this.gender,
     required this.onGenderChanged,
+    required this.bioCtrl,
     required this.selectedSports,
     required this.onSportToggle,
     this.onNameSubmitted,
@@ -142,6 +148,31 @@ class OnboardingProfileStep extends StatelessWidget {
               ),
             ),
           ],
+
+          const SizedBox(height: 28),
+
+          Text('Sobre ti', style: t.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Opcional, pero es lo que hace que tu perfil no sea uno mas. '
+            'Cuando juegas, que buscas en un companero, lo que sea.',
+            style: t.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: bioCtrl,
+            // Varias lineas y sin tope visible: el limite real (500) lo
+            // valida el backend, y un contador permanente debajo del campo
+            // es ruido — mismo criterio que el resto de campos de texto.
+            maxLines: 4,
+            minLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Juego los martes por la tarde cerca del centro. '
+                  'Busco a alguien constante mas que competitivo.',
+              alignLabelWithHint: true,
+            ),
+          ),
         ],
       ),
     );

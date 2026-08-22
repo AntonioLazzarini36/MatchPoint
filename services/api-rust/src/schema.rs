@@ -28,6 +28,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
     #[diesel(postgres_type(name = "ProposalStatus"))]
     pub struct ProposalStatus;
+
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "Intention"))]
+    pub struct Intention;
 }
 
 diesel::table! {
@@ -79,7 +83,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::{Gender, Sport};
+    use super::sql_types::{Gender, Intention, Sport};
 
     #[sql_name = "Profile"]
     profiles (id) {
@@ -91,6 +95,7 @@ diesel::table! {
         #[sql_name = "birthDate"]
         birth_date -> Timestamptz,
         gender -> Nullable<Gender>,
+        intention -> Nullable<Intention>,
         city -> Nullable<Text>,
         bio -> Nullable<Text>,
         photos -> Array<Text>,

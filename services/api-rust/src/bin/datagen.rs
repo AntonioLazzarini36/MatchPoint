@@ -32,7 +32,7 @@ use diesel_async::{AsyncConnection, AsyncPgConnection};
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::db;
 use matchpoint_api::models::{
-    Gender, NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
+    Gender, Intention, NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
 };
 use matchpoint_api::schema::{preferences, profiles, skill_levels, users};
 
@@ -56,6 +56,9 @@ struct FakeProfile {
     // Seeded for real (not None) so /discover's gender filter has data to
     // actually filter against when testing it.
     gender: Option<Gender>,
+    // A que viene. Se siembran las cuatro para que Discovery tenga variedad
+    // real al probar, en vez de diez perfiles diciendo lo mismo.
+    intention: Option<Intention>,
     gender_preference: Option<Gender>,
     // Tennis-oriented credentials — left None for running-only profiles.
     years_playing: Option<i32>,
@@ -82,6 +85,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Female),
+        intention: Some(Intention::Compete),
         gender_preference: None,
         years_playing: Some(5),
         club: None,
@@ -101,6 +105,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Male),
+        intention: Some(Intention::Train),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -120,6 +125,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Female),
+        intention: Some(Intention::Learn),
         gender_preference: None,
         years_playing: Some(2),
         club: None,
@@ -139,6 +145,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
+        intention: Some(Intention::Fun),
         gender_preference: None,
         years_playing: Some(12),
         club: Some("Club de Tenis Torremolinos"),
@@ -158,6 +165,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
+        intention: Some(Intention::Compete),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -177,6 +185,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
+        intention: Some(Intention::Train),
         gender_preference: None,
         years_playing: Some(1),
         club: None,
@@ -196,6 +205,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
+        intention: Some(Intention::Learn),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -215,6 +225,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
+        intention: Some(Intention::Fun),
         gender_preference: None,
         years_playing: Some(15),
         club: Some("Club de Tenis Málaga"),
@@ -237,6 +248,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Running],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
+        intention: Some(Intention::Compete),
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -256,6 +268,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Male),
+        intention: Some(Intention::Train),
         gender_preference: None,
         years_playing: Some(7),
         club: None,
@@ -290,6 +303,9 @@ async fn seed_one(
     sports: Vec<Sport>,
     sports_wanted: Vec<Sport>,
     gender: Option<Gender>,
+    // A que viene. Se siembran las cuatro para que Discovery tenga variedad
+    // real al probar, en vez de diez perfiles diciendo lo mismo.
+    intention: Option<Intention>,
     gender_preference: Option<Gender>,
     years_playing: Option<i32>,
     club: Option<&str>,
@@ -341,6 +357,7 @@ async fn seed_one(
                     display_name: tx_display_name,
                     birth_date,
                     gender,
+                    intention,
                     city: tx_city,
                     bio: tx_bio,
                     photos: tx_photos,
@@ -499,6 +516,7 @@ async fn seed_fakes(conn: &mut AsyncPgConnection, cfg: &AppConfig) -> anyhow::Re
             p.sports.to_vec(),
             p.sports_wanted.to_vec(),
             p.gender,
+            p.intention,
             p.gender_preference,
             p.years_playing,
             p.club,
@@ -549,6 +567,7 @@ async fn seed_me(
         vec![Sport::Tennis, Sport::Running],
         vec![Sport::Tennis, Sport::Running],
         None, // gender — se elige luego desde la app
+        None, // intention — se elige luego desde la app
         None, // gender_preference
         None, // years_playing — se completa luego desde la app
         None,
