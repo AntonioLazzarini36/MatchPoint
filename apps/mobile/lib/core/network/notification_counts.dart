@@ -23,6 +23,11 @@ class NotificationCounts extends ChangeNotifier {
   int unreadMessages = 0;
   int pendingProposals = 0;
 
+  /// Quedadas ya pasadas de las que no has contado que ocurrio. Sin este
+  /// contador, cerrar el bucle dependeria de que a alguien se le ocurriera
+  /// entrar a mirar — que es justo lo que no pasa.
+  int sessionsToConfirm = 0;
+
   Timer? _timer;
 
   /// Intervalo deliberadamente más lento que el polling del chat (4s): esto
@@ -51,10 +56,16 @@ class NotificationCounts extends ChangeNotifier {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final unread = (data['unreadMessages'] as num?)?.toInt() ?? 0;
       final pending = (data['pendingProposals'] as num?)?.toInt() ?? 0;
-      if (unread == unreadMessages && pending == pendingProposals) return;
+      final toConfirm = (data['sessionsToConfirm'] as num?)?.toInt() ?? 0;
+      if (unread == unreadMessages &&
+          pending == pendingProposals &&
+          toConfirm == sessionsToConfirm) {
+        return;
+      }
 
       unreadMessages = unread;
       pendingProposals = pending;
+      sessionsToConfirm = toConfirm;
       notifyListeners();
     } catch (_) {
       // se reintenta en el siguiente tick

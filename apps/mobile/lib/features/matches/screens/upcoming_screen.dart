@@ -6,6 +6,7 @@ import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/utils/date_format_es.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 
+import '../../discovery/models/sport.dart';
 import '../models/proposal.dart';
 import '../services/proposal_service.dart';
 import 'session_detail_screen.dart';
@@ -32,6 +33,10 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   final _service = ProposalService(Api.client);
 
   List<UpcomingSession> _sessions = const [];
+  /// Quedadas ya pasadas que esperan que cuentes que ocurrio. Van arriba del
+  /// todo: es lo unico de esta pantalla que se pierde si no se contesta
+  /// pronto — nadie recuerda un partido de hace tres semanas.
+  List<UpcomingSession> _toConfirm = const [];
   bool _loading = true;
   String? _error;
 
@@ -47,10 +52,16 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
       _error = null;
     });
     try {
-      final sessions = await _service.listUpcoming();
+      // En paralelo: son dos endpoints independientes y encadenarlos solo
+      // haria esperar el doble.
+      final results = await Future.wait([
+        _service.listUpcoming(),
+        _service.listAwaitingFeedback(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _sessions = sessions;
+        _sessions = results[0];
+        _toConfirm = results[1];
         _loading = false;
       });
     } catch (e) {
@@ -120,7 +131,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
       );
     }
 
-    if (_sessions.isEmpty) {
+    if (_sessions.isEmpty && _toConfirm.isEmpty) {
       // ListView (no Center pelado) para que el pull-to-refresh siga
       // funcionando con la lista vacía.
       return ListView(
@@ -171,6 +182,8 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        if (_toConfirm.isNotEmpty)
+          ..._confirmSection(context),
         if (needsAnswer.isNotEmpty)
           ..._section(context, 'Esperan tu respuesta', needsAnswer),
         if (confirmed.isNotEmpty)
@@ -179,6 +192,57 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
           ..._section(context, 'Esperando respuesta', waiting),
       ],
     );
+  }
+
+  /// Seccion de "cuenta que paso". Va primero en la lista.
+  List<Widget> _confirmSection(BuildContext context) {
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+        child: Text(
+          '¿Qué tal fue? (${_toConfirm.length})',
+          style: context.textStyles.titleSmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Text(
+          'Contarlo es lo que hace que los niveles del resto signifiquen algo.',
+          style: context.textStyles.bodySmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+      ),
+      for (final session in _toConfirm)
+        _ConfirmCard(
+          key: ValueKey(session.proposal.id),
+          session: session,
+          onAnswer: ({required played, outcome, wouldRepeat}) async {
+            final messenger = ScaffoldMessenger.of(context);
+            try {
+              await _service.saveFeedback(
+                proposalId: session.proposal.id,
+                played: played,
+                outcome: outcome,
+                wouldRepeat: wouldRepeat,
+              );
+              // Recargar y no quitar la tarjeta a mano: el badge de la barra
+              // sale del servidor, y dejarlos calculando por separado es
+              // como se desincronizan.
+              await _load();
+              NotificationCounts.instance.refresh();
+            } catch (e) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(e.toString().replaceFirst('Exception: ', '')),
+                ),
+              );
+            }
+          },
+        ),
+    ];
   }
 
   List<Widget> _section(
@@ -284,5 +348,171 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Tarjeta de "cuenta que paso".
+///
+/// Va arriba del todo de la pantalla a proposito: es lo unico aqui que se
+/// pierde si no se contesta pronto, porque nadie recuerda como fue un
+/// partido de hace tres semanas. Y es lo que sostiene la promesa del
+/// producto — sin esto el nivel que cada uno declara no lo corrige nunca
+/// nada.
+class _ConfirmCard extends StatefulWidget {
+  final UpcomingSession session;
+  final Future<void> Function({
+    required bool played,
+    String? outcome,
+    bool? wouldRepeat,
+  })
+  onAnswer;
+
+  const _ConfirmCard({
+    super.key,
+    required this.session,
+    required this.onAnswer,
+  });
+
+  @override
+  State<_ConfirmCard> createState() => _ConfirmCardState();
+}
+
+class _ConfirmCardState extends State<_ConfirmCard> {
+  bool _busy = false;
+  /// null = todavia no ha dicho si jugaron. Al decir que si, la tarjeta
+  /// pregunta el resto en el sitio, sin abrir otra pantalla: son dos toques
+  /// y sacarlos a un formulario aparte haria que nadie los diera.
+  bool? _played;
+  String? _outcome;
+
+  bool get _isTennis => widget.session.proposal.sport == Sport.tennis;
+
+  Future<void> _send({required bool played, bool? wouldRepeat}) async {
+    setState(() => _busy = true);
+    try {
+      await widget.onAnswer(
+        played: played,
+        outcome: played ? _outcome : null,
+        wouldRepeat: played ? wouldRepeat : null,
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.session;
+    final noun = sportSessionNoun(s.proposal.sport);
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(sportIcon(s.proposal.sport), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$noun con ${s.otherDisplayName}',
+                    style: context.textStyles.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _whenLabel(s.proposal.scheduledAt),
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            if (_busy)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
+              )
+            else if (_played == null) ...[
+              Text('¿Llegasteis a jugar?', style: context.textStyles.bodyLarge),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => setState(() => _played = true),
+                      child: const Text('Sí, jugamos'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _send(played: false),
+                      child: const Text('No pudo ser'),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              if (_isTennis) ...[
+                Text('¿Cómo acabó?', style: context.textStyles.bodyLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final option in const [
+                      ('WON', 'Gané'),
+                      ('LOST', 'Perdí'),
+                      ('TIED', 'Empate'),
+                    ])
+                      ChoiceChip(
+                        label: Text(option.$2),
+                        selected: _outcome == option.$1,
+                        onSelected: (_) =>
+                            setState(() => _outcome = option.$1),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+              Text(
+                '¿Repetirías con ${s.otherDisplayName}?',
+                style: context.textStyles.bodyLarge,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => _send(played: true, wouldRepeat: true),
+                      child: const Text('Sí'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _send(played: true, wouldRepeat: false),
+                      child: const Text('No'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _whenLabel(DateTime when) {
+    final days = DateTime.now().difference(when).inDays;
+    if (days <= 0) return 'Hoy';
+    if (days == 1) return 'Ayer';
+    return 'Hace $days días';
   }
 }

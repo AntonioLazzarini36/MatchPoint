@@ -82,13 +82,17 @@ class NavigatorShellState extends State<NavigatorShell> {
             label: 'Matches',
           ),
           NavigationDestination(
+            // Las dos cosas que reclaman tu atencion en esta pestaña suman en
+            // el mismo badge: una propuesta por contestar y una quedada por
+            // contar acaban las dos en la misma pantalla, asi que separarlas
+            // en dos numeros no le diria nada a nadie.
             icon: _badged(
               const Icon(Icons.event_outlined),
-              _counts.pendingProposals,
+              _counts.pendingProposals + _counts.sessionsToConfirm,
             ),
             selectedIcon: _badged(
               const Icon(Icons.event),
-              _counts.pendingProposals,
+              _counts.pendingProposals + _counts.sessionsToConfirm,
             ),
             label: 'Quedadas',
           ),

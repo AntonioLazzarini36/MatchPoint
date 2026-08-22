@@ -85,6 +85,48 @@ class ProposalService {
         .toList();
   }
 
+  /// Quedadas ya pasadas que siguen esperando que cuentes que ocurrio.
+  ///
+  /// Endpoint aparte de `listUpcoming` a proposito: son dos preguntas
+  /// distintas ("que tengo por jugar" y "que tengo por contar") y mezclarlas
+  /// obligaria a filtrar por fecha en el cliente.
+  Future<List<UpcomingSession>> listAwaitingFeedback() async {
+    final res = await api.get('/me/sessions/played', auth: true);
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('ListAwaitingFeedback failed: ${res.statusCode}');
+    }
+
+    return (jsonDecode(res.body) as List<dynamic>)
+        .map((e) => UpcomingSession.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Guarda que paso. Contestar de nuevo corrige la respuesta anterior.
+  ///
+  /// `outcome` solo en tenis y solo si se jugo; el backend rechaza lo demas
+  /// para no guardar resultados de partidos que no ocurrieron.
+  Future<void> saveFeedback({
+    required String proposalId,
+    required bool played,
+    String? outcome,
+    bool? wouldRepeat,
+  }) async {
+    final res = await api.post(
+      '/proposals/$proposalId/feedback',
+      auth: true,
+      body: {
+        'played': played,
+        'outcome': ?outcome,
+        'wouldRepeat': ?wouldRepeat,
+      },
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(_message(res.body, 'No se pudo guardar la respuesta'));
+    }
+  }
+
   /// El backend manda `{ "message": "..." }` en los 400/403 con texto ya
   /// redactado para el usuario — merece la pena mostrarlo en vez de un
   /// código de estado pelado.
