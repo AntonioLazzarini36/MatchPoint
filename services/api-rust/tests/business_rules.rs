@@ -15,7 +15,7 @@
 
 mod common;
 
-use common::{cleanup, make_user, set_level_and_intention, test_state};
+use common::{cleanup, fresh_cluster, make_user, set_level_and_intention, test_state};
 use matchpoint_api::models::{Intention, SkillLevel, Sport, SwipeType};
 use matchpoint_api::proposals::dto::{CreateProposalDto, ProposalAction};
 use matchpoint_api::swipes::dto::CreateSwipeDto;
@@ -37,8 +37,9 @@ fn like(to: &str, sport: Sport) -> CreateSwipeDto {
 #[tokio::test]
 async fn el_like_reciproco_hace_match_aunque_sea_en_deportes_distintos() {
     let state = test_state().await;
-    let a = make_user(&state, "a", &[Sport::Tennis, Sport::Running]).await;
-    let b = make_user(&state, "b", &[Sport::Tennis, Sport::Running]).await;
+    let c = fresh_cluster();
+    let a = make_user(&state, c, "a", &[Sport::Tennis, Sport::Running]).await;
+    let b = make_user(&state, c, "b", &[Sport::Tennis, Sport::Running]).await;
 
     let first = swipes::service::create_swipe(&state, &a, like(&b, Sport::Tennis))
         .await
@@ -62,8 +63,9 @@ async fn el_like_reciproco_hace_match_aunque_sea_en_deportes_distintos() {
 #[tokio::test]
 async fn dos_personas_no_acumulan_dos_matches() {
     let state = test_state().await;
-    let a = make_user(&state, "a", &[Sport::Tennis, Sport::Running]).await;
-    let b = make_user(&state, "b", &[Sport::Tennis, Sport::Running]).await;
+    let c = fresh_cluster();
+    let a = make_user(&state, c, "a", &[Sport::Tennis, Sport::Running]).await;
+    let b = make_user(&state, c, "b", &[Sport::Tennis, Sport::Running]).await;
 
     swipes::service::create_swipe(&state, &a, like(&b, Sport::Tennis))
         .await
@@ -96,7 +98,8 @@ async fn dos_personas_no_acumulan_dos_matches() {
 #[tokio::test]
 async fn discover_rechaza_un_deporte_que_no_juegas() {
     let state = test_state().await;
-    let solo_tenis = make_user(&state, "solotenis", &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let solo_tenis = make_user(&state, c, "solotenis", &[Sport::Tennis]).await;
 
     let res = discover::service::discover(&state, &solo_tenis, Some(Sport::Running)).await;
     assert!(
@@ -111,9 +114,10 @@ async fn discover_rechaza_un_deporte_que_no_juegas() {
 #[tokio::test]
 async fn discover_solo_ensena_a_quien_comparte_deporte() {
     let state = test_state().await;
-    let yo = make_user(&state, "yo", &[Sport::Tennis]).await;
-    let comparte = make_user(&state, "comparte", &[Sport::Tennis]).await;
-    let no_comparte = make_user(&state, "nocomparte", &[Sport::Running]).await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let comparte = make_user(&state, c, "comparte", &[Sport::Tennis]).await;
+    let no_comparte = make_user(&state, c, "nocomparte", &[Sport::Running]).await;
 
     let found = discover::service::discover(&state, &yo, None)
         .await
@@ -137,8 +141,9 @@ async fn discover_solo_ensena_a_quien_comparte_deporte() {
 #[tokio::test]
 async fn discover_no_repite_a_quien_ya_deslizaste() {
     let state = test_state().await;
-    let yo = make_user(&state, "yo", &[Sport::Tennis]).await;
-    let otro = make_user(&state, "otro", &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let otro = make_user(&state, c, "otro", &[Sport::Tennis]).await;
 
     let before = discover::service::discover(&state, &yo, None)
         .await
@@ -172,11 +177,12 @@ async fn discover_no_repite_a_quien_ya_deslizaste() {
 
 async fn matched_pair(
     state: &matchpoint_api::state::AppState,
+    cluster: (f64, f64),
     a_sports: &[Sport],
     b_sports: &[Sport],
 ) -> (String, String, String) {
-    let a = make_user(state, "pa", a_sports).await;
-    let b = make_user(state, "pb", b_sports).await;
+    let a = make_user(state, cluster, "pa", a_sports).await;
+    let b = make_user(state, cluster, "pb", b_sports).await;
     swipes::service::create_swipe(state, &a, like(&b, Sport::Tennis))
         .await
         .unwrap();
@@ -202,8 +208,10 @@ fn proposal(sport: Sport, hours: i64) -> CreateProposalDto {
 #[tokio::test]
 async fn se_puede_proponer_cualquier_deporte_que_practiquen_los_dos() {
     let state = test_state().await;
+    let c = fresh_cluster();
     let (a, b, match_id) = matched_pair(
         &state,
+        c,
         &[Sport::Tennis, Sport::Running],
         &[Sport::Tennis, Sport::Running],
     )
@@ -222,8 +230,10 @@ async fn se_puede_proponer_cualquier_deporte_que_practiquen_los_dos() {
 #[tokio::test]
 async fn no_se_puede_proponer_un_deporte_que_el_otro_no_juega() {
     let state = test_state().await;
+    let c = fresh_cluster();
     let (a, b, match_id) = matched_pair(
         &state,
+        c,
         &[Sport::Tennis, Sport::Running],
         &[Sport::Tennis], // b solo juega al tenis
     )
@@ -242,7 +252,8 @@ async fn no_se_puede_proponer_un_deporte_que_el_otro_no_juega() {
 #[tokio::test]
 async fn nadie_acepta_su_propia_propuesta() {
     let state = test_state().await;
-    let (a, b, match_id) = matched_pair(&state, &[Sport::Tennis], &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let (a, b, match_id) = matched_pair(&state, c, &[Sport::Tennis], &[Sport::Tennis]).await;
 
     let created = proposals::service::create(&state, &match_id, &a, proposal(Sport::Tennis, 24))
         .await
@@ -262,7 +273,8 @@ async fn nadie_acepta_su_propia_propuesta() {
 #[tokio::test]
 async fn una_propuesta_nueva_cancela_la_pendiente() {
     let state = test_state().await;
-    let (a, b, match_id) = matched_pair(&state, &[Sport::Tennis], &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let (a, b, match_id) = matched_pair(&state, c, &[Sport::Tennis], &[Sport::Tennis]).await;
 
     proposals::service::create(&state, &match_id, &a, proposal(Sport::Tennis, 24))
         .await
@@ -288,7 +300,8 @@ async fn una_propuesta_nueva_cancela_la_pendiente() {
 #[tokio::test]
 async fn cualquiera_cancela_una_quedada_ya_aceptada() {
     let state = test_state().await;
-    let (a, b, match_id) = matched_pair(&state, &[Sport::Tennis], &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let (a, b, match_id) = matched_pair(&state, c, &[Sport::Tennis], &[Sport::Tennis]).await;
 
     let created = proposals::service::create(&state, &match_id, &a, proposal(Sport::Tennis, 24))
         .await
@@ -315,9 +328,10 @@ async fn cualquiera_cancela_una_quedada_ya_aceptada() {
 #[tokio::test]
 async fn quien_quiere_mejorar_ve_antes_a_alguien_mejor() {
     let state = test_state().await;
-    let yo = make_user(&state, "learner", &[Sport::Tennis]).await;
-    let igual = make_user(&state, "igual", &[Sport::Tennis]).await;
-    let mejor = make_user(&state, "mejor", &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "learner", &[Sport::Tennis]).await;
+    let igual = make_user(&state, c, "igual", &[Sport::Tennis]).await;
+    let mejor = make_user(&state, c, "mejor", &[Sport::Tennis]).await;
 
     set_level_and_intention(
         &state,
@@ -360,9 +374,10 @@ async fn quien_quiere_mejorar_ve_antes_a_alguien_mejor() {
 #[tokio::test]
 async fn quien_viene_a_competir_ve_antes_a_alguien_de_su_nivel() {
     let state = test_state().await;
-    let yo = make_user(&state, "comp", &[Sport::Tennis]).await;
-    let igual = make_user(&state, "cigual", &[Sport::Tennis]).await;
-    let mejor = make_user(&state, "cmejor", &[Sport::Tennis]).await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "comp", &[Sport::Tennis]).await;
+    let igual = make_user(&state, c, "cigual", &[Sport::Tennis]).await;
+    let mejor = make_user(&state, c, "cmejor", &[Sport::Tennis]).await;
 
     set_level_and_intention(
         &state,

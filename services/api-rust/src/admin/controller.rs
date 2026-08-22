@@ -9,9 +9,9 @@ use serde::Deserialize;
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
-#[allow(unused_imports)] // referenciado solo dentro de #[utoipa::path]
-use crate::admin::service::ReportEntry;
 use crate::admin::service::{self, AdminError};
+#[allow(unused_imports)] // referenciado solo dentro de #[utoipa::path]
+use crate::admin::service::{IncompleteAccount, ReportEntry};
 #[allow(unused_imports)]
 use crate::openapi::ErrorResponse;
 use crate::state::AppState;
@@ -20,6 +20,10 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/admin/reports", get(list_reports))
         .route("/admin/reports/:reportId", patch(review_report))
+        .route(
+            "/admin/incomplete-accounts",
+            get(list_incomplete).delete(purge_incomplete),
+        )
 }
 
 /// Comprueba la clave de administración.
@@ -149,4 +153,53 @@ mod tests {
         assert!(!constant_time_eq(b"secreto", b"secret"));
         assert!(!constant_time_eq(b"", b"x"));
     }
+}
+
+/// Cuentas a medio crear (sin perfil o sin fotos). **No borra nada**: es la
+/// lista que hay que mirar antes de llamar al DELETE.
+#[utoipa::path(
+    get,
+    path = "/admin/incomplete-accounts",
+    tag = "admin",
+    responses(
+        (status = 200, description = "Cuentas incompletas", body = Vec<IncompleteAccount>),
+        (status = 404, description = "Clave de administración ausente o incorrecta", body = ErrorResponse),
+    )
+)]
+async fn list_incomplete(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    if !authorised(&state, &headers) {
+        return not_found();
+    }
+    match service::find_incomplete(&state).await {
+        Ok(list) => Json(list).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+/// Borra esas cuentas. Sin vuelta atrás.
+///
+/// Va en un verbo distinto del listado a propósito: mirar y borrar no pueden
+/// ser la misma llamada cuando lo segundo no se puede deshacer.
+#[utoipa::path(
+    delete,
+    path = "/admin/incomplete-accounts",
+    tag = "admin",
+    responses(
+        (status = 200, description = "Cuentas borradas", body = PurgeResult),
+        (status = 404, description = "Clave de administración ausente o incorrecta", body = ErrorResponse),
+    )
+)]
+async fn purge_incomplete(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    if !authorised(&state, &headers) {
+        return not_found();
+    }
+    match service::delete_incomplete(&state).await {
+        Ok(deleted) => Json(PurgeResult { deleted }).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PurgeResult {
+    pub deleted: usize,
 }

@@ -19,7 +19,7 @@ use matchpoint_api::auth::rate_limit::RateLimiter;
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::mail::Mailer;
 use matchpoint_api::models::{
-    AvailabilitySlot, Intention, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
+    Intention, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
 };
 use matchpoint_api::push::Pusher;
 use matchpoint_api::schema::{profiles, skill_levels, users};
@@ -62,12 +62,35 @@ pub async fn test_state() -> AppState {
     }
 }
 
+/// Un punto del mapa lejos de cualquier dato sembrado, distinto en cada
+/// llamada.
+///
+/// Los tests de Discover comparan **orden**, y el feed se corta a 20
+/// resultados: en una base con perfiles de desarrollo dentro, los usuarios
+/// del test se caen fuera de esa ventana y el test falla por un motivo que no
+/// tiene nada que ver con lo que comprueba. Dándole a cada test su propio
+/// rincón del planeta, el filtro de distancia se encarga de que sólo se vean
+/// entre ellos — que es justo el aislamiento que hace falta.
+pub fn fresh_cluster() -> (f64, f64) {
+    // Uuid v4 viene del CSPRNG del sistema: sirve de fuente de aleatoriedad
+    // sin añadir la crate `rand` sólo para esto.
+    let seed = uuid::Uuid::new_v4().as_u128();
+    let lat = 55.0 + ((seed % 20_000) as f64) / 1000.0;
+    let lng = 20.0 + (((seed >> 64) % 20_000) as f64) / 1000.0;
+    (lat, lng)
+}
+
 /// Crea un usuario con perfil listo para aparecer en Discover.
 ///
 /// El sufijo aleatorio en el email es lo que permite correr los tests en
 /// paralelo (que es como los corre Rust por defecto) sin que unos pisen las
 /// cuentas de otros.
-pub async fn make_user(state: &AppState, tag: &str, sports: &[Sport]) -> String {
+pub async fn make_user(
+    state: &AppState,
+    cluster: (f64, f64),
+    tag: &str,
+    sports: &[Sport],
+) -> String {
     let id = uuid::Uuid::new_v4().to_string();
     let email = format!("it-{tag}-{id}@test.local");
     let mut conn = state.db.get().await.expect("pool");
@@ -98,12 +121,11 @@ pub async fn make_user(state: &AppState, tag: &str, sports: &[Sport]) -> String 
             // filtro.
             photos: vec!["https://example.test/foto.png".to_string()],
             sports: sports.to_vec(),
-            // Todos con la misma franja: asi el orden por coincidencia
-            // horaria no introduce variacion entre los perfiles de un test,
-            // que comprueban otra cosa.
-            availability: vec![AvailabilitySlot::WeekendMorning],
-            latitude: Some(36.72),
-            longitude: Some(-4.42),
+            // Horario semanal vacio: ya no entra en la ordenacion, asi que
+            // no afecta a lo que estos tests comprueban.
+            availability: 0,
+            latitude: Some(cluster.0),
+            longitude: Some(cluster.1),
             years_playing: None,
             club: None,
             achievements: vec![],

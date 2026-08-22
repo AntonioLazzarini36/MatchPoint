@@ -130,32 +130,6 @@ pub enum SessionOutcome {
     Tied,
 }
 
-/// Cuando puede jugar alguien. Franjas gruesas y no un calendario: lo que
-/// hace falta saber es si dos personas pueden coincidir, y pedir mas detalle
-/// solo consigue que nadie lo rellene.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
-#[ExistingTypePath = "crate::schema::sql_types::AvailabilitySlot"]
-pub enum AvailabilitySlot {
-    #[db_rename = "WEEKDAY_MORNING"]
-    #[serde(rename = "WEEKDAY_MORNING")]
-    WeekdayMorning,
-    #[db_rename = "WEEKDAY_AFTERNOON"]
-    #[serde(rename = "WEEKDAY_AFTERNOON")]
-    WeekdayAfternoon,
-    #[db_rename = "WEEKDAY_EVENING"]
-    #[serde(rename = "WEEKDAY_EVENING")]
-    WeekdayEvening,
-    #[db_rename = "WEEKEND_MORNING"]
-    #[serde(rename = "WEEKEND_MORNING")]
-    WeekendMorning,
-    #[db_rename = "WEEKEND_AFTERNOON"]
-    #[serde(rename = "WEEKEND_AFTERNOON")]
-    WeekendAfternoon,
-    #[db_rename = "WEEKEND_EVENING"]
-    #[serde(rename = "WEEKEND_EVENING")]
-    WeekendEvening,
-}
-
 /// Lifecycle of a `Proposal`. `Cancelled` is the proposer withdrawing;
 /// `Declined` is the other side saying no -- kept apart so the chat can
 /// word them differently.
@@ -298,8 +272,17 @@ pub struct Profile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
-    /// Vacío = no lo ha dicho. No se penaliza a quien no lo rellene.
-    pub availability: Vec<AvailabilitySlot>,
+    /// Horario semanal habitual, como mapa de bits de 21 posiciones
+    /// (`bit = día * 3 + franja`; día 0 = lunes, franja 0 = mañana).
+    ///
+    /// **Es una referencia, no una verdad**: dice lo que esa persona *suele*
+    /// tener libre, para que quien vaya a proponerle algo no elija un hueco
+    /// en el que nunca puede. No se usa para filtrar ni para ordenar — cuándo
+    /// puede jugar alguien varía de una semana a otra, y convertir una
+    /// aproximación en criterio de orden es fingir una precisión que no hay.
+    ///
+    /// `0` = no lo ha rellenado.
+    pub availability: i32,
     /// Hinge-style: typed/picked, not device GPS. Both null until the user
     /// sets a location; `/discover`'s distance filter is skipped entirely
     /// for a viewer or candidate without coordinates.
@@ -334,8 +317,17 @@ pub struct NewProfile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
-    /// Vacío = no lo ha dicho. No se penaliza a quien no lo rellene.
-    pub availability: Vec<AvailabilitySlot>,
+    /// Horario semanal habitual, como mapa de bits de 21 posiciones
+    /// (`bit = día * 3 + franja`; día 0 = lunes, franja 0 = mañana).
+    ///
+    /// **Es una referencia, no una verdad**: dice lo que esa persona *suele*
+    /// tener libre, para que quien vaya a proponerle algo no elija un hueco
+    /// en el que nunca puede. No se usa para filtrar ni para ordenar — cuándo
+    /// puede jugar alguien varía de una semana a otra, y convertir una
+    /// aproximación en criterio de orden es fingir una precisión que no hay.
+    ///
+    /// `0` = no lo ha rellenado.
+    pub availability: i32,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub years_playing: Option<i32>,

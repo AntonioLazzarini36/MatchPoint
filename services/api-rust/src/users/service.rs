@@ -65,7 +65,7 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
             Option<String>,
             Vec<String>,
             Vec<crate::models::Sport>,
-            Vec<crate::models::AvailabilitySlot>,
+            i32,
             Option<i32>,
             Option<String>,
             Vec<String>,
@@ -112,9 +112,6 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         photos,
         sports,
         availability,
-        // Relativo a quien mira y este endpoint no lo sabe — mismo criterio
-        // que distance_km/matches_your_level/likes_you.
-        shared_slots: 0,
         years_playing,
         club,
         avg_pace_min_per_km,

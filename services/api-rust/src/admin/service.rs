@@ -5,7 +5,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::schema::{profiles, reports, users};
+use crate::schema::{matches, profiles, reports, users};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -184,4 +184,109 @@ pub async fn review_report(
         reported_name: reported.1,
         reported_total_reports,
     })
+}
+
+/// Cuentas a medio crear: sin perfil, o con perfil pero sin ninguna foto.
+///
+/// Ensucian de verdad: `/discover` ya las esconde (exige foto y coordenadas),
+/// pero siguen ocupando la base, apareciendo en cualquier listado y
+/// contando como usuarios que no son.
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IncompleteAccount {
+    pub user_id: String,
+    pub email: String,
+    pub display_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+    /// Qué le falta, para poder revisar la lista antes de borrar nada.
+    pub reason: String,
+}
+
+/// Encuentra las cuentas incompletas.
+///
+/// **Nunca** incluye a quien tenga algún match: aunque su perfil esté a
+/// medias, ahí hay una conversación de otra persona al otro lado, y borrar la
+/// cuenta se la llevaría por delante.
+pub async fn find_incomplete(state: &AppState) -> Result<Vec<IncompleteAccount>, AdminError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AdminError::Pool(e.to_string()))?;
+
+    let rows = users::table
+        .left_join(profiles::table.on(profiles::user_id.eq(users::id)))
+        .select((
+            users::id,
+            users::email,
+            users::created_at,
+            profiles::display_name.nullable(),
+            profiles::photos.nullable(),
+        ))
+        .load::<(
+            String,
+            String,
+            DateTime<Utc>,
+            Option<String>,
+            Option<Vec<String>>,
+        )>(&mut conn)
+        .await?;
+
+    let mut out = Vec::new();
+    for (user_id, email, created_at, display_name, photos) in rows {
+        let reason = match &photos {
+            None => "sin perfil",
+            Some(p) if p.is_empty() => "sin fotos",
+            Some(_) => continue,
+        };
+
+        // Con matches no se toca, aunque el perfil este a medias.
+        let has_match: i64 = matches::table
+            .filter(
+                matches::user_a_id
+                    .eq(&user_id)
+                    .or(matches::user_b_id.eq(&user_id)),
+            )
+            .count()
+            .get_result(&mut conn)
+            .await?;
+        if has_match > 0 {
+            continue;
+        }
+
+        out.push(IncompleteAccount {
+            user_id,
+            email,
+            display_name,
+            created_at,
+            reason: reason.to_string(),
+        });
+    }
+
+    Ok(out)
+}
+
+/// Borra las cuentas que devuelve `find_incomplete`.
+///
+/// Todo lo demás cae por `ON DELETE CASCADE`. Los ficheros de las fotos no
+/// hace falta limpiarlos aquí: por definición, estas cuentas no tienen.
+pub async fn delete_incomplete(state: &AppState) -> Result<usize, AdminError> {
+    let victims = find_incomplete(state).await?;
+    if victims.is_empty() {
+        return Ok(0);
+    }
+
+    let ids: Vec<String> = victims.into_iter().map(|a| a.user_id).collect();
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AdminError::Pool(e.to_string()))?;
+
+    let deleted = diesel::delete(users::table.filter(users::id.eq_any(&ids)))
+        .execute(&mut conn)
+        .await?;
+
+    tracing::warn!("admin: borradas {deleted} cuentas incompletas");
+    Ok(deleted)
 }

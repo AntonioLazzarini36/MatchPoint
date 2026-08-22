@@ -1,0 +1,8 @@
+ALTER TABLE "Profile" DROP COLUMN availability;
+
+CREATE TYPE "AvailabilitySlot" AS ENUM (
+    'WEEKDAY_MORNING', 'WEEKDAY_AFTERNOON', 'WEEKDAY_EVENING',
+    'WEEKEND_MORNING', 'WEEKEND_AFTERNOON', 'WEEKEND_EVENING'
+);
+ALTER TABLE "Profile"
+    ADD COLUMN availability "AvailabilitySlot"[] NOT NULL DEFAULT '{}';

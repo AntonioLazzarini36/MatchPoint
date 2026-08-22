@@ -32,8 +32,7 @@ use diesel_async::{AsyncConnection, AsyncPgConnection};
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::db;
 use matchpoint_api::models::{
-    AvailabilitySlot, Gender, Intention, NewPreferences, NewProfile, NewUser, NewUserSkillLevel,
-    SkillLevel, Sport,
+    Gender, Intention, NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
 };
 use matchpoint_api::schema::{preferences, profiles, skill_levels, users};
 
@@ -62,7 +61,7 @@ struct FakeProfile {
     intention: Option<Intention>,
     // Se siembran franjas variadas para que el orden de Discover por
     // coincidencia horaria tenga algo real que ordenar al probarlo.
-    availability: &'static [AvailabilitySlot],
+    availability: i32,
     gender_preference: Option<Gender>,
     // Tennis-oriented credentials — left None for running-only profiles.
     years_playing: Option<i32>,
@@ -77,6 +76,19 @@ struct FakeProfile {
     skill_levels: &'static [SkillLevel],
 }
 
+/// Un hueco del horario semanal como bit suelto.
+///
+/// `dia`: 0 = lunes ... 6 = domingo. `franja`: 0 = mañana, 1 = tarde,
+/// 2 = noche. Ver `models::Profile::availability`.
+const fn slot(dia: i32, franja: i32) -> i32 {
+    1 << (dia * 3 + franja)
+}
+
+/// Un horario de ejemplo con pinta de real —noches entre semana y la mañana
+/// del sabado— para que el flujo de proponer tenga algo que enseñar al
+/// probarlo.
+const WEEK_EVENINGS: i32 = slot(0, 2) | slot(1, 1) | slot(2, 2) | slot(3, 1) | slot(5, 0);
+
 const FAKE_PROFILES: &[FakeProfile] = &[
     FakeProfile {
         email: "lucia.tenis@example.com",
@@ -90,10 +102,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
-        availability: &[
-            AvailabilitySlot::WeekdayEvening,
-            AvailabilitySlot::WeekendMorning,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: Some(5),
         club: None,
@@ -114,10 +123,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
-        availability: &[
-            AvailabilitySlot::WeekendMorning,
-            AvailabilitySlot::WeekendAfternoon,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -138,10 +144,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Learn),
-        availability: &[
-            AvailabilitySlot::WeekdayMorning,
-            AvailabilitySlot::WeekdayAfternoon,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: Some(2),
         club: None,
@@ -162,7 +165,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
         intention: Some(Intention::Fun),
-        availability: &[AvailabilitySlot::WeekdayEvening],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: Some(12),
         club: Some("Club de Tenis Torremolinos"),
@@ -183,10 +186,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
-        availability: &[
-            AvailabilitySlot::WeekendAfternoon,
-            AvailabilitySlot::WeekendEvening,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -207,10 +207,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
-        availability: &[
-            AvailabilitySlot::WeekdayEvening,
-            AvailabilitySlot::WeekendMorning,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: Some(1),
         club: None,
@@ -231,10 +228,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Learn),
-        availability: &[
-            AvailabilitySlot::WeekendMorning,
-            AvailabilitySlot::WeekendAfternoon,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -255,10 +249,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
         intention: Some(Intention::Fun),
-        availability: &[
-            AvailabilitySlot::WeekdayMorning,
-            AvailabilitySlot::WeekdayAfternoon,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: Some(15),
         club: Some("Club de Tenis Málaga"),
@@ -282,7 +273,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
-        availability: &[AvailabilitySlot::WeekdayEvening],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -303,10 +294,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
-        availability: &[
-            AvailabilitySlot::WeekendAfternoon,
-            AvailabilitySlot::WeekendEvening,
-        ],
+        availability: WEEK_EVENINGS,
         gender_preference: None,
         years_playing: Some(7),
         club: None,
@@ -346,7 +334,7 @@ async fn seed_one(
     intention: Option<Intention>,
     // Se siembran franjas variadas para que el orden de Discover por
     // coincidencia horaria tenga algo real que ordenar al probarlo.
-    availability: Vec<AvailabilitySlot>,
+    availability: i32,
     gender_preference: Option<Gender>,
     years_playing: Option<i32>,
     club: Option<&str>,
@@ -559,7 +547,7 @@ async fn seed_fakes(conn: &mut AsyncPgConnection, cfg: &AppConfig) -> anyhow::Re
             p.sports_wanted.to_vec(),
             p.gender,
             p.intention,
-            p.availability.to_vec(),
+            p.availability,
             p.gender_preference,
             p.years_playing,
             p.club,
@@ -609,11 +597,11 @@ async fn seed_me(
         None,
         vec![Sport::Tennis, Sport::Running],
         vec![Sport::Tennis, Sport::Running],
-        None,   // gender — se elige luego desde la app
-        None,   // intention — se elige luego desde la app
-        vec![], // availability — se elige luego desde la app
-        None,   // gender_preference
-        None,   // years_playing — se completa luego desde la app
+        None, // gender — se elige luego desde la app
+        None, // intention — se elige luego desde la app
+        0,    // availability — se elige luego desde la app
+        None, // gender_preference
+        None, // years_playing — se completa luego desde la app
         None,
         None,
         None,
