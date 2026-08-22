@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::models::Sport;
+use crate::models::{SessionOutcome, Sport};
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -34,4 +34,19 @@ pub enum ProposalAction {
 #[serde(rename_all = "camelCase")]
 pub struct RespondProposalDto {
     pub action: ProposalAction,
+}
+
+/// Lo que cuentas de una quedada ya pasada.
+///
+/// `played: false` es una respuesta de primera clase, no un error: que
+/// alguien no aparezca es informacion util, y la alternativa (borrar la
+/// quedada y hacer como que no existio) esconde justo lo que interesa saber.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionFeedbackDto {
+    pub played: bool,
+    /// Solo en tenis, y solo si se jugo. Al correr no hay marcador.
+    pub outcome: Option<SessionOutcome>,
+    /// La senal que de verdad sirve para reencontrarse. Solo si se jugo.
+    pub would_repeat: Option<bool>,
 }

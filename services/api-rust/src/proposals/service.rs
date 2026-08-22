@@ -29,9 +29,11 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::models::{Match, NewProposal, Proposal, ProposalStatus, Sport};
-use crate::proposals::dto::{CreateProposalDto, ProposalAction};
-use crate::schema::{matches, profiles, proposals};
+use crate::models::{
+    Match, NewProposal, NewSessionFeedback, Proposal, ProposalStatus, SessionFeedback, Sport,
+};
+use crate::proposals::dto::{CreateProposalDto, ProposalAction, SessionFeedbackDto};
+use crate::schema::{matches, profiles, proposals, session_feedback};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -503,4 +505,156 @@ pub async fn list_upcoming(
     }
 
     Ok(result)
+}
+
+// --- Cerrar el bucle: que paso con la quedada ---
+
+/// Quedadas ya pasadas que siguen esperando **tu** respuesta.
+///
+/// El criterio es deliberadamente estrecho: solo las `ACCEPTED` (las que no
+/// se llegaron a aceptar no hay nada que confirmar) cuya hora ya paso con
+/// margen, y solo mientras tu no hayas contestado — que la otra persona haya
+/// contestado o no es asunto suyo.
+pub async fn list_awaiting_feedback(
+    state: &AppState,
+    user_id: &str,
+) -> Result<Vec<UpcomingSession>, ProposalsError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| ProposalsError::Pool(e.to_string()))?;
+
+    // El mismo margen que usa `list_upcoming` para dejar de considerarla
+    // "proxima": asi una quedada nunca esta en las dos listas ni en ninguna.
+    let cutoff = Utc::now() - Duration::hours(3);
+
+    // Y un limite por abajo: preguntar por algo de hace tres meses no ayuda
+    // a nadie y solo ensucia la pantalla.
+    let floor = Utc::now() - Duration::days(30);
+
+    let already_answered = session_feedback::table
+        .filter(session_feedback::user_id.eq(user_id))
+        .select(session_feedback::proposal_id);
+
+    let rows = proposals::table
+        .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
+        .filter(
+            matches::user_a_id
+                .eq(user_id)
+                .or(matches::user_b_id.eq(user_id)),
+        )
+        .filter(proposals::status.eq(ProposalStatus::Accepted))
+        .filter(proposals::scheduled_at.lt(cutoff))
+        .filter(proposals::scheduled_at.ge(floor))
+        .filter(proposals::id.ne_all(already_answered))
+        .order(proposals::scheduled_at.desc())
+        .limit(20)
+        .select((
+            proposals::all_columns,
+            matches::user_a_id,
+            matches::user_b_id,
+        ))
+        .load::<(Proposal, String, String)>(&mut conn)
+        .await?;
+
+    let mut result = Vec::with_capacity(rows.len());
+    for (proposal, user_a_id, user_b_id) in rows {
+        let other_id = if user_a_id == user_id {
+            user_b_id
+        } else {
+            user_a_id
+        };
+
+        let other = profiles::table
+            .filter(profiles::user_id.eq(&other_id))
+            .select((profiles::display_name, profiles::photos))
+            .first::<(String, Vec<String>)>(&mut conn)
+            .await
+            .optional()?;
+        let (other_display_name, other_photo) = match other {
+            Some((name, photos)) => (name, photos.into_iter().next()),
+            None => ("Sin nombre".to_string(), None),
+        };
+
+        result.push(UpcomingSession {
+            proposal: ProposalResponse::from_row(proposal, user_id),
+            other_user_id: other_id,
+            other_display_name,
+            other_photo,
+        });
+    }
+
+    Ok(result)
+}
+
+/// Guarda lo que cuentas de una quedada pasada.
+///
+/// Es un upsert por (quedada, persona): contestar dos veces corrige la
+/// respuesta en vez de acumular filas. Corregirse tiene que ser posible —
+/// la primera respuesta suele darse con prisa desde una notificacion.
+pub async fn save_feedback(
+    state: &AppState,
+    proposal_id: &str,
+    user_id: &str,
+    dto: SessionFeedbackDto,
+) -> Result<SessionFeedback, ProposalsError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| ProposalsError::Pool(e.to_string()))?;
+
+    let proposal = proposals::table
+        .filter(proposals::id.eq(proposal_id))
+        .first::<Proposal>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(ProposalsError::NotFound)?;
+
+    // Igual que en `respond`: pertenecer al match es lo unico que autoriza.
+    assert_member(&mut conn, &proposal.match_id, user_id).await?;
+
+    if proposal.status != ProposalStatus::Accepted {
+        return Err(bad(
+            "Solo se puede contar que paso en una quedada que se llego a aceptar",
+        ));
+    }
+    if proposal.scheduled_at > Utc::now() {
+        return Err(bad("Esta quedada todavia no ha ocurrido"));
+    }
+
+    // Coherencia de la respuesta. Un resultado de un partido que no se jugo
+    // seria justo el dato que envenenaria un rating mas adelante.
+    if !dto.played && (dto.outcome.is_some() || dto.would_repeat.is_some()) {
+        return Err(bad(
+            "Si la quedada no se jugo no hay resultado ni valoracion que guardar",
+        ));
+    }
+    // Correr no tiene marcador. Aceptar un WON aqui seria guardar algo que no
+    // significa nada.
+    if dto.outcome.is_some() && proposal.sport != Sport::Tennis {
+        return Err(bad("Solo se guarda resultado en los partidos de tenis"));
+    }
+
+    let saved = diesel::insert_into(session_feedback::table)
+        .values(NewSessionFeedback {
+            id: uuid::Uuid::new_v4().to_string(),
+            proposal_id: proposal_id.to_string(),
+            user_id: user_id.to_string(),
+            played: dto.played,
+            outcome: dto.outcome,
+            would_repeat: dto.would_repeat,
+        })
+        .on_conflict((session_feedback::proposal_id, session_feedback::user_id))
+        .do_update()
+        .set((
+            session_feedback::played.eq(dto.played),
+            session_feedback::outcome.eq(dto.outcome),
+            session_feedback::would_repeat.eq(dto.would_repeat),
+        ))
+        .get_result::<SessionFeedback>(&mut conn)
+        .await?;
+
+    Ok(saved)
 }

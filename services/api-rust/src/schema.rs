@@ -32,6 +32,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
     #[diesel(postgres_type(name = "Intention"))]
     pub struct Intention;
+
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "SessionOutcome"))]
+    pub struct SessionOutcome;
 }
 
 diesel::table! {
@@ -270,6 +274,26 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::SessionOutcome;
+
+    #[sql_name = "SessionFeedback"]
+    session_feedback (id) {
+        id -> Text,
+        #[sql_name = "proposalId"]
+        proposal_id -> Text,
+        #[sql_name = "userId"]
+        user_id -> Text,
+        played -> Bool,
+        outcome -> Nullable<SessionOutcome>,
+        #[sql_name = "wouldRepeat"]
+        would_repeat -> Nullable<Bool>,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     users,
     profiles,
@@ -283,4 +307,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     reports,
     skill_levels,
     proposals,
+    session_feedback,
 );

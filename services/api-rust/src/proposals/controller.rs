@@ -6,15 +6,17 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, patch},
+    routing::{get, patch, post},
     Json, Router,
 };
 use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
+#[allow(unused_imports)]
+use crate::models::SessionFeedback;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] bodies
 use crate::openapi::ErrorResponse;
-use crate::proposals::dto::{CreateProposalDto, RespondProposalDto};
+use crate::proposals::dto::{CreateProposalDto, RespondProposalDto, SessionFeedbackDto};
 use crate::proposals::service::{self, ProposalsError};
 #[allow(unused_imports)]
 use crate::proposals::service::{ProposalResponse, UpcomingSession};
@@ -28,6 +30,11 @@ pub fn router() -> Router<AppState> {
         )
         .route("/proposals/:proposalId", patch(respond))
         .route("/me/proposals", get(list_upcoming))
+        // Separado de `/me/proposals` a proposito: son dos preguntas
+        // distintas ("que tengo por jugar" y "que tengo por contar") y
+        // mezclarlas obligaria al cliente a filtrar por fecha.
+        .route("/me/sessions/played", get(list_awaiting_feedback))
+        .route("/proposals/:proposalId/feedback", post(save_feedback))
 }
 
 #[utoipa::path(
@@ -136,4 +143,53 @@ fn error_response(err: ProposalsError) -> axum::response::Response {
         }
     };
     (status, Json(json!({ "message": err.to_string() }))).into_response()
+}
+
+/// Quedadas ya pasadas que siguen esperando que cuentes que ocurrio.
+#[utoipa::path(
+    get,
+    path = "/me/sessions/played",
+    tag = "proposals",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Quedadas pasadas sin contestar", body = Vec<UpcomingSession>),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+    )
+)]
+async fn list_awaiting_feedback(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> impl IntoResponse {
+    match service::list_awaiting_feedback(&state, &user.user_id).await {
+        Ok(list) => Json(list).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+/// Guarda que paso en una quedada. Contestar de nuevo corrige la respuesta.
+#[utoipa::path(
+    post,
+    path = "/proposals/{proposalId}/feedback",
+    tag = "proposals",
+    security(("bearerAuth" = [])),
+    params(("proposalId" = String, Path, description = "Id de la quedada")),
+    request_body = SessionFeedbackDto,
+    responses(
+        (status = 200, description = "Respuesta guardada", body = SessionFeedback),
+        (status = 400, description = "Respuesta incoherente o quedada aún no ocurrida", body = ErrorResponse),
+        (status = 401, description = "Token ausente o inválido", body = ErrorResponse),
+        (status = 403, description = "No eres parte de ese match", body = ErrorResponse),
+        (status = 404, description = "Quedada no encontrada", body = ErrorResponse),
+    )
+)]
+async fn save_feedback(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(proposal_id): Path<String>,
+    Json(dto): Json<SessionFeedbackDto>,
+) -> impl IntoResponse {
+    match service::save_feedback(&state, &proposal_id, &user.user_id, dto).await {
+        Ok(saved) => Json(saved).into_response(),
+        Err(e) => error_response(e),
+    }
 }

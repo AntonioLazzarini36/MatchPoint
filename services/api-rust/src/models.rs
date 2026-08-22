@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 
 use crate::schema::{
     device_tokens, email_verifications, matches, messages, preferences, profiles, proposals,
-    refresh_tokens, reports, skill_levels, swipes, users,
+    refresh_tokens, reports, session_feedback, skill_levels, swipes, users,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
@@ -105,6 +105,26 @@ pub enum Intention {
     Fun,
 }
 
+/// Como acabo un partido, desde el punto de vista de quien contesta: el
+/// `Won` de uno es el `Lost` del otro. Se guarda asi, y no como "ganador X",
+/// porque cada persona responde por su cuenta y porque es la forma que come
+/// un sistema de rating.
+///
+/// Solo tiene sentido en deportes con marcador; al correr se queda en `None`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+#[ExistingTypePath = "crate::schema::sql_types::SessionOutcome"]
+pub enum SessionOutcome {
+    #[db_rename = "WON"]
+    #[serde(rename = "WON")]
+    Won,
+    #[db_rename = "LOST"]
+    #[serde(rename = "LOST")]
+    Lost,
+    #[db_rename = "TIED"]
+    #[serde(rename = "TIED")]
+    Tied,
+}
+
 /// Lifecycle of a `Proposal`. `Cancelled` is the proposer withdrawing;
 /// `Declined` is the other side saying no -- kept apart so the chat can
 /// word them differently.
@@ -183,6 +203,34 @@ pub struct DeviceToken {
     pub platform: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// Lo que cada persona cuenta de una quedada ya pasada. Una fila por
+/// persona y quedada — hace falta poder detectar que uno dice que se jugo y
+/// el otro no.
+#[derive(Debug, Queryable, Selectable, Serialize, ToSchema)]
+#[diesel(table_name = session_feedback)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[serde(rename_all = "camelCase")]
+pub struct SessionFeedback {
+    pub id: String,
+    pub proposal_id: String,
+    pub user_id: String,
+    pub played: bool,
+    pub outcome: Option<SessionOutcome>,
+    pub would_repeat: Option<bool>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = session_feedback)]
+pub struct NewSessionFeedback {
+    pub id: String,
+    pub proposal_id: String,
+    pub user_id: String,
+    pub played: bool,
+    pub outcome: Option<SessionOutcome>,
+    pub would_repeat: Option<bool>,
 }
 
 #[derive(Debug, Insertable)]
