@@ -100,6 +100,7 @@ pub struct OkResponse {
         crate::matches::service::MatchListItem,
         crate::models::Gender,
         crate::models::Intention,
+        crate::models::AvailabilitySlot,
         crate::models::ProposalStatus,
         crate::notifications::service::NotificationCounts,
         crate::proposals::dto::CreateProposalDto,

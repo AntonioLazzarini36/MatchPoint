@@ -15,8 +15,8 @@
 
 mod common;
 
-use common::{cleanup, make_user, test_state};
-use matchpoint_api::models::{Sport, SwipeType};
+use common::{cleanup, make_user, set_level_and_intention, test_state};
+use matchpoint_api::models::{Intention, SkillLevel, Sport, SwipeType};
 use matchpoint_api::proposals::dto::{CreateProposalDto, ProposalAction};
 use matchpoint_api::swipes::dto::CreateSwipeDto;
 use matchpoint_api::{discover, proposals, swipes};
@@ -307,4 +307,73 @@ async fn cualquiera_cancela_una_quedada_ya_aceptada() {
     );
 
     cleanup(&state, &[&a, &b]).await;
+}
+
+/// El caso que motiva `goal_fit`: quien dice que quiere **mejorar de nivel**
+/// está pidiendo, literalmente, jugar con alguien mejor. El feed le ponía
+/// primero a los de su mismo nivel — justo lo contrario de lo que pidió.
+#[tokio::test]
+async fn quien_quiere_mejorar_ve_antes_a_alguien_mejor() {
+    let state = test_state().await;
+    let yo = make_user(&state, "learner", &[Sport::Tennis]).await;
+    let igual = make_user(&state, "igual", &[Sport::Tennis]).await;
+    let mejor = make_user(&state, "mejor", &[Sport::Tennis]).await;
+
+    set_level_and_intention(
+        &state,
+        &yo,
+        Sport::Tennis,
+        SkillLevel::Intermediate,
+        Some(Intention::Learn),
+    )
+    .await;
+    set_level_and_intention(&state, &igual, Sport::Tennis, SkillLevel::Intermediate, None).await;
+    set_level_and_intention(&state, &mejor, Sport::Tennis, SkillLevel::Advanced, None).await;
+
+    let found = discover::service::discover(&state, &yo, Some(Sport::Tennis))
+        .await
+        .expect("discover");
+
+    let pos = |id: &str| found.iter().position(|p| p.user_id == id);
+    let (p_mejor, p_igual) = (pos(&mejor), pos(&igual));
+    assert!(p_mejor.is_some() && p_igual.is_some(), "los dos deben salir");
+    assert!(
+        p_mejor < p_igual,
+        "queriendo mejorar, alguien de nivel superior tiene que ir antes que uno de tu mismo nivel"
+    );
+
+    cleanup(&state, &[&yo, &igual, &mejor]).await;
+}
+
+/// Y el contrario, para que quede claro que la inversión es sólo para
+/// `Learn`: quien viene a competir sí quiere a alguien de su nivel.
+#[tokio::test]
+async fn quien_viene_a_competir_ve_antes_a_alguien_de_su_nivel() {
+    let state = test_state().await;
+    let yo = make_user(&state, "comp", &[Sport::Tennis]).await;
+    let igual = make_user(&state, "cigual", &[Sport::Tennis]).await;
+    let mejor = make_user(&state, "cmejor", &[Sport::Tennis]).await;
+
+    set_level_and_intention(
+        &state,
+        &yo,
+        Sport::Tennis,
+        SkillLevel::Intermediate,
+        Some(Intention::Compete),
+    )
+    .await;
+    set_level_and_intention(&state, &igual, Sport::Tennis, SkillLevel::Intermediate, None).await;
+    set_level_and_intention(&state, &mejor, Sport::Tennis, SkillLevel::Advanced, None).await;
+
+    let found = discover::service::discover(&state, &yo, Some(Sport::Tennis))
+        .await
+        .expect("discover");
+
+    let pos = |id: &str| found.iter().position(|p| p.user_id == id);
+    assert!(
+        pos(&igual) < pos(&mejor),
+        "compitiendo, alguien de tu nivel va antes"
+    );
+
+    cleanup(&state, &[&yo, &igual, &mejor]).await;
 }

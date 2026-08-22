@@ -19,7 +19,7 @@ use diesel_async::RunQueryDsl;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::models::{Gender, Intention, SkillLevel, Sport, SwipeType};
+use crate::models::{AvailabilitySlot, Gender, Intention, SkillLevel, Sport, SwipeType};
 use crate::schema::{preferences, profiles, skill_levels, swipes};
 use crate::state::AppState;
 
@@ -104,6 +104,11 @@ pub struct DiscoverProfile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+    /// Cuando puede jugar. Vacío = no lo ha dicho.
+    pub availability: Vec<AvailabilitySlot>,
+    /// Cuántas franjas compartís. **Relativo a quien mira**, como
+    /// `distance_km`: fuera de `/discover` va siempre a 0.
+    pub shared_slots: i32,
     /// Structured trust signals — same visibility tier as `bio`/`sports`
     /// (public to anyone who can see this profile at all), not as private
     /// as exact `birth_date`.
@@ -153,6 +158,8 @@ impl From<crate::models::Profile> for DiscoverProfile {
             bio: p.bio,
             photos: p.photos,
             sports: p.sports,
+            availability: p.availability,
+            shared_slots: 0,
             years_playing: p.years_playing,
             club: p.club,
             achievements: p.achievements,
@@ -356,6 +363,7 @@ pub async fn discover(
             profiles::bio,
             profiles::photos,
             profiles::sports,
+            profiles::availability,
             profiles::latitude,
             profiles::longitude,
             profiles::years_playing,
@@ -375,6 +383,7 @@ pub async fn discover(
             Option<String>,
             Vec<String>,
             Vec<Sport>,
+            Vec<AvailabilitySlot>,
             Option<f64>,
             Option<f64>,
             Option<i32>,
@@ -398,6 +407,7 @@ pub async fn discover(
                 bio,
                 photos,
                 sports,
+                availability,
                 lat,
                 lng,
                 years_playing,
@@ -436,6 +446,8 @@ pub async fn discover(
                     bio,
                     photos,
                     sports,
+                    availability,
+                    shared_slots: 0,
                     years_playing,
                     club,
                     avg_pace_min_per_km,
@@ -495,6 +507,15 @@ pub async fn discover(
             .map(|entry| (s, entry.level))
     });
 
+    // Lo mio, para poder comparar: a que vengo y cuando puedo jugar.
+    let (my_intention, my_availability) = profiles::table
+        .filter(profiles::user_id.eq(current_user_id))
+        .select((profiles::intention, profiles::availability))
+        .first::<(Option<Intention>, Vec<AvailabilitySlot>)>(&mut conn)
+        .await
+        .optional()?
+        .unwrap_or((None, vec![]));
+
     for profile in &mut result {
         profile.matches_your_level = my_level_for_sport
             .map(|(s, mine)| {
@@ -504,17 +525,78 @@ pub async fn discover(
                     .any(|entry| entry.sport == s && entry.level == mine)
             })
             .unwrap_or(false);
+
+        // Cuantas franjas compartis. Es el dato que decide si dos personas
+        // pueden llegar a jugar: el nivel y la distancia ya se filtran, pero
+        // sin coincidir en horario no hay partido posible.
+        profile.shared_slots = if my_availability.is_empty() {
+            // Quien no ha dicho cuando puede no se penaliza — mismo criterio
+            // que el filtro de genero: ordenar peor por un dato que falta es
+            // mejor que esconder a nadie, pero castigar a quien no lo ha
+            // rellenado dejaria el feed ordenado al azar.
+            0
+        } else {
+            profile
+                .availability
+                .iter()
+                .filter(|slot| my_availability.contains(slot))
+                .count() as i32
+        };
     }
 
-    result.sort_by_key(
-        |profile| match (profile.likes_you, profile.matches_your_level) {
-            (true, _) => 0,
-            (false, true) => 1,
-            (false, false) => 2,
-        },
-    );
+    result.sort_by_key(|profile| {
+        // 1. Quien ya te dio like: tu like cierra el match al instante.
+        // 2. Quien encaja con lo que buscas (ver `goal_fit`).
+        // 3. Con quien puedes coincidir en horario, de mas a menos.
+        // 4. Lo demas, por cercania.
+        (
+            !profile.likes_you,
+            std::cmp::Reverse(goal_fit(my_intention, my_level_for_sport, profile)),
+            std::cmp::Reverse(profile.shared_slots),
+            profile
+                .distance_km
+                .map(|d| (d * 1000.0) as i64)
+                .unwrap_or(i64::MAX),
+        )
+    });
 
     result.truncate(20);
 
     Ok(result)
+}
+
+/// Cuanto encaja un candidato con lo que **tu** has dicho que buscas.
+///
+/// La parte que importa es la inversion para `Learn`: quien dice que quiere
+/// mejorar de nivel esta pidiendo, literalmente, jugar con alguien mejor. Y
+/// hasta ahora el feed le ponia primero a los de su mismo nivel, o sea justo
+/// lo contrario de lo que habia pedido. Es el unico caso en que "a tu nivel"
+/// no es la respuesta correcta.
+fn goal_fit(
+    my_intention: Option<Intention>,
+    my_level: Option<(Sport, SkillLevel)>,
+    candidate: &DiscoverProfile,
+) -> i32 {
+    let same_intention = match (my_intention, candidate.intention) {
+        (Some(mine), Some(theirs)) if mine == theirs => 1,
+        _ => 0,
+    };
+
+    let level_fit = match (my_intention, my_level) {
+        (Some(Intention::Learn), Some((sport, mine))) => {
+            let better = candidate
+                .skill_levels
+                .iter()
+                .any(|e| e.sport == sport && e.level > mine);
+            if better {
+                2
+            } else {
+                0
+            }
+        }
+        _ if candidate.matches_your_level => 2,
+        _ => 0,
+    };
+
+    level_fit + same_intention
 }

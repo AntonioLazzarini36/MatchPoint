@@ -40,7 +40,12 @@ pub enum SwipeType {
 /// status.md). One of these exists per (user, sport) in `SkillLevel`, not
 /// as a single scalar on `Profile`, since a player can be at a different
 /// level in each sport they play.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+/// `PartialOrd`/`Ord` derivados a proposito: las variantes estan declaradas
+/// de menor a mayor, asi que `Advanced > Intermediate` sale gratis y es lo
+/// que necesita Discover para "ensename a alguien mejor que yo".
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, DbEnum, Serialize, Deserialize, ToSchema,
+)]
 #[ExistingTypePath = "crate::schema::sql_types::SkillLevelValue"]
 pub enum SkillLevel {
     #[db_rename = "BEGINNER"]
@@ -123,6 +128,32 @@ pub enum SessionOutcome {
     #[db_rename = "TIED"]
     #[serde(rename = "TIED")]
     Tied,
+}
+
+/// Cuando puede jugar alguien. Franjas gruesas y no un calendario: lo que
+/// hace falta saber es si dos personas pueden coincidir, y pedir mas detalle
+/// solo consigue que nadie lo rellene.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
+#[ExistingTypePath = "crate::schema::sql_types::AvailabilitySlot"]
+pub enum AvailabilitySlot {
+    #[db_rename = "WEEKDAY_MORNING"]
+    #[serde(rename = "WEEKDAY_MORNING")]
+    WeekdayMorning,
+    #[db_rename = "WEEKDAY_AFTERNOON"]
+    #[serde(rename = "WEEKDAY_AFTERNOON")]
+    WeekdayAfternoon,
+    #[db_rename = "WEEKDAY_EVENING"]
+    #[serde(rename = "WEEKDAY_EVENING")]
+    WeekdayEvening,
+    #[db_rename = "WEEKEND_MORNING"]
+    #[serde(rename = "WEEKEND_MORNING")]
+    WeekendMorning,
+    #[db_rename = "WEEKEND_AFTERNOON"]
+    #[serde(rename = "WEEKEND_AFTERNOON")]
+    WeekendAfternoon,
+    #[db_rename = "WEEKEND_EVENING"]
+    #[serde(rename = "WEEKEND_EVENING")]
+    WeekendEvening,
 }
 
 /// Lifecycle of a `Proposal`. `Cancelled` is the proposer withdrawing;
@@ -267,6 +298,8 @@ pub struct Profile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+    /// Vacío = no lo ha dicho. No se penaliza a quien no lo rellene.
+    pub availability: Vec<AvailabilitySlot>,
     /// Hinge-style: typed/picked, not device GPS. Both null until the user
     /// sets a location; `/discover`'s distance filter is skipped entirely
     /// for a viewer or candidate without coordinates.
@@ -301,6 +334,8 @@ pub struct NewProfile {
     pub bio: Option<String>,
     pub photos: Vec<String>,
     pub sports: Vec<Sport>,
+    /// Vacío = no lo ha dicho. No se penaliza a quien no lo rellene.
+    pub availability: Vec<AvailabilitySlot>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub years_playing: Option<i32>,

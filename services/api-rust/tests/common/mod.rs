@@ -18,9 +18,11 @@ use diesel_async::RunQueryDsl;
 use matchpoint_api::auth::rate_limit::RateLimiter;
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::mail::Mailer;
-use matchpoint_api::models::{NewProfile, NewUser, Sport};
+use matchpoint_api::models::{
+    AvailabilitySlot, Intention, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
+};
 use matchpoint_api::push::Pusher;
-use matchpoint_api::schema::{profiles, users};
+use matchpoint_api::schema::{profiles, skill_levels, users};
 use matchpoint_api::state::AppState;
 
 /// Variables que `AppConfig::from_env` exige. Se ponen aquí para que los
@@ -96,6 +98,10 @@ pub async fn make_user(state: &AppState, tag: &str, sports: &[Sport]) -> String 
             // filtro.
             photos: vec!["https://example.test/foto.png".to_string()],
             sports: sports.to_vec(),
+            // Todos con la misma franja: asi el orden por coincidencia
+            // horaria no introduce variacion entre los perfiles de un test,
+            // que comprueban otra cosa.
+            availability: vec![AvailabilitySlot::WeekendMorning],
             latitude: Some(36.72),
             longitude: Some(-4.42),
             years_playing: None,
@@ -120,4 +126,37 @@ pub async fn cleanup(state: &AppState, ids: &[&str]) {
         .execute(&mut conn)
         .await
         .expect("cleanup");
+}
+
+/// Fija el nivel de alguien en un deporte y a qué viene. Los tests de orden
+/// de Discover lo necesitan: sin nivel no hay nada que comparar.
+pub async fn set_level_and_intention(
+    state: &AppState,
+    user_id: &str,
+    sport: Sport,
+    level: SkillLevel,
+    intention: Option<Intention>,
+) {
+    let mut conn = state.db.get().await.expect("pool");
+
+    diesel::insert_into(skill_levels::table)
+        .values(NewUserSkillLevel {
+            id: uuid::Uuid::new_v4().to_string(),
+            user_id: user_id.to_string(),
+            sport,
+            level,
+            updated_at: chrono::Utc::now(),
+        })
+        .on_conflict((skill_levels::user_id, skill_levels::sport))
+        .do_update()
+        .set(skill_levels::level.eq(level))
+        .execute(&mut conn)
+        .await
+        .expect("skill level");
+
+    diesel::update(profiles::table.filter(profiles::user_id.eq(user_id)))
+        .set(profiles::intention.eq(intention))
+        .execute(&mut conn)
+        .await
+        .expect("intention");
 }

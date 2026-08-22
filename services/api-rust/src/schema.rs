@@ -36,6 +36,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
     #[diesel(postgres_type(name = "SessionOutcome"))]
     pub struct SessionOutcome;
+
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "AvailabilitySlot"))]
+    pub struct AvailabilitySlot;
 }
 
 diesel::table! {
@@ -87,7 +91,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::{Gender, Intention, Sport};
+    use super::sql_types::{AvailabilitySlot, Gender, Intention, Sport};
 
     #[sql_name = "Profile"]
     profiles (id) {
@@ -104,6 +108,7 @@ diesel::table! {
         bio -> Nullable<Text>,
         photos -> Array<Text>,
         sports -> Array<Sport>,
+        availability -> Array<AvailabilitySlot>,
         latitude -> Nullable<Double>,
         longitude -> Nullable<Double>,
         #[sql_name = "yearsPlaying"]

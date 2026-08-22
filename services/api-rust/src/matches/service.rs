@@ -18,7 +18,7 @@ use utoipa::ToSchema;
 use crate::chats::crypto;
 use crate::discover::service::{fetch_skill_levels, DiscoverProfile};
 use crate::models::{Profile, Sport};
-use crate::schema::{matches, messages, profiles};
+use crate::schema::{matches, messages, profiles, proposals, session_feedback};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -77,6 +77,18 @@ pub struct MatchListItem {
     /// Messages sent by the other side that `me` hasn't read yet (via
     /// `PATCH /chats/:matchId/read`).
     pub unread_count: i64,
+    /// Cuántas veces habéis jugado ya, según lo que habéis contado tras cada
+    /// quedada.
+    ///
+    /// Es la señal de confianza más fuerte que tiene la app, porque es la
+    /// única que **no se puede inflar**: el nivel se auto-declara y los
+    /// logros se escriben a mano, pero esto sale de dos personas
+    /// confirmando por separado que quedaron y jugaron.
+    ///
+    /// Se cuenta una quedada si **cualquiera de los dos** dijo que se jugó:
+    /// exigir que lo confirmen ambos haría que la mitad de los partidos
+    /// reales no contaran, sólo porque alguien no abrió la app.
+    pub played_together: i64,
 }
 
 pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>, MatchesError> {
@@ -155,6 +167,16 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
             .get_result(&mut conn)
             .await?;
 
+        let played_together: i64 = proposals::table
+            .inner_join(session_feedback::table.on(session_feedback::proposal_id.eq(proposals::id)))
+            .filter(proposals::match_id.eq(&match_id))
+            .filter(session_feedback::played.eq(true))
+            .select(proposals::id)
+            .distinct()
+            .count()
+            .get_result(&mut conn)
+            .await?;
+
         result.push(MatchListItem {
             match_id,
             created_at,
@@ -172,6 +194,7 @@ pub async fn list(state: &AppState, user_id: &str) -> Result<Vec<MatchListItem>,
             },
             last_message,
             unread_count,
+            played_together,
         });
     }
 

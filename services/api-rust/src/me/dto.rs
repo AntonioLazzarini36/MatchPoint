@@ -5,7 +5,7 @@
 use serde::{Deserialize, Deserializer};
 use utoipa::ToSchema;
 
-use crate::models::{Gender, Intention, SkillLevel, Sport};
+use crate::models::{AvailabilitySlot, Gender, Intention, SkillLevel, Sport};
 
 /// Distinguishes "field absent" (`None` — leave whatever is stored) from
 /// "field present and explicitly null" (`Some(None)` — clear it). Plain
@@ -45,6 +45,9 @@ pub struct UpdateProfileDto {
     // the uploaded file. A `photos` field here would let a client overwrite
     // the array with arbitrary strings/URLs, bypassing both.
     pub sports: Option<Vec<Sport>>,
+    /// Cuando puede jugar. Mandar la lista la reemplaza entera; una lista
+    /// vacia borra la disponibilidad.
+    pub availability: Option<Vec<AvailabilitySlot>>,
     /// Structured trust signals — see `models::Profile` docs. Skill level
     /// is deliberately NOT here: it lives in its own table (one row per
     /// sport) and goes through `UpdateSkillLevelsDto`/`PATCH

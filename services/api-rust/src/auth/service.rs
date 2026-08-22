@@ -237,6 +237,8 @@ pub async fn register(state: &AppState, dto: RegisterDto) -> Result<AuthTokens, 
                         birth_date: parse_date(birth_date),
                         gender: dto.gender,
                         intention: dto.intention,
+                        // Se elige despues, en el onboarding o en Ajustes.
+                        availability: vec![],
                         city: dto.city.clone(),
                         bio: dto.bio.clone(),
                         photos: vec![],

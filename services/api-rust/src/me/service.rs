@@ -256,6 +256,14 @@ pub async fn update_profile(
         Some(value) => value,
         None => existing.as_ref().and_then(|p| p.intention),
     };
+    // Igual que `sports`: mandar la lista la reemplaza entera (incluida una
+    // vacia, que es como se borra la disponibilidad); omitirla no la toca.
+    let availability = dto.availability.clone().unwrap_or_else(|| {
+        existing
+            .as_ref()
+            .map(|p| p.availability.clone())
+            .unwrap_or_default()
+    });
     let city = dto
         .city
         .or_else(|| existing.as_ref().and_then(|p| p.city.clone()));
@@ -302,6 +310,7 @@ pub async fn update_profile(
             birth_date,
             gender,
             intention,
+            availability: availability.clone(),
             city: city.clone(),
             bio: bio.clone(),
             photos: photos.clone(),
@@ -322,6 +331,7 @@ pub async fn update_profile(
             profiles::birth_date.eq(birth_date),
             profiles::gender.eq(gender),
             profiles::intention.eq(intention),
+            profiles::availability.eq(availability),
             profiles::city.eq(city),
             profiles::bio.eq(bio),
             profiles::photos.eq(photos),
