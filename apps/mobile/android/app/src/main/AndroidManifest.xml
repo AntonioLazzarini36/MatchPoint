@@ -6,6 +6,11 @@
          falla con "Failed host lookup", como si no hubiera internet. No se
          nota hasta el primer build de release. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Desde Android 13 las notificaciones necesitan permiso explicito, y
+         ademas hay que pedirlo en tiempo de ejecucion (lo hace
+         PushService.registerCurrentDevice). Sin esto no llega ninguna
+         notificacion y tampoco salta ningun error: simplemente no suena. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="MatchPoint"
         android:name="${applicationName}"

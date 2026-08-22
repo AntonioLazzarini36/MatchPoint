@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'models/login_request.dart';
 import 'models/register_request.dart';
 import 'services/auth_service.dart';
+import '../../core/push/push_service.dart';
 import '../../core/storage/token_storage.dart';
 
 class AuthController extends ChangeNotifier {
@@ -23,6 +26,10 @@ class AuthController extends ChangeNotifier {
       );
       await TokenStorage.saveToken(res.accessToken);
       await TokenStorage.saveRefreshToken(res.refreshToken);
+      // Despues de guardar los tokens, no antes: el endpoint va autenticado.
+      // Sin await a proposito — pedir el permiso de notificaciones no debe
+      // retrasar la entrada a la app, y si falla no invalida el login.
+      unawaited(PushService.registerCurrentDevice());
 
       return true;
     } catch (e) {
@@ -45,6 +52,10 @@ class AuthController extends ChangeNotifier {
       );
       await TokenStorage.saveToken(res.accessToken);
       await TokenStorage.saveRefreshToken(res.refreshToken);
+      // Despues de guardar los tokens, no antes: el endpoint va autenticado.
+      // Sin await a proposito — pedir el permiso de notificaciones no debe
+      // retrasar la entrada a la app, y si falla no invalida el login.
+      unawaited(PushService.registerCurrentDevice());
 
       return true;
     } catch (e) {

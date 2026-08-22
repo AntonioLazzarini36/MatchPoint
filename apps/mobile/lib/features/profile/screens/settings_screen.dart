@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes.dart';
 import '../../../core/location/location_result.dart';
 import '../../../core/network/api.dart';
+import '../../../core/push/push_service.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/dialogs/confirm_changes_dialog.dart';
@@ -390,6 +391,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _logout() async {
     setState(() => _loggingOut = true);
+
+    // Antes de nada: el endpoint de baja va autenticado, así que tiene que
+    // salir mientras el token de sesión sigue guardado. Si no, quien entrara
+    // después en este móvil recibiría las notificaciones de esta cuenta.
+    await PushService.unregisterCurrentDevice();
 
     await _authService.logout();
     await TokenStorage.clear();

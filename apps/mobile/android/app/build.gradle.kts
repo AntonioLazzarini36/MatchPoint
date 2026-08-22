@@ -5,6 +5,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Notificaciones push: procesa `google-services.json` (ver settings.gradle.kts).
+    id("com.google.gms.google-services")
 }
 
 // Datos del keystore de release. `key.properties` NO está en el repo (lo
