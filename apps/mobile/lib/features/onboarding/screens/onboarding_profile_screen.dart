@@ -31,6 +31,7 @@ import 'package:match_point/features/onboarding/models/intention.dart';
 import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
 import 'package:match_point/core/ui/profile/photo_source_sheet.dart';
+import 'package:match_point/core/ui/profile/avatar_gallery.dart';
 
 class _PickedPhoto {
   final Uint8List bytes;
@@ -405,8 +406,27 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     });
 
     try {
+      // El avatar ya viene apaisado y elegido de una rejilla: pasarlo por
+      // la vista previa de recorte seria enseñar el mismo dibujo dos veces
+      // seguidas para no decidir nada.
+      final avatar = picked.avatarAsset;
+      if (avatar != null) {
+        final bytes = await loadAvatarBytes(avatar);
+        if (!mounted) return;
+        setState(() {
+          _localPhotos.add(
+            _PickedPhoto(
+              bytes: bytes,
+              filename: '${DateTime.now().microsecondsSinceEpoch}.png',
+              contentType: 'image/png',
+            ),
+          );
+        });
+        return;
+      }
+
       final originals = <Uint8List>[];
-      for (final file in picked) {
+      for (final file in picked.files) {
         originals.add(await file.readAsBytes());
       }
       if (!mounted) return;

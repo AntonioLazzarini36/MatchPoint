@@ -43,6 +43,15 @@ class OnboardingPhotoStep extends StatelessWidget {
             'demás vean con quién van a jugar.',
             style: t.bodyLarge,
           ),
+          const SizedBox(height: 8),
+          // Se dice aqui y no solo dentro de la hoja: quien no quiere poner
+          // su cara abandona en esta pantalla, antes de tocar el boton donde
+          // vive la alternativa.
+          Text(
+            '¿Prefieres no poner tu cara todavía? Puedes empezar con uno de '
+            'los avatares de la app y cambiarlo cuando quieras.',
+            style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
           const SizedBox(height: 24),
           if (error != null) ...[
             Text(error!, style: TextStyle(color: scheme.error)),

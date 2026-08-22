@@ -6,6 +6,7 @@ import '../../../features/onboarding/services/profile_service.dart';
 import '../../theme/app_theme.dart';
 import 'photo_grid_editor.dart';
 import 'photo_source_sheet.dart';
+import 'avatar_gallery.dart';
 import 'photo_crop_preview.dart';
 
 /// Bottom sheet para gestionar las fotos del propio perfil: grid de fotos
@@ -55,16 +56,26 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
     final picked = await pickPhotos(context, limit: remaining);
     if (picked.isEmpty || !mounted) return;
 
-    final originals = <Uint8List>[];
-    for (final file in picked) {
-      originals.add(await file.readAsBytes());
-    }
-    if (!mounted) return;
+    // Un avatar no pasa por la vista previa: viene ya apaisado y se acaba
+    // de ver en la rejilla donde se eligio.
+    final avatar = picked.avatarAsset;
+    final List<Uint8List> cropped;
+    if (avatar != null) {
+      cropped = [await loadAvatarBytes(avatar)];
+      if (!mounted) return;
+    } else {
+      final originals = <Uint8List>[];
+      for (final file in picked.files) {
+        originals.add(await file.readAsBytes());
+      }
+      if (!mounted) return;
 
-    // Mismo recorte a 16:9 con vista previa que en el onboarding — las
-    // fotos tienen que verse igual se suban desde donde se suban.
-    final cropped = await showPhotoCropPreview(context, originals: originals);
-    if (cropped == null || cropped.isEmpty || !mounted) return;
+      // Mismo recorte a 16:9 con vista previa que en el onboarding — las
+      // fotos tienen que verse igual se suban desde donde se suban.
+      final chosen = await showPhotoCropPreview(context, originals: originals);
+      if (chosen == null || chosen.isEmpty || !mounted) return;
+      cropped = chosen;
+    }
 
     setState(() {
       _busy = true;
