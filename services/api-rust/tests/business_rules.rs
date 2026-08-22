@@ -327,7 +327,14 @@ async fn quien_quiere_mejorar_ve_antes_a_alguien_mejor() {
         Some(Intention::Learn),
     )
     .await;
-    set_level_and_intention(&state, &igual, Sport::Tennis, SkillLevel::Intermediate, None).await;
+    set_level_and_intention(
+        &state,
+        &igual,
+        Sport::Tennis,
+        SkillLevel::Intermediate,
+        None,
+    )
+    .await;
     set_level_and_intention(&state, &mejor, Sport::Tennis, SkillLevel::Advanced, None).await;
 
     let found = discover::service::discover(&state, &yo, Some(Sport::Tennis))
@@ -336,7 +343,10 @@ async fn quien_quiere_mejorar_ve_antes_a_alguien_mejor() {
 
     let pos = |id: &str| found.iter().position(|p| p.user_id == id);
     let (p_mejor, p_igual) = (pos(&mejor), pos(&igual));
-    assert!(p_mejor.is_some() && p_igual.is_some(), "los dos deben salir");
+    assert!(
+        p_mejor.is_some() && p_igual.is_some(),
+        "los dos deben salir"
+    );
     assert!(
         p_mejor < p_igual,
         "queriendo mejorar, alguien de nivel superior tiene que ir antes que uno de tu mismo nivel"
@@ -362,7 +372,14 @@ async fn quien_viene_a_competir_ve_antes_a_alguien_de_su_nivel() {
         Some(Intention::Compete),
     )
     .await;
-    set_level_and_intention(&state, &igual, Sport::Tennis, SkillLevel::Intermediate, None).await;
+    set_level_and_intention(
+        &state,
+        &igual,
+        Sport::Tennis,
+        SkillLevel::Intermediate,
+        None,
+    )
+    .await;
     set_level_and_intention(&state, &mejor, Sport::Tennis, SkillLevel::Advanced, None).await;
 
     let found = discover::service::discover(&state, &yo, Some(Sport::Tennis))
