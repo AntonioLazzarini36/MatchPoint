@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../network/api.dart';
+import '../storage/token_storage.dart';
 
 /// Notificaciones push.
 ///
@@ -15,9 +16,11 @@ import '../network/api.dart';
 ///
 /// Tres cosas que conviene entender antes de tocar esto:
 ///
-/// 1. **El token se registra al iniciar sesión, no al arrancar.** El backend
-///    lo guarda contra el usuario autenticado, así que sin sesión no hay a
-///    quién asociarlo.
+/// 1. **El token se registra al arrancar y también al iniciar sesión.** El
+///    backend lo guarda contra el usuario autenticado, así que hace falta
+///    sesión; pero registrar *sólo* en el login cubre el caso raro — lo
+///    normal es abrir la app con la sesión ya guardada y no pasar por el
+///    login en semanas.
 /// 2. **El token puede cambiar solo** (reinstalación, restaurar copia de
 ///    seguridad, limpieza de datos). Por eso se escucha `onTokenRefresh`: sin
 ///    eso, la app deja de recibir notificaciones un día cualquiera y no hay
@@ -52,6 +55,18 @@ class PushService {
     } catch (e) {
       debugPrint('push: no se pudo inicializar Firebase: $e');
     }
+  }
+
+  /// Registra el dispositivo **si ya hay sesión guardada**.
+  ///
+  /// Se llama al arrancar. Sin esto sólo se registraría al iniciar sesión, y
+  /// ese es justo el caso raro: lo normal es abrir la app con la sesión ya
+  /// guardada y no pasar nunca por el login. Alguien que instaló la app
+  /// antes de que existieran las notificaciones no las recibiría jamás.
+  static Future<void> registerIfLoggedIn() async {
+    final token = await TokenStorage.getToken();
+    if (token == null || token.isEmpty) return;
+    await registerCurrentDevice();
   }
 
   /// Pide permiso, consigue el token y lo registra en el backend.
