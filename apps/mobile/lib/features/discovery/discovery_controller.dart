@@ -25,7 +25,9 @@ class DiscoveryController extends ChangeNotifier {
     : sports = sports.isEmpty ? const [Sport.tennis] : sports;
 
   bool loading = false;
-  String? error;
+  /// El error entero, no su texto: la vista necesita el tipo para
+  /// distinguir un problema de red de uno del servidor.
+  Object? error;
 
   final List<DiscoverProfile> _stack = [];
   List<DiscoverProfile> get stack => List.unmodifiable(_stack);
@@ -61,7 +63,7 @@ class DiscoveryController extends ChangeNotifier {
         ..clear()
         ..addAll(merged.values);
     } catch (e) {
-      error = e.toString();
+      error = e;
     } finally {
       loading = false;
       notifyListeners();

@@ -4,6 +4,7 @@ import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/network/notification_counts.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/utils/date_format_es.dart';
+import 'package:match_point/core/ui/widgets/error_state_view.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 
 import '../../discovery/models/sport.dart';
@@ -38,7 +39,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   /// pronto — nadie recuerda un partido de hace tres semanas.
   List<UpcomingSession> _toConfirm = const [];
   bool _loading = true;
-  String? _error;
+  Object? _error;
 
   @override
   void initState() {
@@ -67,7 +68,9 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        // Se guarda el error entero y no su texto: `ErrorStateView` necesita
+        // el tipo para saber si es un problema de red.
+        _error = e;
         _loading = false;
       });
     }
@@ -103,32 +106,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     }
 
     if (_error != null) {
-      return ListView(
-        children: [
-          const SizedBox(height: 80),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: context.colors.error,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: _load,
-                    child: const Text('Reintentar'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
+      return ErrorStateView(error: _error!, onRetry: _load);
     }
 
     if (_sessions.isEmpty && _toConfirm.isEmpty) {

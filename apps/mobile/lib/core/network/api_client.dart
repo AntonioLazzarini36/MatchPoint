@@ -2,11 +2,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../storage/token_storage.dart';
+import 'connection_error.dart';
 
 class ApiClient {
   final String baseUrl;
 
   ApiClient({required this.baseUrl});
+
+  /// Sin esto, con red caida a medias (wifi conectado pero sin salida) una
+  /// peticion puede quedarse colgada mucho mas de lo que nadie espera delante
+  /// de una pantalla de carga. Es generoso a proposito: subir una foto por
+  /// datos moviles lentos es legitimo.
+  static const _timeout = Duration(seconds: 20);
 
   /// Shared by any concurrent 401s so they await one refresh instead of
   /// each firing their own — the backend rotates the refresh token on
@@ -22,10 +29,14 @@ class ApiClient {
     bool isRetry = false,
   }) async {
     final headers = await _headers(auth: auth);
-    final res = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: headers,
-      body: body == null ? null : jsonEncode(body),
+    final res = await mapNetworkErrors(
+      () => http
+          .post(
+            Uri.parse('$baseUrl$path'),
+            headers: headers,
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(_timeout),
     );
     if (auth && res.statusCode == 401 && !isRetry && await _tryRefresh()) {
       return post(path, body: body, auth: auth, isRetry: true);
@@ -39,7 +50,11 @@ class ApiClient {
     bool isRetry = false,
   }) async {
     final headers = await _headers(auth: auth);
-    final res = await http.get(Uri.parse('$baseUrl$path'), headers: headers);
+    final res = await mapNetworkErrors(
+      () => http
+          .get(Uri.parse('$baseUrl$path'), headers: headers)
+          .timeout(_timeout),
+    );
     if (auth && res.statusCode == 401 && !isRetry && await _tryRefresh()) {
       return get(path, auth: auth, isRetry: true);
     }
@@ -53,10 +68,14 @@ class ApiClient {
     bool isRetry = false,
   }) async {
     final headers = await _headers(auth: auth);
-    final res = await http.patch(
-      Uri.parse('$baseUrl$path'),
-      headers: headers,
-      body: body == null ? null : jsonEncode(body),
+    final res = await mapNetworkErrors(
+      () => http
+          .patch(
+            Uri.parse('$baseUrl$path'),
+            headers: headers,
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(_timeout),
     );
     if (auth && res.statusCode == 401 && !isRetry && await _tryRefresh()) {
       return patch(path, body: body, auth: auth, isRetry: true);
@@ -71,10 +90,14 @@ class ApiClient {
     bool isRetry = false,
   }) async {
     final headers = await _headers(auth: auth);
-    final res = await http.delete(
-      Uri.parse('$baseUrl$path'),
-      headers: headers,
-      body: body == null ? null : jsonEncode(body),
+    final res = await mapNetworkErrors(
+      () => http
+          .delete(
+            Uri.parse('$baseUrl$path'),
+            headers: headers,
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(_timeout),
     );
     if (auth && res.statusCode == 401 && !isRetry && await _tryRefresh()) {
       return delete(path, body: body, auth: auth, isRetry: true);
@@ -116,8 +139,11 @@ class ApiClient {
       ),
     );
 
-    final streamed = await request.send();
-    final res = await http.Response.fromStream(streamed);
+    // Mas margen que el resto: subir una foto por datos moviles lentos tarda.
+    final res = await mapNetworkErrors(() async {
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      return http.Response.fromStream(streamed);
+    });
 
     if (auth && res.statusCode == 401 && !isRetry && await _tryRefresh()) {
       return postMultipart(

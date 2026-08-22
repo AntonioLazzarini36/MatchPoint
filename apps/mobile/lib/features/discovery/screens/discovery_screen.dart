@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/ui/widgets/error_state_view.dart';
 
 import '../../../core/network/api.dart';
 import '../../../core/storage/local_flags.dart';
@@ -266,34 +267,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
 
     if (controller.error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: context.colors.error),
-              const SizedBox(height: 12),
-              Text(
-                'Error cargando perfiles',
-                style: context.textStyles.titleMedium,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                controller.error!,
-                textAlign: TextAlign.center,
-                style: context.textStyles.bodySmall?.copyWith(
-                  color: context.colors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: controller.reload,
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
+      return ErrorStateView(
+        error: controller.error!,
+        onRetry: () async => controller.reload(),
       );
     }
 
