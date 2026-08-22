@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/network/api_error.dart';
 import 'package:flutter/foundation.dart';
 import 'package:match_point/core/network/api_client.dart';
 import '../models/match_item.dart';
@@ -11,11 +12,10 @@ class MatchesService {
     final res = await api.get('/matches', auth: true);
 
     if (kDebugMode) {
-      print('[MATCHES] status=${res.statusCode} body=${res.body}');
     }
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Matches failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se han podido cargar tus compañeros');
     }
 
     final decoded = jsonDecode(res.body);
@@ -35,7 +35,7 @@ class MatchesService {
     final res = await api.delete('/matches/$matchId', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Unmatch failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido deshacer el match');
     }
   }
 }

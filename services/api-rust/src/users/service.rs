@@ -15,11 +15,13 @@ use crate::state::AppState;
 
 #[derive(thiserror::Error, Debug)]
 pub enum UsersError {
-    #[error("Profile not found")]
+    #[error("Esa persona ya no está disponible")]
+    UserNotFound,
+    #[error("No encontramos ese perfil")]
     ProfileNotFound,
-    #[error("Cannot report yourself")]
+    #[error("No puedes reportarte a ti mismo")]
     CannotTargetSelf,
-    #[error("Reason must be between 1 and 1000 characters")]
+    #[error("El motivo debe tener entre 1 y 1000 caracteres")]
     InvalidReason,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
@@ -136,6 +138,17 @@ pub async fn report_user(
         .get()
         .await
         .map_err(|e| UsersError::Pool(e.to_string()))?;
+
+    // Igual que en swipes: sin esto, denunciar a alguien que acaba de borrar
+    // su cuenta salia como 500 por violacion de clave foranea.
+    let exists = diesel::select(diesel::dsl::exists(
+        crate::schema::users::table.filter(crate::schema::users::id.eq(reported_id)),
+    ))
+    .get_result::<bool>(&mut conn)
+    .await?;
+    if !exists {
+        return Err(UsersError::UserNotFound);
+    }
 
     diesel::insert_into(reports::table)
         .values(NewReport {

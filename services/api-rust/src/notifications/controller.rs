@@ -1,5 +1,4 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
-use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
 use crate::notifications::service;
@@ -26,13 +25,6 @@ pub fn router() -> Router<AppState> {
 async fn counts(State(state): State<AppState>, user: AuthUser) -> impl IntoResponse {
     match service::counts(&state, &user.user_id).await {
         Ok(counts) => Json(counts).into_response(),
-        Err(err) => {
-            tracing::error!("notifications error: {err}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": err.to_string() })),
-            )
-                .into_response()
-        }
+        Err(err) => crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err),
     }
 }

@@ -13,6 +13,7 @@ pub mod chats;
 pub mod config;
 pub mod db;
 pub mod discover;
+pub mod http_error;
 pub mod mail;
 pub mod matches;
 pub mod me;

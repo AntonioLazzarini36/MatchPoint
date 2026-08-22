@@ -165,7 +165,9 @@ impl IntoResponse for AuthRejection {
             AuthError::EmailVerificationDisabled => StatusCode::SERVICE_UNAVAILABLE,
             AuthError::Db(_) | AuthError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
-        (status, Json(json!({ "message": self.0.to_string() }))).into_response()
+        // `MailFailed` lleva dentro el error del proveedor de correo. Es un
+        // 5xx, asi que `respond` ya se encarga de que no salga.
+        crate::http_error::respond(status, self.0)
     }
 }
 

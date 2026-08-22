@@ -8,7 +8,6 @@ use axum::{
     Json, Router,
 };
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
@@ -52,26 +51,10 @@ async fn discover(
 ) -> impl IntoResponse {
     match service::discover(&state, &user.user_id, params.sport).await {
         Ok(profiles) => Json(profiles).into_response(),
-        Err(err @ DiscoverError::SportNotYours) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "message": err.to_string() })),
-        )
-            .into_response(),
-        Err(DiscoverError::Db(e)) => {
-            tracing::error!("discover query failed: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": "Internal server error" })),
-            )
-                .into_response()
+        Err(err @ DiscoverError::SportNotYours) => {
+            crate::http_error::respond(StatusCode::BAD_REQUEST, err)
         }
-        Err(DiscoverError::Pool(e)) => {
-            tracing::error!("discover pool error: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": "Internal server error" })),
-            )
-                .into_response()
-        }
+        // `respond` ya registra el detalle en el log y no lo saca al cliente.
+        Err(err) => crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err),
     }
 }

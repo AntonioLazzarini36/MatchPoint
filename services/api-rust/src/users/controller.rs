@@ -56,19 +56,10 @@ async fn get_profile(
 ) -> impl IntoResponse {
     match service::get_profile(&state, &user_id).await {
         Ok(profile) => Json(profile).into_response(),
-        Err(UsersError::ProfileNotFound) => (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "message": "Profile not found" })),
-        )
-            .into_response(),
-        Err(err) => {
-            tracing::error!("users get_profile failed: {err}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": "Internal server error" })),
-            )
-                .into_response()
+        Err(err @ UsersError::ProfileNotFound) => {
+            crate::http_error::respond(StatusCode::NOT_FOUND, err)
         }
+        Err(err) => crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err),
     }
 }
 
@@ -99,23 +90,14 @@ async fn report_user(
 
 fn users_error_response(err: UsersError) -> axum::response::Response {
     match err {
-        UsersError::CannotTargetSelf | UsersError::InvalidReason => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "message": err.to_string() })),
-        )
-            .into_response(),
-        UsersError::ProfileNotFound => (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "message": err.to_string() })),
-        )
-            .into_response(),
+        UsersError::CannotTargetSelf | UsersError::InvalidReason => {
+            crate::http_error::respond(StatusCode::BAD_REQUEST, err)
+        }
+        UsersError::UserNotFound => crate::http_error::respond(StatusCode::NOT_FOUND, err),
+        UsersError::ProfileNotFound => crate::http_error::respond(StatusCode::NOT_FOUND, err),
         err => {
             tracing::error!("users error: {err}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "message": "Internal server error" })),
-            )
-                .into_response()
+            crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err)
         }
     }
 }

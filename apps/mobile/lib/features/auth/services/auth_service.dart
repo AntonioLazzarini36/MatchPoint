@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../models/auth_response.dart';
@@ -19,7 +20,7 @@ class AuthService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('EmailAvailable check failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido comprobar el email');
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -29,7 +30,7 @@ class AuthService {
   Future<AuthResponse> login(LoginRequest request) async {
     final res = await api.post('/auth/login', body: request.toJson());
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Login failed: ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido iniciar sesión');
     }
     return AuthResponse.fromJson(jsonDecode(res.body));
   }
@@ -37,7 +38,7 @@ class AuthService {
   Future<AuthResponse> register(RegisterRequest request) async {
     final res = await api.post('/auth/register', body: request.toJson());
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Register failed: ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido crear la cuenta');
     }
     return AuthResponse.fromJson(jsonDecode(res.body));
   }

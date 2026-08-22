@@ -13,8 +13,10 @@ use crate::swipes::dto::CreateSwipeDto;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SwipesError {
-    #[error("Cannot swipe yourself")]
+    #[error("No puedes deslizar sobre tu propio perfil")]
     CannotSwipeSelf,
+    #[error("Esa persona ya no está disponible")]
+    TargetNotFound,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),
     #[error("Connection pool error: {0}")]
@@ -61,6 +63,18 @@ pub async fn create_swipe(
         .get()
         .await
         .map_err(|e| SwipesError::Pool(e.to_string()))?;
+
+    // Sin esto, deslizar sobre alguien que acaba de borrar su cuenta revienta
+    // con una violacion de clave foranea, que salia como 500. Un 404 es lo
+    // correcto y ademas deja al cliente decir algo util.
+    let exists = diesel::select(diesel::dsl::exists(
+        crate::schema::users::table.filter(crate::schema::users::id.eq(&dto.to_user_id)),
+    ))
+    .get_result::<bool>(&mut conn)
+    .await?;
+    if !exists {
+        return Err(SwipesError::TargetNotFound);
+    }
 
     // Upsert the swipe: unique on (fromUserId, toUserId, sport), same
     // constraint Prisma's `swipe.upsert` relies on.

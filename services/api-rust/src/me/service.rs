@@ -29,9 +29,9 @@ use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MeError {
-    #[error("User not found")]
+    #[error("No encontramos esa cuenta")]
     UserNotFound,
-    #[error("Profile not found — completa tu perfil antes de subir fotos")]
+    #[error("Completa tu perfil antes de subir fotos")]
     ProfileNotFound,
     #[error("Ya tienes el máximo de {MAX_PHOTOS} fotos")]
     TooManyPhotos,

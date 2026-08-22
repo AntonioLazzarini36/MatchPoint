@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/network/api_error.dart';
 
 import 'package:match_point/core/network/api_client.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
@@ -45,7 +46,7 @@ class ProposalService {
     final res = await api.get('/matches/$matchId/proposals', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('ListProposals failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
 
     return (jsonDecode(res.body) as List<dynamic>)
@@ -77,7 +78,7 @@ class ProposalService {
     final res = await api.get('/me/proposals', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('ListUpcoming failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se han podido cargar tus quedadas');
     }
 
     return (jsonDecode(res.body) as List<dynamic>)
@@ -94,7 +95,7 @@ class ProposalService {
     final res = await api.get('/me/sessions/played', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('ListAwaitingFeedback failed: ${res.statusCode}');
+      throw apiError(res, fallback: 'No se han podido cargar tus quedadas');
     }
 
     return (jsonDecode(res.body) as List<dynamic>)

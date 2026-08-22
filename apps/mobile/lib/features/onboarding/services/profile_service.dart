@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/network/api_error.dart';
 import '../../../core/location/location_result.dart';
 import '../../../core/network/api_client.dart';
 import '../models/update_profile_request.dart';
@@ -21,7 +22,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Profile update failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
   }
 
@@ -41,7 +42,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UpdateLocation failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
   }
 
@@ -57,7 +58,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UpdateSports failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
   }
 
@@ -75,7 +76,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UpdateGender failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido guardar');
     }
   }
 
@@ -89,7 +90,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UpdateIntention failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido guardar');
     }
   }
 
@@ -103,7 +104,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UpdateBio failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido guardar la descripción');
     }
   }
 
@@ -133,7 +134,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UpdateCredentials failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
   }
 
@@ -151,9 +152,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(
-        'UpdateSkillLevels failed: ${res.statusCode} ${res.body}',
-      );
+      throw apiError(res, fallback: 'No se ha podido guardar tu nivel');
     }
 
     return skillLevelsFromJson(jsonDecode(res.body));
@@ -170,9 +169,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(
-        'UpdatePreferences failed: ${res.statusCode} ${res.body}',
-      );
+      throw apiError(res, fallback: 'No se han podido guardar tus preferencias');
     }
   }
 
@@ -200,9 +197,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(
-        'UpdatePreferences failed: ${res.statusCode} ${res.body}',
-      );
+      throw apiError(res, fallback: 'No se han podido guardar tus preferencias');
     }
   }
 
@@ -210,7 +205,7 @@ class ProfileService {
     final res = await api.get('/me', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('GetMe failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido cargar tu perfil');
     }
 
     return MeResponse.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -220,7 +215,7 @@ class ProfileService {
     final res = await api.get('/users/$userId/profile', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('GetUserProfile failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
 
     return DiscoverProfile.fromJson(
@@ -238,7 +233,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('ReportUser failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
   }
 
@@ -247,7 +242,7 @@ class ProfileService {
   Future<void> deleteAccount() async {
     final res = await api.delete('/me', auth: true);
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('No se pudo borrar la cuenta: ${res.statusCode}');
+      throw apiError(res, fallback: 'No se ha podido borrar la cuenta');
     }
   }
 
@@ -266,7 +261,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('UploadPhoto failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
 
     return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -280,7 +275,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('DeletePhoto failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido borrar la foto');
     }
 
     return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);

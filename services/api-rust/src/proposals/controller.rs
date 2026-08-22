@@ -9,7 +9,6 @@ use axum::{
     routing::{get, patch, post},
     Json, Router,
 };
-use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
 #[allow(unused_imports)]
@@ -142,7 +141,7 @@ fn error_response(err: ProposalsError) -> axum::response::Response {
             StatusCode::INTERNAL_SERVER_ERROR
         }
     };
-    (status, Json(json!({ "message": err.to_string() }))).into_response()
+    crate::http_error::respond(status, err)
 }
 
 /// Quedadas ya pasadas que siguen esperando que cuentes que ocurrio.

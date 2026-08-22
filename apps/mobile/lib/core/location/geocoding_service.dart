@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/network/api_error.dart';
 import 'package:http/http.dart' as http;
 
 import 'location_result.dart';
@@ -39,7 +40,7 @@ class GeocodingService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Geocoding search failed: ${res.statusCode}');
+      throw apiError(res, fallback: 'No se ha podido completar la operación');
     }
 
     final decoded = jsonDecode(res.body) as List<dynamic>;

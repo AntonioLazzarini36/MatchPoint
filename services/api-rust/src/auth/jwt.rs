@@ -52,22 +52,37 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = (StatusCode, &'static str);
+    /// Se responde con el mismo `{ "message": ... }` que el resto de la API:
+    /// devolver texto plano aqui obligaba al cliente a tratar este error
+    /// distinto de todos los demas.
+    ///
+    /// Y con el **mismo texto** tanto si falta el token como si es invalido o
+    /// ha caducado: la salida para quien llama es identica —volver a iniciar
+    /// sesion— y distinguirlos solo le dice a quien prueba tokens en que ha
+    /// fallado.
+    type Rejection = axum::response::Response;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let TypedHeader(Authorization(bearer)) = parts
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
-            .map_err(|_| (StatusCode::UNAUTHORIZED, "Missing bearer token"))?;
+            .map_err(|_| unauthorized())?;
 
         let app_state = AppState::from_ref(state);
 
         let claims = verify(bearer.token(), &app_state.config.jwt_access_secret)
-            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid or expired token"))?;
+            .map_err(|_| unauthorized())?;
 
         Ok(AuthUser {
             user_id: claims.sub,
             email: claims.email,
         })
     }
+}
+
+fn unauthorized() -> axum::response::Response {
+    crate::http_error::respond(
+        StatusCode::UNAUTHORIZED,
+        "Tu sesión ha caducado. Vuelve a iniciar sesión",
+    )
 }

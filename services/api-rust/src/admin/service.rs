@@ -10,7 +10,7 @@ use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AdminError {
-    #[error("Report not found")]
+    #[error("No encontramos ese reporte")]
     NotFound,
     #[error("{0}")]
     InvalidInput(String),

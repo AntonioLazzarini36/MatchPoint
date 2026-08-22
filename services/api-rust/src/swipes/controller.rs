@@ -4,7 +4,6 @@ use axum::{
     extract::State, http::StatusCode, middleware, response::IntoResponse, routing::post, Json,
     Router,
 };
-use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
 use crate::auth::rate_limit;
@@ -50,9 +49,10 @@ async fn create_swipe(
         Err(err) => {
             let status = match &err {
                 SwipesError::CannotSwipeSelf => StatusCode::BAD_REQUEST,
+                SwipesError::TargetNotFound => StatusCode::NOT_FOUND,
                 SwipesError::Db(_) | SwipesError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            (status, Json(json!({ "message": err.to_string() }))).into_response()
+            crate::http_error::respond(status, err)
         }
     }
 }

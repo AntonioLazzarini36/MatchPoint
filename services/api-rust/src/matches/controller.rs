@@ -73,5 +73,5 @@ fn matches_error_response(err: MatchesError) -> axum::response::Response {
             StatusCode::INTERNAL_SERVER_ERROR
         }
     };
-    (status, Json(json!({ "message": err.to_string() }))).into_response()
+    crate::http_error::respond(status, err)
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/network/api_error.dart';
 import 'package:match_point/core/network/api_client.dart';
 import '../models/discover_profile.dart';
 import '../models/sport.dart';
@@ -18,7 +19,7 @@ class DiscoveryService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Discover failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se han podido cargar los perfiles');
     }
 
     final decoded = jsonDecode(res.body);
@@ -47,17 +48,15 @@ class DiscoveryService {
     };
 
     if (kDebugMode) {
-      print('[SWIPE] POST /swipes body=${jsonEncode(body)}');
     }
 
     final res = await api.post('/swipes', body: body, auth: true);
 
     if (kDebugMode) {
-      print('[SWIPE] status=${res.statusCode} body=${res.body}');
     }
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Swipe failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido registrar tu decisión');
     }
 
     return SwipeResponse.fromJson(jsonDecode(res.body) as Map<String, dynamic>);

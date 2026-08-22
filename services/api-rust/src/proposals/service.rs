@@ -38,11 +38,11 @@ use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProposalsError {
-    #[error("Match not found")]
+    #[error("No encontramos ese match")]
     MatchNotFound,
-    #[error("Proposal not found")]
+    #[error("No encontramos esa quedada")]
     NotFound,
-    #[error("Not allowed")]
+    #[error("No tienes acceso a esto")]
     Forbidden,
     #[error("{0}")]
     InvalidInput(String),

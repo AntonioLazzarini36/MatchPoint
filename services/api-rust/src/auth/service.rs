@@ -33,23 +33,23 @@ pub struct EmailAvailability {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
-    #[error("Email already in use")]
+    #[error("Ese email ya está registrado")]
     EmailInUse,
-    #[error("Email inválido")]
+    #[error("El email no tiene un formato válido")]
     InvalidEmail,
     #[error("La contraseña debe tener entre 8 y 72 caracteres")]
     InvalidPassword,
-    #[error("Invalid credentials")]
+    #[error("Email o contraseña incorrectos")]
     InvalidCredentials,
-    #[error("Missing refresh token")]
+    #[error("Tu sesión ha caducado. Vuelve a iniciar sesión")]
     MissingRefreshToken,
-    #[error("Invalid refresh token")]
+    #[error("Tu sesión ha caducado. Vuelve a iniciar sesión")]
     InvalidRefreshToken,
-    #[error("Refresh token revoked")]
+    #[error("Tu sesión ha caducado. Vuelve a iniciar sesión")]
     RefreshTokenRevoked,
-    #[error("Refresh token mismatch")]
+    #[error("Tu sesión ha caducado. Vuelve a iniciar sesión")]
     RefreshTokenMismatch,
-    #[error("User not found")]
+    #[error("No encontramos esa cuenta")]
     UserNotFound,
     #[error("La verificación de email está desactivada ahora mismo")]
     EmailVerificationDisabled,

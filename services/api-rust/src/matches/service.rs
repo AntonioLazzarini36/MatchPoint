@@ -23,9 +23,9 @@ use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MatchesError {
-    #[error("Match not found")]
+    #[error("No encontramos ese match")]
     NotFound,
-    #[error("Not allowed")]
+    #[error("No tienes acceso a esto")]
     Forbidden,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),

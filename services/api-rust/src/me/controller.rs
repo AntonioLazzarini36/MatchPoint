@@ -8,7 +8,6 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
-use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::auth::jwt::AuthUser;
@@ -210,7 +209,7 @@ fn me_error_response(err: MeError) -> axum::response::Response {
         MeError::Photo(PhotoError::Io(_)) => StatusCode::INTERNAL_SERVER_ERROR,
         MeError::Db(_) | MeError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
-    (status, Json(json!({ "message": err.to_string() }))).into_response()
+    crate::http_error::respond(status, err)
 }
 
 /// Borra la cuenta del usuario autenticado, sin vuelta atrás.

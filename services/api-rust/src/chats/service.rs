@@ -15,11 +15,11 @@ use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ChatsError {
-    #[error("Match not found")]
+    #[error("No encontramos ese match")]
     MatchNotFound,
-    #[error("Not allowed")]
+    #[error("No tienes acceso a esto")]
     Forbidden,
-    #[error("Message text must be between 1 and 2000 characters")]
+    #[error("El mensaje debe tener entre 1 y 2000 caracteres")]
     InvalidText,
     #[error("Database error: {0}")]
     Db(#[from] diesel::result::Error),

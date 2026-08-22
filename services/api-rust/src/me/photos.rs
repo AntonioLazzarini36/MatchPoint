@@ -9,11 +9,11 @@ const MAX_PHOTO_BYTES: usize = 5 * 1024 * 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PhotoError {
-    #[error("falta el campo 'photo' en el multipart")]
+    #[error("No se ha recibido ninguna foto")]
     MissingField,
-    #[error("el archivo no es una imagen JPEG, PNG o WebP")]
+    #[error("El archivo no es una imagen JPEG, PNG o WebP")]
     NotAnImage,
-    #[error("la foto supera el límite de 5MB")]
+    #[error("La foto supera el límite de 5 MB")]
     TooLarge,
     #[error("multipart error: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),

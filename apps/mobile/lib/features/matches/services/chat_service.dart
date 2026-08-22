@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/network/api_error.dart';
 import 'package:match_point/core/network/api_client.dart';
 import '../models/chat_message.dart';
 
@@ -18,7 +19,7 @@ class ChatService {
 
     final res = await api.get(path, auth: true);
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Fetch messages failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se han podido cargar los mensajes');
     }
 
     final decoded = jsonDecode(res.body);
@@ -40,7 +41,7 @@ class ChatService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Send message failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se ha podido enviar el mensaje');
     }
 
     return ChatMessage.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -49,7 +50,7 @@ class ChatService {
   Future<void> markRead({required String matchId}) async {
     final res = await api.patch('/chats/$matchId/read', auth: true);
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Mark read failed: ${res.statusCode} ${res.body}');
+      throw apiError(res, fallback: 'No se han podido marcar como leídos');
     }
   }
 }
