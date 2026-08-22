@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app/app.dart';
 import 'core/push/push_service.dart';
 
@@ -8,6 +9,14 @@ Future<void> main() async {
   // Firebase toca canales de plataforma, así que el binding tiene que estar
   // listo antes.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Sólo vertical. Se fija tambien en el manifest de Android y en el
+  // Info.plist de iOS: esta llamada gobierna la app ya en marcha, pero el
+  // sistema decide la orientacion **antes** de que Flutter arranque, asi que
+  // sin la parte nativa se ve un giro momentaneo al abrir con el movil
+  // tumbado. `portraitDown` queda fuera a proposito: abrir la app del reves
+  // no es algo que nadie quiera.
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   // Antes de `runApp` para que una notificación que abre la app en frío
   // encuentre Firebase ya arrancado. No lanza si falla: quedarse sin
