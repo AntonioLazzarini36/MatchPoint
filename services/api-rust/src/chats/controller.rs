@@ -3,14 +3,16 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
+    middleware,
     response::IntoResponse,
-    routing::{get, patch},
+    routing::{get, patch, post},
     Json, Router,
 };
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
+use crate::auth::rate_limit;
 use crate::chats::dto::SendMessageDto;
 use crate::chats::service::{self, ChatsError};
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
@@ -19,13 +21,21 @@ use crate::chats::service::{MarkReadResponse, MessageResponse};
 use crate::openapi::ErrorResponse;
 use crate::state::AppState;
 
-pub fn router() -> Router<AppState> {
+pub fn router(state: AppState) -> Router<AppState> {
+    // El limite es solo para enviar. Leer el chat lo hace el sondeo cada 4 s
+    // y marcarlo como leido va detras de cada lectura: limitarlos romperia
+    // el uso normal.
+    let limited = Router::new()
+        .route("/chats/:matchId/messages", post(send_message))
+        .route_layer(middleware::from_fn_with_state(
+            state,
+            rate_limit::limit_messages,
+        ));
+
     Router::new()
-        .route(
-            "/chats/:matchId/messages",
-            get(list_messages).post(send_message),
-        )
+        .route("/chats/:matchId/messages", get(list_messages))
         .route("/chats/:matchId/read", patch(mark_read))
+        .merge(limited)
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

@@ -31,14 +31,14 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(app::controller::router())
         .merge(discover::controller::router()) // next: DiscoverModule
-        .merge(me::controller::router()) // next: MeModule
+        .merge(me::controller::router(state.clone())) // next: MeModule
         .merge(auth::controller::router(state.clone())) // next: AuthModule
-        .merge(swipes::controller::router()) // next: SwipesModule
+        .merge(swipes::controller::router(state.clone())) // next: SwipesModule
         .merge(matches::controller::router()) // next: MatchesModule
         .merge(proposals::controller::router())
         .merge(notifications::controller::router())
-        .merge(chats::controller::router()) // next: ChatsModule
-        .merge(users::controller::router()) // next: UsersModule
+        .merge(chats::controller::router(state.clone())) // next: ChatsModule
+        .merge(users::controller::router(state.clone())) // next: UsersModule
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .nest_service("/uploads", ServeDir::new(photos_dir))
         .with_state(state)

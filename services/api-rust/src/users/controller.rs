@@ -5,6 +5,7 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
+    middleware,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -12,6 +13,7 @@ use axum::{
 use serde_json::json;
 
 use crate::auth::jwt::AuthUser;
+use crate::auth::rate_limit;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
 use crate::discover::service::DiscoverProfile;
 #[allow(unused_imports)]
@@ -20,10 +22,19 @@ use crate::state::AppState;
 use crate::users::dto::ReportUserDto;
 use crate::users::service::{self, UsersError};
 
-pub fn router() -> Router<AppState> {
+pub fn router(state: AppState) -> Router<AppState> {
+    // Solo el reporte lleva limite: ver un perfil es navegacion normal y
+    // limitarlo romperia el uso legitimo de la app.
+    let limited = Router::new()
+        .route("/users/:userId/report", post(report_user))
+        .route_layer(middleware::from_fn_with_state(
+            state,
+            rate_limit::limit_reports,
+        ));
+
     Router::new()
         .route("/users/:userId/profile", get(get_profile))
-        .route("/users/:userId/report", post(report_user))
+        .merge(limited)
 }
 
 #[utoipa::path(

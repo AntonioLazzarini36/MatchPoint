@@ -3,14 +3,16 @@
 use axum::{
     extract::{Multipart, State},
     http::StatusCode,
+    middleware,
     response::IntoResponse,
-    routing::{get, patch, post},
+    routing::{delete, get, patch, post},
     Json, Router,
 };
 use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::auth::jwt::AuthUser;
+use crate::auth::rate_limit;
 #[allow(unused_imports)] // referenced only inside #[utoipa::path] responses(body = ...)
 use crate::discover::service::SkillLevelEntry;
 use crate::me::dto::{
@@ -27,17 +29,29 @@ use crate::models::{Preferences, Profile};
 use crate::openapi::ErrorResponse;
 use crate::state::AppState;
 
-pub fn router() -> Router<AppState> {
+pub fn router(state: AppState) -> Router<AppState> {
+    // Subir foto es el endpoint mas caro (escribe en disco) y el unico por el
+    // que una cuenta puede llenar el volumen, que ademas se paga. Borrar no
+    // lleva limite: no cuesta nada y bloquearlo dejaria fotos que no se
+    // pueden quitar.
+    let limited = Router::new()
+        .route("/me/photos", post(add_photo))
+        .route_layer(middleware::from_fn_with_state(
+            state,
+            rate_limit::limit_photos,
+        ));
+
     Router::new()
         .route("/me", get(get_me).delete(delete_account))
         .route("/me/profile", patch(update_profile))
         .route("/me/preferences", patch(update_preferences))
         .route("/me/skill-levels", patch(update_skill_levels))
-        .route("/me/photos", post(add_photo).delete(remove_photo))
+        .route("/me/photos", delete(remove_photo))
         .route(
             "/me/devices",
             post(register_device).delete(unregister_device),
         )
+        .merge(limited)
 }
 
 /// Doc-only shape of the multipart body `POST /me/photos` expects — never
