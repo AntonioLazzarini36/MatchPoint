@@ -138,7 +138,10 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
       itemBuilder: (context, i) {
         final result = _results[i];
         return ListTile(
-          leading: Icon(Icons.location_on_outlined, color: context.colors.primary),
+          leading: Icon(
+            Icons.location_on_outlined,
+            color: context.colors.primary,
+          ),
           title: Text(result.displayName),
           onTap: () => Navigator.of(context).pop(result),
         );

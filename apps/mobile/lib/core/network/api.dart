@@ -17,6 +17,7 @@ class Api {
     if (kIsWeb) return 'http://localhost:3000';
     return 'http://10.0.2.2:3000';
   }
+
   // por ejemplo, flutter run -d chrome hace que kIsWeb = true entonces usa ese, pero si escribes flutter run -d android == false,
   // o flutter run -d <id-del-emulador-android> → kIsWeb == false (fallback,
   // válido solo en el emulador Android, no en un móvil físico)

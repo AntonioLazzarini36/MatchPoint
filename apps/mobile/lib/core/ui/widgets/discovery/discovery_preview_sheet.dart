@@ -137,7 +137,9 @@ class _PreviewBody extends StatelessWidget {
                 style: context.textStyles.headlineMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  shadows: const [Shadow(blurRadius: 10, color: Colors.black54)],
+                  shadows: const [
+                    Shadow(blurRadius: 10, color: Colors.black54),
+                  ],
                 ),
               ),
               const SizedBox(height: 2),
@@ -310,9 +312,7 @@ class _PreviewBody extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: context.colors.onSurfaceVariant),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(text, style: context.textStyles.bodyMedium),
-              ),
+              Expanded(child: Text(text, style: context.textStyles.bodyMedium)),
             ],
           ),
         ),

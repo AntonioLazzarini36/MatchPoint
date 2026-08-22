@@ -5,7 +5,7 @@ import '../../utils/landscape_crop.dart';
 import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
-import '../../../features/onboarding/models/availability.dart';
+import '../widgets/availability_picker.dart';
 import '../../../features/onboarding/models/intention.dart';
 import 'profile_header_data.dart';
 import 'network_photo.dart';
@@ -123,15 +123,14 @@ class ProfileView extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                if (data.availability.isNotEmpty) ...[
+                if (!data.availability.isEmpty) ...[
                   const SizedBox(height: 24),
-                  Text('Cuándo juega', style: context.textStyles.titleMedium),
-                  const SizedBox(height: 8),
-                  _infoRow(
-                    context,
-                    Icons.schedule,
-                    availabilitySummary(data.availability),
+                  Text(
+                    'Cuándo suele tener libre',
+                    style: context.textStyles.titleMedium,
                   ),
+                  const SizedBox(height: 8),
+                  AvailabilityView(value: data.availability),
                 ],
 
                 if (data.intention != null) ...[
@@ -182,11 +181,7 @@ class ProfileView extends StatelessWidget {
                       'Distancia media: ${data.avgDistanceKm} km',
                     ),
                   for (final achievement in data.achievements)
-                    _infoRow(
-                      context,
-                      Icons.emoji_events_outlined,
-                      achievement,
-                    ),
+                    _infoRow(context, Icons.emoji_events_outlined, achievement),
                 ],
 
                 if (data.photos.length > 1) ...[
@@ -251,11 +246,7 @@ class ProfileView extends StatelessWidget {
     return Container(
       color: context.colors.surfaceContainerHighest,
       child: Center(
-        child: Icon(
-          Icons.person,
-          size: 72,
-          color: context.colors.outline,
-        ),
+        child: Icon(Icons.person, size: 72, color: context.colors.outline),
       ),
     );
   }
@@ -264,8 +255,9 @@ class ProfileView extends StatelessWidget {
     if (sports.isEmpty) {
       return Text(
         'Aun no hay deportes.',
-        style: context.textStyles.bodyMedium
-            ?.copyWith(color: context.colors.outline),
+        style: context.textStyles.bodyMedium?.copyWith(
+          color: context.colors.outline,
+        ),
       );
     }
 
@@ -335,7 +327,9 @@ class ProfileView extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.colors.outline.withValues(alpha:0.2)),
+        border: Border.all(
+          color: context.colors.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         children: [

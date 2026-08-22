@@ -119,10 +119,8 @@ class OnboardingProfileStep extends StatelessWidget {
                   label: 'Tenis',
                   icon: Icons.sports_tennis,
                   selected: selectedSports.contains('Tenis'),
-                  onTap: () => onSportToggle(
-                    'Tenis',
-                    !selectedSports.contains('Tenis'),
-                  ),
+                  onTap: () =>
+                      onSportToggle('Tenis', !selectedSports.contains('Tenis')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -168,7 +166,8 @@ class OnboardingProfileStep extends StatelessWidget {
             minLines: 3,
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
-              hintText: 'Juego los martes por la tarde cerca del centro. '
+              hintText:
+                  'Juego los martes por la tarde cerca del centro. '
                   'Busco a alguien constante mas que competitivo.',
               alignLabelWithHint: true,
             ),
@@ -225,7 +224,9 @@ class _SportCard extends StatelessWidget {
                   Icon(
                     icon,
                     size: 32,
-                    color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+                    color: selected
+                        ? scheme.onPrimary
+                        : scheme.onSurfaceVariant,
                   ),
                   if (selected)
                     Positioned(

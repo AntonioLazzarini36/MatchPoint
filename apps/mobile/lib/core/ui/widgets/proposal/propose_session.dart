@@ -11,6 +11,7 @@ import '../../../../features/discovery/models/sport.dart';
 import '../../../../features/matches/services/proposal_service.dart';
 import 'week_calendar_picker.dart';
 import 'time_slot_picker.dart';
+import '../../../../features/onboarding/models/availability.dart';
 
 /// Flujo unico para proponer una sesion, sea tenis o correr.
 ///
@@ -19,6 +20,11 @@ import 'time_slot_picker.dart';
 /// Ahora los dos crean una `Proposal` de verdad (POST
 /// /matches/:matchId/proposals) que la otra persona puede aceptar o
 /// rechazar, y que aparece en la pestaña de Quedadas.
+///
+/// Si se conoce el horario habitual de la otra persona
+/// ([otherAvailability]) se enseña en los pasos de dia y hora, para no
+/// proponer un hueco en el que esa persona no puede nunca. Nunca bloquea
+/// nada: es lo que suele pasar, no su agenda.
 ///
 /// El sitio es opcional a proposito: en tenis normalmente viene ya elegido
 /// del mapa de clubes (`presetPlaceName` + coordenadas), y corriendo puede
@@ -39,6 +45,8 @@ Future<bool> proposeSession(
   String? presetPlaceName,
   double? presetPlaceLat,
   double? presetPlaceLng,
+  WeeklyAvailability? otherAvailability,
+  String? otherName,
 }) async {
   String? placeName = presetPlaceName;
   double? placeLat = presetPlaceLat;
@@ -59,11 +67,19 @@ Future<bool> proposeSession(
 
   final day = await showModalBottomSheet<DateTime>(
     context: context,
-    builder: (_) => const WeekCalendarPicker(),
+    builder: (_) => WeekCalendarPicker(
+      otherAvailability: otherAvailability,
+      otherName: otherName,
+    ),
   );
   if (day == null || !context.mounted) return false;
 
-  final time = await pickTimeSlot(context);
+  final time = await pickTimeSlot(
+    context,
+    day: day,
+    otherAvailability: otherAvailability,
+    otherName: otherName,
+  );
   if (time == null || !context.mounted) return false;
 
   final scheduledAt = DateTime(
@@ -84,9 +100,7 @@ Future<bool> proposeSession(
       placeLat: placeLat,
       placeLng: placeLng,
     );
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Propuesta enviada')),
-    );
+    messenger.showSnackBar(const SnackBar(content: Text('Propuesta enviada')));
     return true;
   } catch (e) {
     messenger.showSnackBar(

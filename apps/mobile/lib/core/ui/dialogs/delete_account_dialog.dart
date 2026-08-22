@@ -36,8 +36,7 @@ class _DeleteAccountDialog extends StatefulWidget {
 class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   final _controller = TextEditingController();
 
-  bool get _canDelete =>
-      _controller.text.trim().toUpperCase() == _confirmWord;
+  bool get _canDelete => _controller.text.trim().toUpperCase() == _confirmWord;
 
   @override
   void dispose() {
@@ -115,8 +114,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
         FilledButton(
           // Deshabilitado hasta escribir la palabra: el botón no puede
           // pulsarse por inercia.
-          onPressed:
-              _canDelete ? () => Navigator.of(context).pop(true) : null,
+          onPressed: _canDelete ? () => Navigator.of(context).pop(true) : null,
           style: FilledButton.styleFrom(
             backgroundColor: colors.error,
             foregroundColor: colors.onError,

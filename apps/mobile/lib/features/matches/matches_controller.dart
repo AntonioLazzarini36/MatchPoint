@@ -10,6 +10,7 @@ class MatchesController extends ChangeNotifier {
   MatchesController(this.service, this.proposals);
 
   bool loading = false;
+
   /// El error entero, no su texto: la vista necesita el tipo para
   /// distinguir un problema de red de uno del servidor.
   Object? error;

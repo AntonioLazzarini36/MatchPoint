@@ -27,8 +27,8 @@ class Profile {
   final List<String> photos;
   final List<Sport> sports;
 
-  /// Cuándo puede jugar. Vacío = no lo ha dicho.
-  final List<AvailabilitySlot> availability;
+  /// Horario semanal habitual. Vacío = no lo ha dicho.
+  final WeeklyAvailability availability;
 
   /// Ubicación elegida a mano (Hinge-style), null hasta que el usuario la
   /// setea. Solo viene en el propio perfil (`/me`) — nunca en el de otros
@@ -55,7 +55,7 @@ class Profile {
     required this.displayName,
     required this.photos,
     required this.sports,
-    this.availability = const [],
+    this.availability = WeeklyAvailability.empty,
     this.birthDate,
     int? age,
     this.gender,
@@ -105,7 +105,7 @@ class Profile {
       sports: (json['sports'] as List<dynamic>? ?? const [])
           .map((e) => SportApi.fromApi(e.toString()))
           .toList(),
-      availability: AvailabilitySlotApi.listFromJson(json['availability']),
+      availability: WeeklyAvailability.fromJson(json['availability']),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       yearsPlaying: (json['yearsPlaying'] as num?)?.toInt(),

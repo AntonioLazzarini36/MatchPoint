@@ -155,7 +155,9 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
               controller: _yearsCtrl,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
-              decoration: const InputDecoration(labelText: 'Años jugando al tenis'),
+              decoration: const InputDecoration(
+                labelText: 'Años jugando al tenis',
+              ),
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
@@ -199,7 +201,9 @@ class _OnboardingSkillStepState extends State<OnboardingSkillStep> {
                 labelText: 'Distancia media (km)',
                 hintText: 'Ej. 10',
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 LengthLimitingTextInputFormatter(6),
@@ -316,9 +320,9 @@ class _AchievementsEditorState extends State<_AchievementsEditor> {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               _error!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
             ),
           ),
         if (widget.achievements.isNotEmpty) ...[

@@ -414,10 +414,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   MarkerLayer(
                     markers: [
                       Marker(
-                        point: LatLng(
-                          _proposal.placeLat!,
-                          _proposal.placeLng!,
-                        ),
+                        point: LatLng(_proposal.placeLat!, _proposal.placeLng!),
                         width: 40,
                         height: 40,
                         child: Icon(

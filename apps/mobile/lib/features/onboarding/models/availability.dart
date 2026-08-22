@@ -1,111 +1,114 @@
-/// Cuándo puede jugar alguien (`Profile.availability`).
+/// El horario semanal habitual de alguien (`Profile.availability`).
 ///
-/// Franjas gruesas y no un calendario, a propósito: lo que hace falta saber
-/// es si dos personas **pueden coincidir**, y pedir más detalle sólo consigue
-/// que nadie lo rellene — y un perfil vacío no ordena nada.
+/// **Es una referencia, no una verdad.** Dice lo que esa persona *suele*
+/// tener libre, no lo que puede esta semana. Por eso no filtra ni ordena
+/// nada: se enseña a quien va a proponer una quedada, para que no elija un
+/// hueco en el que la otra persona no puede nunca — y así no gastar tres
+/// mensajes en descubrirlo.
 ///
-/// Es el dato que más partidos desbloquea. La app ya filtraba por nivel y por
-/// distancia, pero dos personas del mismo nivel a dos kilómetros no juegan
-/// nunca si una puede los martes por la mañana y la otra los sábados.
-enum AvailabilitySlot {
-  weekdayMorning,
-  weekdayAfternoon,
-  weekdayEvening,
-  weekendMorning,
-  weekendAfternoon,
-  weekendEvening,
-}
-
-extension AvailabilitySlotApi on AvailabilitySlot {
-  String get apiValue {
-    switch (this) {
-      case AvailabilitySlot.weekdayMorning:
-        return 'WEEKDAY_MORNING';
-      case AvailabilitySlot.weekdayAfternoon:
-        return 'WEEKDAY_AFTERNOON';
-      case AvailabilitySlot.weekdayEvening:
-        return 'WEEKDAY_EVENING';
-      case AvailabilitySlot.weekendMorning:
-        return 'WEEKEND_MORNING';
-      case AvailabilitySlot.weekendAfternoon:
-        return 'WEEKEND_AFTERNOON';
-      case AvailabilitySlot.weekendEvening:
-        return 'WEEKEND_EVENING';
-    }
-  }
-
-  /// Si es de entre semana. Se usa para agrupar la rejilla en dos columnas,
-  /// que es como la gente piensa su semana.
-  bool get isWeekday => index < 3;
-
-  /// El tramo del día, sin repetir "entre semana"/"finde" en cada casilla.
-  String get timeLabel {
-    switch (this) {
-      case AvailabilitySlot.weekdayMorning:
-      case AvailabilitySlot.weekendMorning:
-        return 'Mañanas';
-      case AvailabilitySlot.weekdayAfternoon:
-      case AvailabilitySlot.weekendAfternoon:
-        return 'Tardes';
-      case AvailabilitySlot.weekdayEvening:
-      case AvailabilitySlot.weekendEvening:
-        return 'Noches';
-    }
-  }
-
-  /// Nombre completo, para cuando aparece suelto (en un perfil, por ejemplo).
-  String get label =>
-      '${timeLabel.toLowerCase()} ${isWeekday ? 'entre semana' : 'de fin de semana'}';
-
-  static AvailabilitySlot? fromApi(Object? v) {
-    switch (v?.toString()) {
-      case 'WEEKDAY_MORNING':
-        return AvailabilitySlot.weekdayMorning;
-      case 'WEEKDAY_AFTERNOON':
-        return AvailabilitySlot.weekdayAfternoon;
-      case 'WEEKDAY_EVENING':
-        return AvailabilitySlot.weekdayEvening;
-      case 'WEEKEND_MORNING':
-        return AvailabilitySlot.weekendMorning;
-      case 'WEEKEND_AFTERNOON':
-        return AvailabilitySlot.weekendAfternoon;
-      case 'WEEKEND_EVENING':
-        return AvailabilitySlot.weekendEvening;
-      default:
-        return null;
-    }
-  }
-
-  static List<AvailabilitySlot> listFromJson(dynamic json) {
-    if (json is! List) return const [];
-    return json
-        .map(AvailabilitySlotApi.fromApi)
-        .whereType<AvailabilitySlot>()
-        .toList();
-  }
-}
-
-/// Resumen corto para una fila o una tarjeta: "Tardes y noches entre semana"
-/// se lee mejor que seis etiquetas sueltas.
-String availabilitySummary(List<AvailabilitySlot> slots) {
-  if (slots.isEmpty) return 'Sin definir';
-  if (slots.length == AvailabilitySlot.values.length) return 'Casi siempre';
-
-  final weekday = slots.where((s) => s.isWeekday).toList();
-  final weekend = slots.where((s) => !s.isWeekday).toList();
-
-  String group(List<AvailabilitySlot> g, String when) {
-    final names = g.map((s) => s.timeLabel.toLowerCase()).toList();
-    final joined = names.length == 1
-        ? names.first
-        : '${names.sublist(0, names.length - 1).join(', ')} y ${names.last}';
-    return '$joined $when';
-  }
-
-  final parts = <String>[
-    if (weekday.isNotEmpty) group(weekday, 'entre semana'),
-    if (weekend.isNotEmpty) group(weekend, 'en finde'),
+/// Se guarda como un mapa de bits de 21 posiciones, `bit = día * 3 + franja`,
+/// que es como llega y sale del backend. Un entero en vez de una lista de
+/// nombres porque lo único que se hace con esto es pintarlo.
+class WeeklyAvailability {
+  /// Lunes primero, como una semana española.
+  static const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  static const dayNames = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
   ];
-  final text = parts.join(' · ');
-  return text[0].toUpperCase() + text.substring(1);
+  static const bands = ['Mañana', 'Tarde', 'Noche'];
+
+  final int mask;
+  const WeeklyAvailability(this.mask);
+
+  static const empty = WeeklyAvailability(0);
+
+  bool get isEmpty => mask == 0;
+
+  static int bit(int day, int band) => 1 << (day * 3 + band);
+
+  bool has(int day, int band) => mask & bit(day, band) != 0;
+
+  WeeklyAvailability toggled(int day, int band) =>
+      WeeklyAvailability(mask ^ bit(day, band));
+
+  /// Cuántos huecos hay marcados. Sirve para decidir si merece la pena
+  /// enseñar el detalle o basta con decir "casi siempre".
+  int get count {
+    var n = 0;
+    for (var i = 0; i < 21; i++) {
+      if (mask & (1 << i) != 0) n++;
+    }
+    return n;
+  }
+
+  /// Resumen corto, para una fila o una cabecera.
+  ///
+  /// No intenta describir el horario entero: con más de unos pocos huecos
+  /// cualquier frase se vuelve ilegible, y para eso está la rejilla.
+  String get summary {
+    if (isEmpty) return 'Sin definir';
+    if (count >= 15) return 'Casi siempre disponible';
+
+    final byBand = <int, List<int>>{};
+    for (var d = 0; d < 7; d++) {
+      for (var b = 0; b < 3; b++) {
+        if (has(d, b)) byBand.putIfAbsent(b, () => []).add(d);
+      }
+    }
+
+    final parts = <String>[];
+    byBand.forEach((band, days) {
+      final names = days.map((d) => WeeklyAvailability.days[d]).join('');
+      parts.add('${bands[band].toLowerCase()} $names');
+    });
+    final text = parts.join(' · ');
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
+  /// Los huecos de un día concreto, en texto. Lo que se enseña al proponer.
+  String labelForDay(int weekday) {
+    // `DateTime.weekday` va de 1 (lunes) a 7 (domingo).
+    final day = weekday - 1;
+    final free = [
+      for (var b = 0; b < 3; b++)
+        if (has(day, b)) bands[b].toLowerCase(),
+    ];
+    if (free.isEmpty) return 'No suele tener libre';
+    return 'Suele tener libre: ${free.join(', ')}';
+  }
+
+  bool hasAnyOn(int weekday) {
+    final day = weekday - 1;
+    return has(day, 0) || has(day, 1) || has(day, 2);
+  }
+
+  /// Las franjas libres de un día, como índices. Lo usa el selector de hora
+  /// para atenuar las horas en las que esa persona no suele poder.
+  Set<int> bandsOn(int weekday) {
+    final day = weekday - 1;
+    return {
+      for (var b = 0; b < 3; b++)
+        if (has(day, b)) b,
+    };
+  }
+
+  /// A qué franja pertenece una hora del reloj.
+  ///
+  /// El corte vive aquí y en ningún otro sitio: la rejilla dice "tarde" y el
+  /// selector de horas tiene que estar de acuerdo con ella, o marcaría como
+  /// imposible una hora que la otra persona sí tiene marcada.
+  static int bandOfHour(int hour) {
+    if (hour < 14) return 0; // mañana
+    if (hour < 20) return 1; // tarde
+    return 2; // noche
+  }
+
+  static WeeklyAvailability fromJson(dynamic json) =>
+      WeeklyAvailability((json as num?)?.toInt() ?? 0);
 }

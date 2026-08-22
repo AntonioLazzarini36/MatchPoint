@@ -93,13 +93,13 @@ class AppRouter {
         builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
-      path: AppRoutes.userProfile,
-      name: AppRoutes.userProfileName,
-      builder: (context, state) {
-        final userId = state.pathParameters['userId']!;
-        return OtherProfileScreen(userId: userId);
-      },
-    ),
+        path: AppRoutes.userProfile,
+        name: AppRoutes.userProfileName,
+        builder: (context, state) {
+          final userId = state.pathParameters['userId']!;
+          return OtherProfileScreen(userId: userId);
+        },
+      ),
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),

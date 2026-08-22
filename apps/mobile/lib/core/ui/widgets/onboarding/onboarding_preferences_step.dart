@@ -25,8 +25,8 @@ class OnboardingPreferencesStep extends StatelessWidget {
   /// Cuando puedes jugar. Va en este paso y no en el de perfil porque
   /// responde a la misma pregunta que la intencion: como juegas, no quien
   /// eres. Y es lo que mas decide si dos personas acaban coincidiendo.
-  final Set<AvailabilitySlot> availability;
-  final ValueChanged<Set<AvailabilitySlot>> onAvailabilityChanged;
+  final WeeklyAvailability availability;
+  final ValueChanged<WeeklyAvailability> onAvailabilityChanged;
 
   final RangeValues ageRange;
   final ValueChanged<RangeValues> onAgeRangeChanged;
@@ -85,16 +85,16 @@ class OnboardingPreferencesStep extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 20),
 
-          Text('Cuando puedes jugar', style: t.titleMedium),
+          Text('Cuando sueles tener libre', style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Lo mas util de todo el registro: sin coincidir en horario no hay '
-            'partido posible, por bien que encajeis en lo demas.',
+            'No hace falta que sea exacto. Lo vera quien quiera proponerte '
+            'algo, para no elegir un hueco en el que nunca puedes.',
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),
           AvailabilityPicker(
-            selected: availability,
+            value: availability,
             onChanged: onAvailabilityChanged,
           ),
 

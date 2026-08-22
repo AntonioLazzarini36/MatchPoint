@@ -23,10 +23,7 @@ class DiscoveryIntroBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.sports_tennis,
-            color: context.colors.onPrimaryContainer,
-          ),
+          Icon(Icons.sports_tennis, color: context.colors.onPrimaryContainer),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

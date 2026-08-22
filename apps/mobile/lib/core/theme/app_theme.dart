@@ -234,7 +234,9 @@ ThemeData get lightTheme => ThemeData(
   snackBarTheme: _snackBarTheme(_lightScheme),
   dialogTheme: _dialogTheme(_lightScheme),
   sliderTheme: _sliderTheme(_lightScheme),
-  progressIndicatorTheme: ProgressIndicatorThemeData(color: _lightScheme.primary),
+  progressIndicatorTheme: ProgressIndicatorThemeData(
+    color: _lightScheme.primary,
+  ),
   iconTheme: IconThemeData(color: _lightScheme.onSurfaceVariant),
   tooltipTheme: _tooltipTheme(_lightScheme),
   dividerTheme: const DividerThemeData(
@@ -300,7 +302,9 @@ ThemeData get darkTheme => ThemeData(
   snackBarTheme: _snackBarTheme(_darkScheme),
   dialogTheme: _dialogTheme(_darkScheme),
   sliderTheme: _sliderTheme(_darkScheme),
-  progressIndicatorTheme: ProgressIndicatorThemeData(color: _darkScheme.primary),
+  progressIndicatorTheme: ProgressIndicatorThemeData(
+    color: _darkScheme.primary,
+  ),
   iconTheme: IconThemeData(color: _darkScheme.onSurfaceVariant),
   tooltipTheme: _tooltipTheme(_darkScheme),
   dividerTheme: const DividerThemeData(
@@ -477,9 +481,7 @@ BottomSheetThemeData _bottomSheetTheme(ColorScheme scheme) {
     surfaceTintColor: Colors.transparent,
     showDragHandle: true,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.lg),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
     ),
   );
 }

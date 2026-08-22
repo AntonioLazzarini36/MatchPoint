@@ -47,13 +47,11 @@ class DiscoveryService {
       'type': type.apiValue,
     };
 
-    if (kDebugMode) {
-    }
+    if (kDebugMode) {}
 
     final res = await api.post('/swipes', body: body, auth: true);
 
-    if (kDebugMode) {
-    }
+    if (kDebugMode) {}
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(res, fallback: 'No se ha podido registrar tu decisión');

@@ -192,11 +192,7 @@ class _CredentialsPreview extends StatelessWidget {
             'Ritmo medio: ${formatPaceMinPerKm(avgPaceMinPerKm)} min/km',
           ),
         if (avgDistanceKm != null)
-          _infoRow(
-            context,
-            Icons.route,
-            'Distancia media: $avgDistanceKm km',
-          ),
+          _infoRow(context, Icons.route, 'Distancia media: $avgDistanceKm km'),
         for (final achievement in achievements)
           _infoRow(context, Icons.emoji_events_outlined, achievement),
       ],

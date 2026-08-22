@@ -6,6 +6,7 @@ import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../../discovery/models/discover_profile.dart';
+
 class OtherProfileScreen extends StatefulWidget {
   final String userId;
   const OtherProfileScreen({super.key, required this.userId});
@@ -41,7 +42,9 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
       messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado')));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('No se pudo reportar: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo reportar: $e')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -88,9 +91,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (error != null) {
@@ -106,10 +107,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                 const SizedBox(height: 12),
                 Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _load,
-                  child: const Text('Reintentar'),
-                ),
+                FilledButton(onPressed: _load, child: const Text('Reintentar')),
               ],
             ),
           ),

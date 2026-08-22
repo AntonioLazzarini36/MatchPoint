@@ -102,7 +102,8 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       // hecho mal, asi que tampoco merece tratamiento de error grave.
       debugPrint('Overpass fallo: $e');
       setState(() {
-        _error = 'El servicio de mapas esta saturado. Reintenta en unos '
+        _error =
+            'El servicio de mapas esta saturado. Reintenta en unos '
             'segundos.';
         _loadingClubs = false;
       });
@@ -116,7 +117,9 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     setState(() => _searching = true);
     try {
       final uri = Uri.parse('https://nominatim.openstreetmap.org/search')
-          .replace(queryParameters: {'q': trimmed, 'format': 'jsonv2', 'limit': '1'});
+          .replace(
+            queryParameters: {'q': trimmed, 'format': 'jsonv2', 'limit': '1'},
+          );
       final res = await http.get(
         uri,
         headers: {'User-Agent': 'MatchPointApp/1.0 (dev)'},
@@ -173,9 +176,9 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       matches = await matchesService.fetchMatches();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('No se pudieron cargar tus matches: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudieron cargar tus matches: $e')),
+      );
       return;
     }
 
@@ -248,6 +251,8 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       presetPlaceName: placeName,
       presetPlaceLat: club.latitude,
       presetPlaceLng: club.longitude,
+      otherAvailability: chosen.otherUser.profile?.availability,
+      otherName: chosen.otherUser.profile?.displayName,
     );
   }
 

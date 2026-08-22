@@ -40,9 +40,7 @@ void main() {
           () async => throw Exception('Ya has enviado una propuesta'),
         ),
         throwsA(
-          predicate(
-            (e) => e is! NoConnectionException && e is! TimeoutFailure,
-          ),
+          predicate((e) => e is! NoConnectionException && e is! TimeoutFailure),
         ),
       );
     });

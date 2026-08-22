@@ -23,7 +23,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
   // permitiendo un salto de linea real para mensajes largos.
   late final FocusNode _focusNode = FocusNode(
     onKeyEvent: (node, event) {
-      final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+      final isEnter =
+          event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.numpadEnter;
       if (event is KeyDownEvent &&
           isEnter &&

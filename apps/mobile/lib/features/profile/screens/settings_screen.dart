@@ -90,9 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final email = _email;
     if (email == null) return;
     await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => EmailVerificationScreen(email: email),
-      ),
+      MaterialPageRoute(builder: (_) => EmailVerificationScreen(email: email)),
     );
     if (mounted) await _load();
   }
@@ -148,11 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       title: 'Cambiar radio de búsqueda',
       changes: [
-        FieldChange(
-          label: 'Radio',
-          before: '$current km',
-          after: '$chosen km',
-        ),
+        FieldChange(label: 'Radio', before: '$current km', after: '$chosen km'),
       ],
     );
     if (!ok || !mounted) return;
@@ -216,9 +210,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Cuándo puede jugar. Es lo que decide si dos personas pueden llegar a
   /// coincidir, y hasta ahora la app no lo sabía en absoluto.
   Future<void> _changeAvailability() async {
-    final current = (_profile?.availability ?? const <AvailabilitySlot>[])
-        .toSet();
-    final chosen = await showModalBottomSheet<Set<AvailabilitySlot>>(
+    final current = _profile?.availability ?? WeeklyAvailability.empty;
+    final chosen = await showModalBottomSheet<WeeklyAvailability>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _AvailabilitySheet(initial: current),
@@ -230,9 +223,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       title: 'Cambiar tu disponibilidad',
       changes: [
         FieldChange(
-          label: 'Cuándo puedes jugar',
-          before: availabilitySummary(current.toList()),
-          after: availabilitySummary(chosen.toList()),
+          label: 'Cuándo sueles tener libre',
+          before: current.summary,
+          after: chosen.summary,
         ),
       ],
     );
@@ -241,7 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _savingAvailability = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _profileService.updateAvailability(chosen.toList());
+      await _profileService.updateAvailability(chosen);
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -423,7 +416,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudieron actualizar las credenciales: $e')),
+        SnackBar(
+          content: Text('No se pudieron actualizar las credenciales: $e'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingCredentials = false);
@@ -520,7 +515,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final sports = _profile?.sports ?? const [];
     if (sports.isEmpty) return 'Elige tus deportes primero';
     final parts = sports
-        .map((s) => _skillLevels[s] == null ? null : '${s.label}: ${_skillLevels[s]!.label}')
+        .map(
+          (s) => _skillLevels[s] == null
+              ? null
+              : '${s.label}: ${_skillLevels[s]!.label}',
+        )
         .whereType<String>()
         .toList();
     return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
@@ -623,9 +622,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -643,9 +640,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -663,9 +658,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -677,10 +670,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.schedule,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Cuándo puedes jugar',
-                      subtitle: availabilitySummary(
-                        _profile?.availability ?? const [],
-                      ),
+                      title: 'Cuándo sueles tener libre',
+                      subtitle:
+                          (_profile?.availability ?? WeeklyAvailability.empty)
+                              .summary,
                       trailing: _savingAvailability
                           ? const SizedBox(
                               width: 20,
@@ -741,9 +734,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -761,9 +752,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -781,9 +770,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -815,9 +802,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -841,9 +826,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
                               Icons.chevron_right,
@@ -1318,7 +1301,9 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
     final text = _achievementCtrl.text.trim();
     if (text.isEmpty) return;
     if (text.length > _maxAchievementLength) {
-      setState(() => _error = 'Máximo $_maxAchievementLength caracteres por logro');
+      setState(
+        () => _error = 'Máximo $_maxAchievementLength caracteres por logro',
+      );
       return;
     }
     if (_achievements.length >= _maxAchievements) {
@@ -1339,7 +1324,10 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
   void _save() {
     final club = _clubCtrl.text.trim();
     if (club.length > _maxClubLength) {
-      setState(() => _error = 'El club no puede superar los $_maxClubLength caracteres');
+      setState(
+        () =>
+            _error = 'El club no puede superar los $_maxClubLength caracteres',
+      );
       return;
     }
     Navigator.of(context).pop(
@@ -1658,7 +1646,8 @@ class _BioSheetState extends State<_BioSheet> {
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              hintText: 'Juego los martes por la tarde cerca del centro. '
+              hintText:
+                  'Juego los martes por la tarde cerca del centro. '
                   'Busco a alguien constante más que competitivo.',
               errorText: _error,
               alignLabelWithHint: true,
@@ -1672,9 +1661,8 @@ class _BioSheetState extends State<_BioSheet> {
   }
 }
 
-
 class _AvailabilitySheet extends StatefulWidget {
-  final Set<AvailabilitySlot> initial;
+  final WeeklyAvailability initial;
   const _AvailabilitySheet({required this.initial});
 
   @override
@@ -1682,12 +1670,12 @@ class _AvailabilitySheet extends StatefulWidget {
 }
 
 class _AvailabilitySheetState extends State<_AvailabilitySheet> {
-  late Set<AvailabilitySlot> _selected;
+  late WeeklyAvailability _selected;
 
   @override
   void initState() {
     super.initState();
-    _selected = {...widget.initial};
+    _selected = widget.initial;
   }
 
   @override
@@ -1699,16 +1687,20 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Cuándo puedes jugar', style: context.textStyles.titleLarge),
+            Text(
+              'Cuándo sueles tener libre',
+              style: context.textStyles.titleLarge,
+            ),
             const SizedBox(height: 4),
             Text(
-              'Se usa para enseñarte antes a quien puede coincidir contigo. '
-              'Marca todo lo que te valga.',
+              'No tiene que ser exacto. Lo verá quien quiera proponerte algo, '
+              'para no elegir un hueco en el que nunca puedes. Arrastra para '
+              'marcar varias casillas.',
               style: context.textStyles.bodySmall,
             ),
             const SizedBox(height: 16),
             AvailabilityPicker(
-              selected: _selected,
+              value: _selected,
               onChanged: (v) => setState(() => _selected = v),
             ),
             const SizedBox(height: 8),

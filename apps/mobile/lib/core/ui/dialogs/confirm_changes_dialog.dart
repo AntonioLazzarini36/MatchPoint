@@ -108,7 +108,11 @@ class _ChangeRow extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.subdirectory_arrow_right, size: 16, color: colors.primary),
+            Icon(
+              Icons.subdirectory_arrow_right,
+              size: 16,
+              color: colors.primary,
+            ),
             const SizedBox(width: 4),
             Expanded(
               child: Text(

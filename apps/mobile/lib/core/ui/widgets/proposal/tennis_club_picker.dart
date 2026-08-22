@@ -260,7 +260,8 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
         // Overpass es el servicio público y gratuito de consultas de
         // OpenStreetMap: lo comparte todo el mundo y se satura a ratos.
         // Reintentar suele bastar, y si no, el mapa no depende de él.
-        detail: 'El servicio de mapas está saturado ahora mismo. Prueba otra '
+        detail:
+            'El servicio de mapas está saturado ahora mismo. Prueba otra '
             'vez, o marca el sitio a mano en el mapa.',
         actionLabel: 'Reintentar',
         onAction: _load,

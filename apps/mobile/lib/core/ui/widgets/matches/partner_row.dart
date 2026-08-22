@@ -150,9 +150,13 @@ class PartnerRow extends StatelessWidget {
         final veces = match.playedTogether == 1
             ? 'Habéis jugado una vez'
             : 'Habéis jugado ${match.playedTogether} veces';
-        return _state(context, Icons.verified_outlined, veces,
-            context.colors.primary,
-            bold: true);
+        return _state(
+          context,
+          Icons.verified_outlined,
+          veces,
+          context.colors.primary,
+          bold: true,
+        );
       }
       return Text(
         'Aún no habéis quedado',

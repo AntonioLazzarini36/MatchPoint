@@ -141,7 +141,9 @@ class ApiClient {
 
     // Mas margen que el resto: subir una foto por datos moviles lentos tarda.
     final res = await mapNetworkErrors(() async {
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
       return http.Response.fromStream(streamed);
     });
 

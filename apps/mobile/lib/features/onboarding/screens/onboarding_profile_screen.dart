@@ -72,10 +72,11 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   // quedaba claro qué habías elegido vos y qué no (feedback del usuario,
   // 2026-08-02) — mejor forzar una elección explícita, validada abajo.
   final Set<String> _selectedSports = {};
+
   /// null = no lo ha dicho. Antes esto era un String con la frase del
   /// "objetivo" que acababa guardada como bio; ahora es un campo propio.
   Intention? _intention;
-  Set<AvailabilitySlot> _availability = {};
+  WeeklyAvailability _availability = WeeklyAvailability.empty;
   double _radiusKm = 15;
   LocationResult? _selectedLocation;
 
@@ -311,7 +312,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // Mismo motivo que el género: null es una respuesta válida ("no lo
       // digo") y `UpdateProfileRequest` omitiría la clave.
       await controller.service.updateIntention(_intention);
-      await controller.service.updateAvailability(_availability.toList());
+      await controller.service.updateAvailability(_availability);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
       await controller.service.updatePreferences(
         ageMin: _ageRange.start.round(),
@@ -412,10 +413,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // Recorte a 16:9 con vista previa: la app enseña las fotos siempre
       // en horizontal, así que es mejor que el usuario vea el encuadre
       // final ahora que descubra después que le cortó la cabeza.
-      final cropped = await showPhotoCropPreview(
-        context,
-        originals: originals,
-      );
+      final cropped = await showPhotoCropPreview(context, originals: originals);
       if (cropped == null || cropped.isEmpty || !mounted) return;
       setState(() {
         for (final bytes in cropped) {
@@ -553,8 +551,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 onSkillLevelsChanged: (levels) =>
                     setState(() => _skillLevels = levels),
                 yearsPlaying: _yearsPlaying,
-                onYearsPlayingChanged: (v) =>
-                    setState(() => _yearsPlaying = v),
+                onYearsPlayingChanged: (v) => setState(() => _yearsPlaying = v),
                 club: _club,
                 onClubChanged: (v) => setState(() => _club = v),
                 avgPaceMinPerKm: _avgPaceMinPerKm,
@@ -564,16 +561,14 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 onAvgDistanceKmChanged: (v) =>
                     setState(() => _avgDistanceKm = v),
                 achievements: _achievements,
-                onAchievementsChanged: (v) =>
-                    setState(() => _achievements = v),
+                onAchievementsChanged: (v) => setState(() => _achievements = v),
                 onFieldSubmitted: _goNextOrFinish,
               ),
               OnboardingPreferencesStep(
                 intention: _intention,
                 onIntentionChanged: (v) => setState(() => _intention = v),
                 availability: _availability,
-                onAvailabilityChanged: (v) =>
-                    setState(() => _availability = v),
+                onAvailabilityChanged: (v) => setState(() => _availability = v),
                 ageRange: _ageRange,
                 onAgeRangeChanged: (v) => setState(() => _ageRange = v),
                 genderPreference: _genderPreference,
@@ -599,9 +594,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 displayName: displayNameCtrl.text.trim(),
                 age: _age,
                 city: _selectedLocation?.displayName,
-                bio: bioCtrl.text.trim().isEmpty
-                    ? null
-                    : bioCtrl.text.trim(),
+                bio: bioCtrl.text.trim().isEmpty ? null : bioCtrl.text.trim(),
                 sports: _sportsAsEnum(),
                 skillLevels: _skillLevels,
                 yearsPlaying: _yearsPlaying,

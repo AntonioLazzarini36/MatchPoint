@@ -146,7 +146,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo registrar el swipe, reintenta')),
+        const SnackBar(
+          content: Text('No se pudo registrar el swipe, reintenta'),
+        ),
       );
     }
   }
@@ -220,11 +222,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   /// generica: cuanta gente queda por mirar y en que deporte.
   String _subtitle(DiscoveryController controller) {
     final sports = controller.sports;
-    final deporte = sports.length == 1 ? sports.first.label.toLowerCase() : null;
+    final deporte = sports.length == 1
+        ? sports.first.label.toLowerCase()
+        : null;
     final count = controller.stack.length;
-    if (count == 0) return deporte == null ? 'Sin perfiles' : 'Sin perfiles de $deporte';
+    if (count == 0) {
+      return deporte == null ? 'Sin perfiles' : 'Sin perfiles de $deporte';
+    }
     final gente = count == 1 ? '1 perfil' : '$count perfiles';
-    return deporte == null ? '$gente cerca de ti' : '$gente de $deporte cerca de ti';
+    return deporte == null
+        ? '$gente cerca de ti'
+        : '$gente de $deporte cerca de ti';
   }
 
   Widget _swipeHint(BuildContext context) {

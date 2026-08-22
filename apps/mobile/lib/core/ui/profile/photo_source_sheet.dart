@@ -23,10 +23,7 @@ Future<List<XFile>> pickPhotos(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-            child: Text(
-              'Añadir foto',
-              style: context.textStyles.titleMedium,
-            ),
+            child: Text('Añadir foto', style: context.textStyles.titleMedium),
           ),
           ListTile(
             leading: Icon(

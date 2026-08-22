@@ -3,102 +3,205 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../../features/onboarding/models/availability.dart';
 
-/// Rejilla para elegir cuándo puedes jugar.
+/// Rejilla semanal de "lo que suelo tener libre".
 ///
-/// Dos columnas —entre semana y fin de semana— porque es como la gente piensa
-/// su semana, y tres filas de tramo. Seis casillas en total: el objetivo es
-/// que se rellene de un vistazo, no capturar un horario exacto. Un calendario
-/// daría más precisión y conseguiría que nadie lo tocara.
-class AvailabilityPicker extends StatelessWidget {
-  final Set<AvailabilitySlot> selected;
-  final ValueChanged<Set<AvailabilitySlot>> onChanged;
+/// Siete columnas por tres filas. No pretende ser un calendario ni la verdad
+/// de una semana concreta — es la referencia que verá quien vaya a proponerte
+/// algo, para no elegir un hueco en el que nunca puedes.
+///
+/// Se puede arrastrar el dedo para marcar varias casillas de una pasada: son
+/// veintiuna, y tocarlas una a una es justo la fricción que hace que nadie lo
+/// rellene.
+class AvailabilityPicker extends StatefulWidget {
+  final WeeklyAvailability value;
+  final ValueChanged<WeeklyAvailability> onChanged;
 
   const AvailabilityPicker({
     super.key,
-    required this.selected,
+    required this.value,
     required this.onChanged,
   });
 
-  void _toggle(AvailabilitySlot slot) {
-    final next = Set<AvailabilitySlot>.from(selected);
-    if (!next.remove(slot)) next.add(slot);
-    onChanged(next);
+  @override
+  State<AvailabilityPicker> createState() => _AvailabilityPickerState();
+}
+
+class _AvailabilityPickerState extends State<AvailabilityPicker> {
+  /// Al arrastrar, todas las casillas que se tocan toman el mismo estado que
+  /// la primera: si empezaste marcando, marcas; si empezaste desmarcando,
+  /// borras. Alternar cada una por separado haría del arrastre una lotería.
+  bool? _paintingOn;
+  final _painted = <int>{};
+
+  void _apply(int day, int band) {
+    final b = WeeklyAvailability.bit(day, band);
+    if (_painted.contains(b)) return;
+    _painted.add(b);
+
+    final on = _paintingOn ?? !widget.value.has(day, band);
+    _paintingOn ??= on;
+
+    final mask = on ? widget.value.mask | b : widget.value.mask & ~b;
+    if (mask != widget.value.mask) {
+      widget.onChanged(WeeklyAvailability(mask));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final weekday = AvailabilitySlot.values.where((s) => s.isWeekday).toList();
-    final weekend = AvailabilitySlot.values.where((s) => !s.isWeekday).toList();
-
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _column(context, 'Entre semana', weekday)),
-        const SizedBox(width: 12),
-        Expanded(child: _column(context, 'Fin de semana', weekend)),
-      ],
-    );
-  }
-
-  Widget _column(
-    BuildContext context,
-    String title,
-    List<AvailabilitySlot> slots,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          title,
-          style: context.textStyles.labelMedium?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
+        // Cabecera de días.
+        Row(
+          children: [
+            const SizedBox(width: 56),
+            for (final d in WeeklyAvailability.days)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    d,
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
-        const SizedBox(height: 8),
-        for (final slot in slots) ...[
-          _cell(context, slot),
-          const SizedBox(height: 8),
+        const SizedBox(height: 6),
+        for (var band = 0; band < 3; band++) ...[
+          Row(
+            children: [
+              SizedBox(
+                width: 56,
+                child: Text(
+                  WeeklyAvailability.bands[band],
+                  style: context.textStyles.labelSmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              for (var day = 0; day < 7; day++)
+                Expanded(child: _cell(context, day, band)),
+            ],
+          ),
+          const SizedBox(height: 4),
         ],
       ],
     );
   }
 
-  Widget _cell(BuildContext context, AvailabilitySlot slot) {
-    final on = selected.contains(slot);
-    return InkWell(
-      onTap: () => _toggle(slot),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: on ? context.colors.primary : context.colors.surface,
-          border: Border.all(
-            color: on ? context.colors.primary : context.colors.outlineVariant,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              on ? Icons.check_circle : Icons.circle_outlined,
-              size: 18,
-              color: on ? context.colors.onPrimary : context.colors.outline,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                slot.timeLabel,
-                style: context.textStyles.bodyMedium?.copyWith(
-                  color: on
-                      ? context.colors.onPrimary
-                      : context.colors.onSurface,
-                  fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-                ),
+  Widget _cell(BuildContext context, int day, int band) {
+    final on = widget.value.has(day, band);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) {
+        _paintingOn = null;
+        _painted.clear();
+        _apply(day, band);
+      },
+      onTapUp: (_) => _endPaint(),
+      onTapCancel: _endPaint,
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: on
+                  ? context.colors.primary
+                  : context.colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: on
+                    ? context.colors.primary
+                    : context.colors.outlineVariant,
               ),
             ),
-          ],
+            child: on
+                ? Icon(Icons.check, size: 14, color: context.colors.onPrimary)
+                : null,
+          ),
         ),
       ),
+    );
+  }
+
+  void _endPaint() {
+    _paintingOn = null;
+    _painted.clear();
+  }
+}
+
+/// La rejilla en modo lectura: la de otra persona, sin poder tocarla.
+///
+/// Se enseña al proponer una quedada — que es el único momento en que este
+/// dato sirve para algo.
+class AvailabilityView extends StatelessWidget {
+  final WeeklyAvailability value;
+
+  const AvailabilityView({super.key, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const SizedBox(width: 56),
+            for (final d in WeeklyAvailability.days)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    d,
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        for (var band = 0; band < 3; band++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 56,
+                  child: Text(
+                    WeeklyAvailability.bands[band],
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                for (var day = 0; day < 7; day++)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: AspectRatio(
+                        aspectRatio: 1.6,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: value.has(day, band)
+                                ? context.colors.primary
+                                : context.colors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

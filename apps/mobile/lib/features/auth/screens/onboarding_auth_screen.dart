@@ -181,8 +181,9 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                   controller: passCtrl,
                   focusNode: passFocus,
                   obscureText: true,
-                  textInputAction:
-                      isLogin ? TextInputAction.done : TextInputAction.next,
+                  textInputAction: isLogin
+                      ? TextInputAction.done
+                      : TextInputAction.next,
                   onSubmitted: (_) {
                     if (isLogin) {
                       _submit();
@@ -190,9 +191,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       confirmPassFocus.requestFocus();
                     }
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Contraseña',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Contraseña'),
                 ),
                 if (!isLogin) ...[
                   const SizedBox(height: 12),

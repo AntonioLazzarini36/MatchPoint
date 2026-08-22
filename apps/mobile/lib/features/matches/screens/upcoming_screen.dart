@@ -34,6 +34,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   final _service = ProposalService(Api.client);
 
   List<UpcomingSession> _sessions = const [];
+
   /// Quedadas ya pasadas que esperan que cuentes que ocurrio. Van arriba del
   /// todo: es lo unico de esta pantalla que se pierde si no se contesta
   /// pronto — nadie recuerda un partido de hace tres semanas.
@@ -81,9 +82,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   /// tenía poco sentido. Desde la ficha se puede saltar al chat.
   Future<void> _openDetail(UpcomingSession session) async {
     await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => SessionDetailScreen(session: session),
-      ),
+      MaterialPageRoute(builder: (_) => SessionDetailScreen(session: session)),
     );
     // Puede haberse aceptado, rechazado o cancelado desde dentro.
     if (mounted) {
@@ -160,8 +159,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        if (_toConfirm.isNotEmpty)
-          ..._confirmSection(context),
+        if (_toConfirm.isNotEmpty) ..._confirmSection(context),
         if (needsAnswer.isNotEmpty)
           ..._section(context, 'Esperan tu respuesta', needsAnswer),
         if (confirmed.isNotEmpty)
@@ -357,6 +355,7 @@ class _ConfirmCard extends StatefulWidget {
 
 class _ConfirmCardState extends State<_ConfirmCard> {
   bool _busy = false;
+
   /// null = todavia no ha dicho si jugaron. Al decir que si, la tarjeta
   /// pregunta el resto en el sitio, sin abrir otra pantalla: son dos toques
   /// y sacarlos a un formulario aparte haria que nadie los diera.
@@ -451,8 +450,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                       ChoiceChip(
                         label: Text(option.$2),
                         selected: _outcome == option.$1,
-                        onSelected: (_) =>
-                            setState(() => _outcome = option.$1),
+                        onSelected: (_) => setState(() => _outcome = option.$1),
                       ),
                   ],
                 ),

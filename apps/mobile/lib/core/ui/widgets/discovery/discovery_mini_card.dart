@@ -58,109 +58,113 @@ class DiscoveryMiniCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-              if (user.mainPhoto != null)
-                Image.network(
-                  user.mainPhoto!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _photoFallback(context),
-                )
-              else
-                _photoFallback(context),
+                    if (user.mainPhoto != null)
+                      Image.network(
+                        user.mainPhoto!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _photoFallback(context),
+                      )
+                    else
+                      _photoFallback(context),
 
-              // Marca de agua del deporte: da identidad a la tarjeta y
-              // dice de un vistazo si esta persona es de tenis o de correr
-              // sin gastar sitio en texto.
-              Positioned(
-                right: -18,
-                top: -10,
-                child: Icon(
-                  sportIcon(_primarySport),
-                  size: 120,
-                  color: Colors.white.withValues(alpha: 0.16),
-                ),
-              ),
-
-              // Degradado sólo abajo: el texto tiene que leerse sobre
-              // cualquier foto, pero tapar la foto entera la desperdicia.
-              //
-              // Teñido del color del deporte, no negro puro: es lo que hace
-              // que se distinga de un vistazo si esa tarjeta acabará en un
-              // match de tenis o de correr, sin tener que leer la píldora.
-              // Muy sutil a propósito — lo que tiene que verse es la foto.
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0),
-                        Color.lerp(
-                          Colors.black,
-                          accent,
-                          0.35,
-                        )!.withValues(alpha: 0.82),
-                      ],
-                      stops: const [0.35, 1.0],
+                    // Marca de agua del deporte: da identidad a la tarjeta y
+                    // dice de un vistazo si esta persona es de tenis o de correr
+                    // sin gastar sitio en texto.
+                    Positioned(
+                      right: -18,
+                      top: -10,
+                      child: Icon(
+                        sportIcon(_primarySport),
+                        size: 120,
+                        color: Colors.white.withValues(alpha: 0.16),
+                      ),
                     ),
-                  ),
-                ),
-              ),
 
-              if (highlighted)
-                Positioned(top: 10, left: 10, child: _highlightBadge(context)),
+                    // Degradado sólo abajo: el texto tiene que leerse sobre
+                    // cualquier foto, pero tapar la foto entera la desperdicia.
+                    //
+                    // Teñido del color del deporte, no negro puro: es lo que hace
+                    // que se distinga de un vistazo si esa tarjeta acabará en un
+                    // match de tenis o de correr, sin tener que leer la píldora.
+                    // Muy sutil a propósito — lo que tiene que verse es la foto.
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0),
+                              Color.lerp(
+                                Colors.black,
+                                accent,
+                                0.35,
+                              )!.withValues(alpha: 0.82),
+                            ],
+                            stops: const [0.35, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
 
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 10,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${user.displayName}, ${user.age}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textStyles.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        shadows: const [
-                          Shadow(blurRadius: 8, color: Colors.black54),
+                    if (highlighted)
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: _highlightBadge(context),
+                      ),
+
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 10,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${user.displayName}, ${user.age}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textStyles.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              shadows: const [
+                                Shadow(blurRadius: 8, color: Colors.black54),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final sport in user.sports.take(2))
+                                _pill(
+                                  context,
+                                  icon: sportIcon(sport),
+                                  label: user.skillLevels[sport] == null
+                                      ? sport.label
+                                      : '${sport.label} · ${user.skillLevels[sport]!.label}',
+                                  background: sportAccent(sport),
+                                ),
+                              if (user.distanceKm != null)
+                                _pill(
+                                  context,
+                                  icon: Icons.near_me_outlined,
+                                  label: distanceLabel(user.distanceKm!),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final sport in user.sports.take(2))
-                          _pill(
-                            context,
-                            icon: sportIcon(sport),
-                            label: user.skillLevels[sport] == null
-                                ? sport.label
-                                : '${sport.label} · ${user.skillLevels[sport]!.label}',
-                            background: sportAccent(sport),
-                          ),
-                        if (user.distanceKm != null)
-                          _pill(
-                            context,
-                            icon: Icons.near_me_outlined,
-                            label: distanceLabel(user.distanceKm!),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
 
-              // Borde por encima de todo, para que se vea también sobre la
-              // parte clara de la foto. Grueso y en color de estado cuando
-              // la tarjeta está destacada; fino y del color del deporte
-              // cuando no — así el deporte se lee siempre, pero nunca
-              // compite con "te ha dado like".
+                    // Borde por encima de todo, para que se vea también sobre la
+                    // parte clara de la foto. Grueso y en color de estado cuando
+                    // la tarjeta está destacada; fino y del color del deporte
+                    // cuando no — así el deporte se lee siempre, pero nunca
+                    // compite con "te ha dado like".
                   ],
                 ),
               ),
@@ -187,14 +191,6 @@ class DiscoveryMiniCard extends StatelessWidget {
       items.add(('${user.yearsPlaying} años', 'jugando'));
     } else if (user.avgPaceMinPerKm != null) {
       items.add((formatPaceMinPerKm(user.avgPaceMinPerKm!), 'min/km'));
-    }
-    // Coincidir en horario es lo que decide si podéis llegar a jugar, así
-    // que va antes que la intención cuando existe.
-    if (user.sharedSlots > 0) {
-      items.add((
-        user.sharedSlots == 1 ? '1 franja' : '${user.sharedSlots} franjas',
-        'en común',
-      ));
     }
     if (user.intention != null) {
       items.add((user.intention!.label, 'a qué viene'));

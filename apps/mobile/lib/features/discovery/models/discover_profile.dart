@@ -31,10 +31,8 @@ class DiscoverProfile {
   /// El backend nunca manda las coordenadas del otro, sólo esta cifra.
   final double? distanceKm;
 
-  /// Cuándo puede jugar, y **cuántas franjas compartís**. Lo segundo es
-  /// relativo a quien mira, como `distanceKm`: fuera de Discover llega a 0.
-  final List<AvailabilitySlot> availability;
-  final int sharedSlots;
+  /// Horario semanal habitual. Se enseña al proponer, no filtra nada.
+  final WeeklyAvailability availability;
 
   /// Su nivel declarado en el deporte que estás mirando coincide con el
   /// tuyo. Lo calcula el backend (ya lo necesita para ordenar el feed), así
@@ -60,8 +58,7 @@ class DiscoverProfile {
     this.avgDistanceKm,
     this.skillLevels = const {},
     this.distanceKm,
-    this.availability = const [],
-    this.sharedSlots = 0,
+    this.availability = WeeklyAvailability.empty,
     this.matchesYourLevel = false,
     this.likesYou = false,
   });
@@ -83,8 +80,7 @@ class DiscoverProfile {
       city: p['city']?.toString(),
       bio: p['bio']?.toString(),
       intention: IntentionApi.fromApi(p['intention']),
-      availability: AvailabilitySlotApi.listFromJson(p['availability']),
-      sharedSlots: (p['sharedSlots'] as num?)?.toInt() ?? 0,
+      availability: WeeklyAvailability.fromJson(p['availability']),
       photos: (p['photos'] as List<dynamic>? ?? const [])
           .map((e) => e.toString())
           .toList(),

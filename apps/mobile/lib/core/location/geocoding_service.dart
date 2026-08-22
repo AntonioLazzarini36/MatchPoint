@@ -59,6 +59,7 @@ class GeocodingService {
         .whereType<LocationResult>()
         .toList();
   }
+
   /// De coordenadas a una direccion legible ("Calle Rio Guadalhorce,
   /// Benalmadena"). Se usa para poner nombre a los sitios que en
   /// OpenStreetMap no lo tienen — mandarle a alguien "Pistas de tenis" a

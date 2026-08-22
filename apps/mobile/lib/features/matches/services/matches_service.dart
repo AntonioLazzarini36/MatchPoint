@@ -11,8 +11,7 @@ class MatchesService {
   Future<List<MatchItem>> fetchMatches() async {
     final res = await api.get('/matches', auth: true);
 
-    if (kDebugMode) {
-    }
+    if (kDebugMode) {}
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(res, fallback: 'No se han podido cargar tus compañeros');

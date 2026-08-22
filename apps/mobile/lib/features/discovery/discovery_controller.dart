@@ -25,6 +25,7 @@ class DiscoveryController extends ChangeNotifier {
     : sports = sports.isEmpty ? const [Sport.tennis] : sports;
 
   bool loading = false;
+
   /// El error entero, no su texto: la vista necesita el tipo para
   /// distinguir un problema de red de uno del servidor.
   Object? error;

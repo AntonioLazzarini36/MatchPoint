@@ -125,7 +125,8 @@ class PushService {
   /// móvil recibiría las notificaciones de la cuenta anterior.
   static Future<void> unregisterCurrentDevice() async {
     if (!_supported || !_initialised) return;
-    final token = _registeredToken ?? await FirebaseMessaging.instance.getToken();
+    final token =
+        _registeredToken ?? await FirebaseMessaging.instance.getToken();
     if (token == null) return;
 
     try {

@@ -96,16 +96,19 @@ class OnboardingLocationStep extends StatelessWidget {
                                 // completo del mapa cada vez que cambian
                                 // las coordenadas, así vuelve a centrar.
                                 child: FlutterMap(
-                                  key: ValueKey('${loc.latitude}_${loc.longitude}'),
+                                  key: ValueKey(
+                                    '${loc.latitude}_${loc.longitude}',
+                                  ),
                                   options: MapOptions(
                                     initialCenter: LatLng(
                                       loc.latitude,
                                       loc.longitude,
                                     ),
                                     initialZoom: 12,
-                                    interactionOptions: const InteractionOptions(
-                                      flags: InteractiveFlag.none,
-                                    ),
+                                    interactionOptions:
+                                        const InteractionOptions(
+                                          flags: InteractiveFlag.none,
+                                        ),
                                   ),
                                   children: [
                                     TileLayer(

@@ -109,9 +109,6 @@ class NavigatorShellState extends State<NavigatorShell> {
   /// Sin contador no se dibuja nada: un badge vacío es ruido visual.
   Widget _badged(Widget icon, int count) {
     if (count <= 0) return icon;
-    return Badge(
-      label: Text(count > 99 ? '99+' : '$count'),
-      child: icon,
-    );
+    return Badge(label: Text(count > 99 ? '99+' : '$count'), child: icon);
   }
 }

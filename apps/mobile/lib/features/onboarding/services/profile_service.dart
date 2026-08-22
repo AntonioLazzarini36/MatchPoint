@@ -83,15 +83,18 @@ class ProfileService {
 
   /// Cuándo puede jugar. Mandar la lista la reemplaza entera, y una lista
   /// vacía borra la disponibilidad — mismo comportamiento que `sports`.
-  Future<void> updateAvailability(List<AvailabilitySlot> slots) async {
+  Future<void> updateAvailability(WeeklyAvailability value) async {
     final res = await api.patch(
       '/me/profile',
-      body: {'availability': slots.map((s) => s.apiValue).toList()},
+      body: {'availability': value.mask},
       auth: true,
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido guardar tu disponibilidad');
+      throw apiError(
+        res,
+        fallback: 'No se ha podido guardar tu disponibilidad',
+      );
     }
   }
 
@@ -112,11 +115,7 @@ class ProfileService {
   /// La descripción libre del perfil. Antes no se podía editar en ningún
   /// sitio: se rellenaba sola con la frase del "objetivo" del onboarding.
   Future<void> updateBio(String bio) async {
-    final res = await api.patch(
-      '/me/profile',
-      body: {'bio': bio},
-      auth: true,
-    );
+    final res = await api.patch('/me/profile', body: {'bio': bio}, auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(res, fallback: 'No se ha podido guardar la descripción');
@@ -184,7 +183,10 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se han podido guardar tus preferencias');
+      throw apiError(
+        res,
+        fallback: 'No se han podido guardar tus preferencias',
+      );
     }
   }
 
@@ -212,7 +214,10 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se han podido guardar tus preferencias');
+      throw apiError(
+        res,
+        fallback: 'No se han podido guardar tus preferencias',
+      );
     }
   }
 
@@ -283,11 +288,7 @@ class ProfileService {
   }
 
   Future<Profile> deletePhoto(String url) async {
-    final res = await api.delete(
-      '/me/photos',
-      body: {'url': url},
-      auth: true,
-    );
+    final res = await api.delete('/me/photos', body: {'url': url}, auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(res, fallback: 'No se ha podido borrar la foto');

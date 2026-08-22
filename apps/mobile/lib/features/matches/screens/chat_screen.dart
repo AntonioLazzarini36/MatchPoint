@@ -21,6 +21,7 @@ import '../../../core/ui/widgets/proposal/proposal_card.dart';
 import '../models/proposal.dart';
 import '../services/proposal_service.dart';
 import '../../discovery/models/sport.dart';
+import '../../onboarding/models/availability.dart';
 
 enum _ChatMenuAction { courts, unmatch, report }
 
@@ -59,6 +60,10 @@ class _ChatScreenState extends State<ChatScreen> {
   /// no han llegado.
   List<Sport>? _mySports;
   List<Sport>? _theirSports;
+
+  /// El horario semanal habitual de la otra persona, para enseñarlo al
+  /// proponer. Llega con el perfil; hasta entonces se propone sin el.
+  WeeklyAvailability? _theirAvailability;
   Timer? _pollTimer;
 
   /// La propuesta más reciente del match, fijada arriba del chat. null
@@ -124,9 +129,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _proposal = updated);
       if (updated.status == ProposalStatus.accepted) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('¡Confirmado! Ya está en tus quedadas'),
-          ),
+          const SnackBar(content: Text('¡Confirmado! Ya está en tus quedadas')),
         );
       }
     } catch (e) {
@@ -144,6 +147,10 @@ class _ChatScreenState extends State<ChatScreen> {
       context,
       matchId: widget.matchId,
       sport: sport,
+      // Puede ser null si el perfil aun no ha llegado: entonces los pasos de
+      // dia y hora salen como siempre, sin referencia de horario.
+      otherAvailability: _theirAvailability,
+      otherName: widget.otherName,
     );
     if (created && mounted) await _loadProposal();
   }
@@ -175,6 +182,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _mySports = me.profile?.sports ?? const [];
         _theirSports = other.sports;
+        _theirAvailability = other.availability;
       });
     } catch (_) {
       // Se queda con el deporte del match, que es lo que había antes.
@@ -184,8 +192,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isNearBottom() {
     if (!scroll.hasClients) return true;
     const threshold = 120.0;
-    return scroll.position.maxScrollExtent - scroll.position.pixels <
-        threshold;
+    return scroll.position.maxScrollExtent - scroll.position.pixels < threshold;
   }
 
   /// A diferencia de [_report], unmatch sí cierra el chat, devolviendo
@@ -253,77 +260,77 @@ class _ChatScreenState extends State<ChatScreen> {
         return Scaffold(
           appBar: AppBar(
             title: InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () {
-              context.pushNamed(
-                AppRoutes.userProfileName,
-                pathParameters: {'userId': widget.otherUserId},
-              );
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: context.colors.primaryContainer,
-                  backgroundImage: widget.otherPhotoUrl == null
-                      ? null
-                      : NetworkImage(widget.otherPhotoUrl!),
-                  child: widget.otherPhotoUrl == null
-                      ? Icon(Icons.person, color: context.colors.primary)
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Text(widget.otherName, style: context.textStyles.titleMedium),
-              ],
-            ),
-          ),
-          centerTitle: true,
-          actions: [
-            // Un botón por deporte que podáis jugar juntos. Con uno solo
-            // en común es exactamente lo de antes; con los dos, aparecen
-            // los dos iconos en vez de que el tenis se coma al otro.
-            for (final sport in _sharedSports)
-              IconButton(
-                tooltip: sport == Sport.running
-                    ? 'Proponer salir a correr'
-                    : 'Proponer un partido',
-                icon: Icon(sportIcon(sport)),
-                onPressed: _busy ? null : () => _propose(sport),
-              ),
-            PopupMenuButton<_ChatMenuAction>(
-              enabled: !_busy,
-              onSelected: (action) {
-                switch (action) {
-                  case _ChatMenuAction.courts:
-                    context.push(AppRoutes.courtsMap);
-                  case _ChatMenuAction.unmatch:
-                    _unmatch();
-                  case _ChatMenuAction.report:
-                    _report();
-                }
+              borderRadius: BorderRadius.circular(999),
+              onTap: () {
+                context.pushNamed(
+                  AppRoutes.userProfileName,
+                  pathParameters: {'userId': widget.otherUserId},
+                );
               },
-              itemBuilder: (context) => [
-                // El mapa de clubes vivia en la AppBar de Matches, donde
-                // aparecia con cada conversacion aunque fuera de correr.
-                // Aqui sale solo en un chat de tenis, que es cuando mirar
-                // pistas cerca viene a cuento.
-                if (widget.sport == Sport.tennis)
-                  const PopupMenuItem(
-                    value: _ChatMenuAction.courts,
-                    child: Text('Ver pistas cerca'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: context.colors.primaryContainer,
+                    backgroundImage: widget.otherPhotoUrl == null
+                        ? null
+                        : NetworkImage(widget.otherPhotoUrl!),
+                    child: widget.otherPhotoUrl == null
+                        ? Icon(Icons.person, color: context.colors.primary)
+                        : null,
                   ),
-                const PopupMenuItem(
-                  value: _ChatMenuAction.unmatch,
-                  child: Text('Deshacer match'),
-                ),
-                const PopupMenuItem(
-                  value: _ChatMenuAction.report,
-                  child: Text('Reportar'),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Text(widget.otherName, style: context.textStyles.titleMedium),
+                ],
+              ),
             ),
-          ],
+            centerTitle: true,
+            actions: [
+              // Un botón por deporte que podáis jugar juntos. Con uno solo
+              // en común es exactamente lo de antes; con los dos, aparecen
+              // los dos iconos en vez de que el tenis se coma al otro.
+              for (final sport in _sharedSports)
+                IconButton(
+                  tooltip: sport == Sport.running
+                      ? 'Proponer salir a correr'
+                      : 'Proponer un partido',
+                  icon: Icon(sportIcon(sport)),
+                  onPressed: _busy ? null : () => _propose(sport),
+                ),
+              PopupMenuButton<_ChatMenuAction>(
+                enabled: !_busy,
+                onSelected: (action) {
+                  switch (action) {
+                    case _ChatMenuAction.courts:
+                      context.push(AppRoutes.courtsMap);
+                    case _ChatMenuAction.unmatch:
+                      _unmatch();
+                    case _ChatMenuAction.report:
+                      _report();
+                  }
+                },
+                itemBuilder: (context) => [
+                  // El mapa de clubes vivia en la AppBar de Matches, donde
+                  // aparecia con cada conversacion aunque fuera de correr.
+                  // Aqui sale solo en un chat de tenis, que es cuando mirar
+                  // pistas cerca viene a cuento.
+                  if (widget.sport == Sport.tennis)
+                    const PopupMenuItem(
+                      value: _ChatMenuAction.courts,
+                      child: Text('Ver pistas cerca'),
+                    ),
+                  const PopupMenuItem(
+                    value: _ChatMenuAction.unmatch,
+                    child: Text('Deshacer match'),
+                  ),
+                  const PopupMenuItem(
+                    value: _ChatMenuAction.report,
+                    child: Text('Reportar'),
+                  ),
+                ],
+              ),
+            ],
           ),
           body: Column(
             children: [

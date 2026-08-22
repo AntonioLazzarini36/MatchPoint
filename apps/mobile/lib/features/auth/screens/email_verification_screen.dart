@@ -79,9 +79,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     try {
       await _service.sendVerificationCode();
       if (!mounted) return;
-      setState(() => _info = initial
-          ? 'Te hemos enviado un código'
-          : 'Código reenviado');
+      setState(
+        () =>
+            _info = initial ? 'Te hemos enviado un código' : 'Código reenviado',
+      );
       _startCooldown();
     } catch (e) {
       if (!mounted) return;
