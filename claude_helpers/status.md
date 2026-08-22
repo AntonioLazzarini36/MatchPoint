@@ -1292,6 +1292,27 @@ punto 4 queda fuera, deliberadamente, por lo
 dicho arriba — y dentro de 1-3, el rating calculado (parte larga del
 punto 1) también queda fuera, ver el punto en sí.
 
+- **Notificaciones push, cierre del bucle y pasada de robustez (2026-08-22)** —
+  ver `nextsteps.md` para el estado punto por punto. Lo esencial:
+  - **Push funcionando de verdad**, probado con el móvil real y **la app
+    cerrada**: llegaron las tres (match, mensaje y propuesta). Es lo que nunca
+    habia funcionado.
+  - **El bucle del producto se cierra**: tras una quedada pasada se pregunta
+    si se jugó, el resultado y si repetirías (`SessionFeedback`). Esto es lo
+    que desbloquea el rating calculado — dejaba de estar bloqueado por el
+    algoritmo y pasaba a estarlo por no tener ni un partido registrado.
+  - **Cola de moderación** (`/admin/reports`, clave por cabecera). Los
+    reportes llevaban desde siempre cayendo en una tabla que nadie leía.
+  - **Rate limiting por usuario** en swipes, mensajes, fotos y reportes.
+  - **"A qué vienes" separado de la descripción**: la frase del onboarding se
+    guardaba *como la bio*, así que sólo existían tres descripciones en toda
+    la app. La migración las rescató y vació esas bios.
+  - **Sin conexión** tratado como algo esperado, con timeout en el cliente.
+  - **10 tests de integración** contra base real, uno por regla ya rota.
+    Comprobados reintroduciendo el bug original.
+  - Identidad de la app: `com.matchpoint.app`, firma de release propia,
+    nombre, icono derivado del logo del usuario, y bloqueo en vertical.
+
 ## Notas del entorno local
 
 - **La API desplegada está en `https://matchpoint-production-bfd0.up.railway.app`.**

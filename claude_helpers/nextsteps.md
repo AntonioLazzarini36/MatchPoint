@@ -54,7 +54,7 @@ uno de los puntos que Play comprueba.
 ### 6. Política de contenido generado por usuarios
 Play exige tres cosas para apps con contenido de usuarios:
 - **Reportar** → ✅ existe (`POST /users/:id/report`)
-- **Moderar** → ❌ nadie revisa esos reportes (ver punto 7)
+- **Moderar** → ✅ cola de moderación (ver punto 7)
 - **Bloquear** → ⚠️ se quitó Block a propósito (unmatch + report se
   consideraron suficientes). El unmatch corta el contacto, así que
   probablemente cumple, pero conviene tenerlo claro antes de que lo
@@ -64,15 +64,15 @@ Play exige tres cosas para apps con contenido de usuarios:
 
 ## 🟠 Lo que rompería la experiencia con usuarios reales
 
-### 7. Los reportes no los revisa nadie
-`POST /users/:id/report` escribe una fila en una tabla que **nunca se
-consulta**. Con usuarios de verdad eso deja de ser deuda técnica y pasa a ser
-un problema legal y humano.
+### 7. ~~Los reportes no los revisa nadie~~ ✅ hecho (2026-08-22)
+`GET /admin/reports` da la cola (sin revisar, lo más viejo primero) con ambas
+partes y cuántas veces ha sido denunciada esa persona en total.
+`PATCH /admin/reports/:id` la cierra dejando escrito qué se decidió.
+Protegido por `ADMIN_API_KEY` en la cabecera `X-Admin-Key`, ya puesta en
+Railway y verificada contra producción. Responde 404 y no 401 si la clave
+falla, para no confirmar que la ruta existe.
 
-Lo mínimo: una consulta SQL documentada. Lo razonable: un endpoint de
-administración protegido.
-
-### 8. Notificaciones push — construidas, a falta de **un paso tuyo**
+### 8. ~~Notificaciones push~~ ✅ HECHO Y PROBADO EN PRODUCCIÓN (2026-08-22)
 
 Hecho y desplegado (2026-08-22): proyecto de Firebase, tabla `DeviceToken`,
 `POST/DELETE /me/devices`, envío por FCM HTTP v1 desde el backend, y avisos
@@ -80,26 +80,14 @@ al recibir mensaje, propuesta, respuesta a una propuesta y match nuevo. En el
 móvil: SDK, permiso de Android 13+ (comprobado concedido en el Xiaomi) y
 registro del token al arrancar y al iniciar sesión.
 
-🔴 **PENDIENTE — pegar la variable en Railway.** Es lo único que queda entre
-"todo montado" y "suena el móvil":
+Verificado de punta a punta con el móvil real y **la app cerrada**: like →
+match, mensaje, y propuesta de quedada. Las tres notificaciones llegaron.
+`FIREBASE_SERVICE_ACCOUNT_JSON` y `ADMIN_API_KEY` están puestas en Railway.
 
-1. Railway → el servicio → pestaña **Variables** → *New Variable*.
-2. Nombre: `FIREBASE_SERVICE_ACCOUNT_JSON`.
-3. Valor: el base64 de una sola línea que está en `services/api-rust/.env`
-   (ignorado por git). El original está fuera del repo, en la carpeta `keys`
-   del usuario, junto al keystore.
-4. Sin comillas. **En base64 y en una línea a propósito**: el JSON lleva la
-   clave privada con saltos de línea reales y el panel de Railway la corta en
-   el primero, dejando la variable a medias — es el fallo más común montando
-   esto.
-
-Cómo saber si está bien, en el log de Railway al arrancar:
-`push: usando FCM, proyecto matchpoint-7112f` (bien) frente a
-`push: sin FIREBASE_SERVICE_ACCOUNT_JSON` (todavía no).
-
-Y para probarlo hacen falta **dos cuentas**: el aviso va siempre al *otro*,
-nunca a quien realiza la acción, así que con una sola no hay forma de
-dispararlo.
+⚠️ **Pendiente tuyo:** rotar la clave de Firebase — se envió por chat a
+petición tuya para poder configurarla desde el móvil. Firebase console →
+Configuración del proyecto → Cuentas de servicio → borrar esa clave y generar
+otra.
 
 Queda además un detalle de acabado: el icono de la barra de estado saldrá
 como silueta blanca hasta que se genere uno monocromo (mismo
@@ -110,18 +98,24 @@ como silueta blanca hasta que se genere uno monocromo (mismo
 esto apagado, cualquiera se registra con el email de otra persona. Ver la
 sección de dominio abajo: se enciende sin publicar versión nueva.
 
-### 10. Rate limiting sólo en los endpoints de auth
-`/swipes`, `POST /me/photos`, `POST /chats/:id/messages` y
-`POST /users/:id/report` no tienen ningún límite. Un usuario autenticado
-puede llenar el disco de fotos o spamear mensajes sin freno.
+### 10. ~~Rate limiting sólo en los endpoints de auth~~ ✅ hecho (2026-08-22)
+Swipes 60/min, mensajes 30/min, fotos 20/hora, reportes 10/hora — **por
+usuario**, no por IP (media ciudad comparte IP tras un CGNAT, y cambiar de IP
+no le cuesta nada a quien abusa). Verificado en producción: corta en la
+petición 61.
 
-Además, el limitador guarda las IPs **en memoria del proceso**: con varias
-instancias el límite efectivo se multiplica por N. Con una, correcto.
+⚠️ Sigue en pie el aviso: el limitador cuenta **en memoria del proceso**, así
+que con varias instancias el límite efectivo se multiplica por N. Con una,
+correcto.
 
-### 11. Cobertura de tests casi nula
-10 tests en el backend y 1 widget test de plantilla en el móvil. Para algo
-que se actualiza y se publica, es poco. La rama `test/full-app-suite` está
-creada y vacía.
+### 11. Cobertura de tests — mejorada (2026-08-22), no terminada
+Backend: 18 unitarios + **10 de integración contra base real**, uno por cada
+regla que ya se rompió (match entre deportes, filtro de Discover, reglas de
+propuestas). Comprobado que sirven reintroduciendo el bug original: falla
+justo el test que lo cubre. Móvil: de 1 (plantilla) a 7.
+
+Lo que sigue sin cubrirse: auth y el ciclo de fotos en el backend, y
+prácticamente toda la UI del móvil.
 
 ---
 
@@ -133,12 +127,27 @@ Quitados. Vuelven cuando el login social funcione de verdad.
 ### 13. ~~Pantalla fantasma~~ ✅ hecho (2026-08-21)
 `/partner` borrada entera: ruta, import y archivo.
 
-### 14. Sin manejo de "no hay conexión"
-Cada pantalla falla a su manera cuando se cae la red. Falta un estado común.
+### 14. ~~Sin manejo de "no hay conexión"~~ ✅ hecho (2026-08-22)
+`ApiClient` convierte los fallos de transporte en tipos propios con mensaje
+presentable y añade timeout (20 s; 60 s al subir fotos). `ErrorStateView`
+compartida, con texto distinto según sea red o servidor. Aplicada en
+Quedadas, Matches y Discovery.
 
 ### 15. El chat sondea cada 4 segundos
-Se come batería y datos. Con WebSockets sería una fracción, y además llegaría
-al instante.
+Se come batería y datos. Ahora que las notificaciones llegan solas, ese ritmo
+ya no se justifica: lo barato es subir el intervalo; lo bueno, WebSockets.
+
+### 16. El bucle del producto ya se cierra ✅ (2026-08-22)
+Tras una quedada pasada se pregunta si se jugó, el resultado (sólo tenis) y
+si repetiría — tabla `SessionFeedback`, una fila por persona y quedada.
+**Esto es lo que desbloquea el rating calculado**: ya hay partidos que
+puntuar. Elo/Glicko deja de estar bloqueado por falta de datos y pasa a ser
+sólo una decisión de algoritmo.
+
+### 17. El icono de la barra de notificaciones sale como silueta blanca
+Android exige un icono monocromo ahí y, al no dárselo, aplasta el del
+lanzador. Se genera con el mismo `tool/gen_app_icon.dart` y se declara en el
+manifest.
 
 ---
 
