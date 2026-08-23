@@ -8,6 +8,7 @@ import '../auth_controller.dart';
 import '../models/register_request.dart';
 import '../services/auth_service.dart';
 import '../../onboarding/services/profile_service.dart';
+import '../../../core/network/connection_error.dart';
 
 class OnboardingAuthScreen extends StatefulWidget {
   const OnboardingAuthScreen({super.key});
@@ -94,7 +95,9 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
         extra: RegisterRequest(email: email, password: pass),
       );
     } catch (e) {
-      controller.setError('No se pudo comprobar el email: $e');
+      controller.setError(
+        friendlyError(e, fallback: 'No se ha podido comprobar el email.'),
+      );
     } finally {
       if (mounted) setState(() => _checkingEmail = false);
     }

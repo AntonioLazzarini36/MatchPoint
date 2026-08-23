@@ -173,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         bioTitle: 'Sobre mi',
         showStats: true,
         showBottomButton: true,
-        bottomButtonText: 'Ver mi perfil publico',
+        bottomButtonText: 'Ver mi perfil público',
         onBottomButton: myUserId == null ? null : _viewPublicProfile,
         onSettings: _openSettings,
         onEdit: _openPhotoManager,

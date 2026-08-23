@@ -9,7 +9,7 @@ class ProfileHeaderData {
   final String? city;
   final String? bio;
 
-  /// A que viene. Se ensena como etiqueta junto a los deportes, no dentro
+  /// A qué viene. Se ensena como etiqueta junto a los deportes, no dentro
   /// de la bio: es un dato estructurado y meterlo en el texto libre es
   /// justo lo que hacia que todos los perfiles se leyeran igual.
   final Intention? intention;

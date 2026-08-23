@@ -6,6 +6,7 @@ import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../../discovery/models/discover_profile.dart';
+import '../../../core/network/connection_error.dart';
 
 class OtherProfileScreen extends StatefulWidget {
   final String userId;
@@ -43,7 +44,11 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo reportar: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(e, fallback: 'No se ha podido enviar el reporte.'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);

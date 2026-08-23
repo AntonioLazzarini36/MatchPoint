@@ -51,7 +51,7 @@ class AuthService {
   Future<void> sendVerificationCode() async {
     final res = await api.post('/auth/send-verification', auth: true);
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(_message(res.body, 'No se pudo enviar el código'));
+      throw apiError(res, fallback: 'No se ha podido enviar el código');
     }
   }
 
@@ -64,23 +64,12 @@ class AuthService {
       auth: true,
     );
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(_message(res.body, 'No se pudo verificar el email'));
+      throw apiError(res, fallback: 'No se ha podido verificar el email');
     }
   }
 
   /// El backend manda `{"message": "..."}` ya redactado en castellano; si
   /// por lo que sea no viene, se usa el texto genérico.
-  String _message(String body, String fallback) {
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map && decoded['message'] is String) {
-        return decoded['message'] as String;
-      }
-    } catch (_) {
-      // cuerpo no-JSON: nos quedamos con el generico
-    }
-    return fallback;
-  }
 
   /// Revoca el refresh token guardado en el backend. Best-effort a
   /// propósito (igual que `auth::service::logout` en el backend): si no

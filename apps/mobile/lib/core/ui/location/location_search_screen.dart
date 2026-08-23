@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../location/geocoding_service.dart';
 import '../../location/location_result.dart';
 import '../../theme/app_theme.dart';
+import '../../../core/network/connection_error.dart';
 
 /// Full-screen "type a place, pick from suggestions" flow, Hinge-style —
 /// pushed via `Navigator.push`, pops with the chosen [LocationResult] (or
@@ -64,7 +65,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'No se pudo buscar: $e';
+        _error = friendlyError(e, fallback: 'No se han podido buscar sitios.');
         _loading = false;
       });
     }

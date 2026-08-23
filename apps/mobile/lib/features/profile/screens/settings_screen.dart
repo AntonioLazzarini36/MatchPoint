@@ -124,7 +124,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar la ubicación: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(e, fallback: 'No se ha podido guardar tu ubicación.'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingLocation = false);
@@ -159,7 +163,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar el radio: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se ha podido guardar el radio de búsqueda.',
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingRadius = false);
@@ -200,7 +211,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudieron actualizar los deportes: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se han podido guardar tus deportes.',
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingSports = false);
@@ -244,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// A que viene. Antes esto solo se preguntaba en el onboarding y, peor,
+  /// A qué viene. Antes esto solo se preguntaba en el onboarding y, peor,
   /// la frase elegida se guardaba como la bio.
   Future<void> _changeIntention() async {
     final chosen = await showModalBottomSheet<_IntentionChoice>(
@@ -255,10 +273,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final ok = await confirmChanges(
       context,
-      title: 'Cambiar a que vienes',
+      title: 'Cambiar a qué vienes',
       changes: [
         FieldChange(
-          label: 'A que vienes',
+          label: 'A qué vienes',
           before: _profile?.intention?.label ?? 'Sin definir',
           after: chosen.value?.label ?? 'Sin definir',
         ),
@@ -274,14 +292,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(e, fallback: 'No se han podido guardar los cambios.'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingIntention = false);
     }
   }
 
-  /// La descripcion libre. Hasta ahora no se podia editar en ningun sitio.
+  /// La descripción libre. Hasta ahora no se podia editar en ningun sitio.
   Future<void> _changeBio() async {
     final chosen = await showModalBottomSheet<String>(
       context: context,
@@ -298,7 +320,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar la descripcion: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se ha podido guardar tu descripción.',
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingBio = false);
@@ -341,7 +370,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar el nivel: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(e, fallback: 'No se ha podido guardar tu nivel.'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingSkillLevels = false);
@@ -417,7 +450,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('No se pudieron actualizar las credenciales: $e'),
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se han podido guardar tus credenciales.',
+            ),
+          ),
         ),
       );
     } finally {
@@ -690,7 +728,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.flag_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'A que vienes',
+                      title: 'A qué vienes',
                       subtitle: _profile?.intention?.label ?? 'Sin definir',
                       trailing: _savingIntention
                           ? const SizedBox(
@@ -708,7 +746,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.notes_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Descripcion',
+                      title: 'Descripción',
                       subtitle: (_profile?.bio ?? '').trim().isEmpty
                           ? 'Sin escribir'
                           : _profile!.bio!.trim(),
@@ -764,7 +802,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.tune,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Preferencias de Discovery',
+                      title: 'Preferencias de Descubrir',
                       subtitle: _preferencesSubtitle,
                       trailing: _savingPreferences
                           ? const SizedBox(
@@ -1006,7 +1044,7 @@ class _RadiusSheetState extends State<_RadiusSheet> {
             Text('Radio de búsqueda', style: context.textStyles.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'Hasta dónde mostramos gente en Discovery, desde tu ubicación.',
+              'Hasta dónde buscamos gente, desde tu ubicación.',
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -1079,7 +1117,7 @@ class _SportsSheetState extends State<_SportsSheet> {
             Text('Deportes', style: context.textStyles.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'Qué deportes jugás — determina a quién ves en Discovery y '
+              'A qué juegas. Determina a quién ves en Descubrir y '
               'quién te ve a vos.',
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,

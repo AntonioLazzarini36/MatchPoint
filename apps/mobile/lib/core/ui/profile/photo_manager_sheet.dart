@@ -8,6 +8,7 @@ import 'photo_grid_editor.dart';
 import 'photo_source_sheet.dart';
 import 'avatar_gallery.dart';
 import 'photo_crop_preview.dart';
+import '../../../core/network/connection_error.dart';
 
 /// Bottom sheet para gestionar las fotos del propio perfil: grid de fotos
 /// actuales + tile para añadir (abre el selector de imagen) + borrar por
@@ -98,7 +99,12 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
       if (!mounted) return;
       // Puede haber subido algunas antes de fallar: el estado ya refleja
       // lo que el backend tiene, así que basta con contarlo.
-      setState(() => _error = 'No se pudieron subir todas las fotos: $e');
+      setState(
+        () => _error = friendlyError(
+          e,
+          fallback: 'No se han podido subir todas las fotos.',
+        ),
+      );
       widget.onChanged(_photos);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -107,7 +113,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
 
   Future<void> _deletePhoto(String url) async {
     if (_photos.length <= 1) {
-      setState(() => _error = 'Tu perfil necesita al menos 1 foto.');
+      setState(() => _error = 'Tu perfil necesita al menos una foto.');
       return;
     }
 
@@ -123,7 +129,12 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
       widget.onChanged(_photos);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'No se pudo borrar la foto: $e');
+      setState(
+        () => _error = friendlyError(
+          e,
+          fallback: 'No se ha podido borrar la foto.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

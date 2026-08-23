@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:match_point/core/network/api_error.dart';
 import 'package:match_point/core/network/connection_error.dart';
 
 void main() {
@@ -52,10 +53,20 @@ void main() {
       final texto = friendlyError(const NoConnectionException());
       expect(texto, isNot(contains('SocketException')));
       expect(texto, contains('Sin conexión'));
-      // Y el de negocio pierde el prefijo "Exception: " que no dice nada.
+      // Un error del servidor conserva su mensaje, que está redactado para
+      // leerse.
       expect(
-        friendlyError(Exception('La fecha ya ha pasado')),
+        friendlyError(const ApiException('La fecha ya ha pasado', 400)),
         'La fecha ya ha pasado',
+      );
+      // Y una excepción cualquiera de la app **no** se enseña: su texto es
+      // diagnóstico. Se dice lo que la pantalla estaba intentando hacer.
+      expect(
+        friendlyError(
+          Exception('type Null is not a subtype of String'),
+          fallback: 'No se ha podido guardar tu nivel.',
+        ),
+        'No se ha podido guardar tu nivel.',
       );
       expect(crudo, isNotNull);
     });

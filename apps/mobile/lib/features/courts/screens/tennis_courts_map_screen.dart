@@ -15,6 +15,7 @@ import '../services/overpass_service.dart';
 import '../../../core/ui/widgets/proposal/name_place_dialog.dart';
 import '../../../core/ui/widgets/proposal/propose_session.dart';
 import '../../discovery/models/sport.dart';
+import '../../../core/network/connection_error.dart';
 
 /// Tennis clubs near a point, real OpenStreetMap data — see one on the
 /// map, tap it, and propose it (with a date/time) to whichever match you
@@ -103,7 +104,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       debugPrint('Overpass fallo: $e');
       setState(() {
         _error =
-            'El servicio de mapas esta saturado. Reintenta en unos '
+            'El servicio de mapas está saturado. Reintenta en unos '
             'segundos.';
         _loadingClubs = false;
       });
@@ -144,9 +145,13 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       await _loadClubs(newCenter);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('No se pudo buscar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyError(e, fallback: 'No se han podido buscar sitios.'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -177,7 +182,14 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudieron cargar tus matches: $e')),
+        SnackBar(
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se han podido cargar tus compañeros.',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -186,7 +198,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
 
     if (matches.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Todavía no tienes ningún match')),
+        const SnackBar(content: Text('Todavía no tienes ningún compañero')),
       );
       return;
     }
@@ -199,7 +211,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              '¿A quién le proponés ${club.name}?',
+              '¿A quién se lo propones?',
               style: Theme.of(sheetContext).textTheme.titleMedium,
             ),
           ),
@@ -422,7 +434,7 @@ class _ClubSheet extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'No comprobamos si hay pista libre a esa hora — le propones '
-              'el club y el horario a tu match, y ya lo confirmáis vosotros.',
+              'el club y el horario a tu compañero, y ya lo confirmáis vosotros.',
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),

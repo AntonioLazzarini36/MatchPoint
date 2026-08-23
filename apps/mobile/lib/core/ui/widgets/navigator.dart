@@ -68,7 +68,7 @@ class NavigatorShellState extends State<NavigatorShell> {
           const NavigationDestination(
             icon: Icon(Icons.local_fire_department_outlined),
             selectedIcon: Icon(Icons.local_fire_department),
-            label: 'Discovery',
+            label: 'Descubrir',
           ),
           NavigationDestination(
             icon: _badged(
@@ -79,7 +79,7 @@ class NavigatorShellState extends State<NavigatorShell> {
               const Icon(Icons.chat_bubble),
               _counts.unreadMessages,
             ),
-            label: 'Matches',
+            label: 'Compañeros',
           ),
           NavigationDestination(
             // Las dos cosas que reclaman tu atencion en esta pestaña suman en
@@ -99,7 +99,7 @@ class NavigatorShellState extends State<NavigatorShell> {
           const NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            label: 'Perfil',
           ),
         ],
       ),

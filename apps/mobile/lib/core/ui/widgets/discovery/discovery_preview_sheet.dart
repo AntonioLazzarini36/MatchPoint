@@ -172,7 +172,7 @@ class _PreviewBody extends StatelessWidget {
             colors.onTertiaryContainer,
             Icons.bolt,
             'Ya te ha dado like',
-            'Si tú también quieres jugar, hacéis match al instante.',
+            'Si esa persona también quiere jugar, conectáis al instante.',
           )
         : (
             colors.primaryContainer,

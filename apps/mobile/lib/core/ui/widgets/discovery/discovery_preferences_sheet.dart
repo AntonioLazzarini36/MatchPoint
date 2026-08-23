@@ -6,6 +6,7 @@ import '../../../../features/discovery/models/sport.dart';
 import '../../../../features/onboarding/models/gender.dart';
 import '../../../../features/onboarding/models/profile.dart';
 import '../../../../features/onboarding/services/profile_service.dart';
+import '../../../../core/network/connection_error.dart';
 
 /// Filtros de Discovery (edad, deportes buscados, genero), compartidos
 /// entre Ajustes y el boton de filtros de la propia pantalla de Discovery
@@ -70,7 +71,9 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
 
   Future<void> _save() async {
     if (_sportsWanted.isEmpty) {
-      setState(() => _error = 'Elige al menos un deporte que quieras ver');
+      setState(
+        () => _error = 'Elige al menos un deporte para poder ver perfiles',
+      );
       return;
     }
 
@@ -92,7 +95,10 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'No se pudo guardar: $e';
+        _error = friendlyError(
+          e,
+          fallback: 'No se han podido guardar los filtros.',
+        );
       });
     }
   }
@@ -121,13 +127,13 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Filtros de Discovery',
+                'Filtros de Descubrir',
                 style: context.textStyles.titleMedium,
               ),
               const SizedBox(height: 4),
               Text(
-                'Deciden a quien te mostramos. El radio de distancia se '
-                'cambia en Ajustes, junto a tu ubicacion.',
+                'Deciden a quién te mostramos. El radio de distancia se '
+                'cambia en Ajustes, junto a tu ubicación.',
                 style: context.textStyles.bodySmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
                 ),
@@ -135,7 +141,7 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
               const SizedBox(height: 20),
               Text('Rango de edad', style: context.textStyles.titleSmall),
               Text(
-                '${_ageRange.start.round()} - ${_ageRange.end.round()} anos',
+                '${_ageRange.start.round()} - ${_ageRange.end.round()} años',
                 style: context.textStyles.bodyMedium,
               ),
               RangeSlider(
@@ -151,7 +157,7 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Deportes que te interesa ver',
+                'Deportes que quieres ver',
                 style: context.textStyles.titleSmall,
               ),
               const SizedBox(height: 8),

@@ -132,7 +132,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Cuando propongas jugar a alguno de tus matches (o te lo '
+              'Cuando propongas jugar a alguno de tus compañeros (o te lo '
               'propongan a ti), lo verás aquí.',
               textAlign: TextAlign.center,
               style: context.textStyles.bodySmall?.copyWith(

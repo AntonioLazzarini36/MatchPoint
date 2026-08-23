@@ -22,6 +22,7 @@ import '../models/proposal.dart';
 import '../services/proposal_service.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/availability.dart';
+import '../../../core/network/connection_error.dart';
 
 enum _ChatMenuAction { courts, unmatch, report }
 
@@ -134,9 +135,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
     } finally {
       if (mounted) setState(() => _proposalBusy = false);
     }
@@ -200,11 +199,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _unmatch() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Deshacer match',
+      title: 'Dejar de ser compañeros',
       content:
-          '¿Seguro que quieres deshacer este match? Se borrará también la '
+          '¿Seguro que quieres dejar de ser compañeros? Se borrará también la '
           'conversación, y no se puede deshacer.',
-      confirmLabel: 'Deshacer match',
+      confirmLabel: 'Dejar de ser compañeros',
       destructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -218,7 +217,16 @@ class _ChatScreenState extends State<ChatScreen> {
       router.pop(true);
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se ha podido completar la operación.',
+            ),
+          ),
+        ),
+      );
       setState(() => _busy = false);
     }
   }
@@ -237,7 +245,13 @@ class _ChatScreenState extends State<ChatScreen> {
       messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado')));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyError(e, fallback: 'No se ha podido enviar el reporte.'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -322,7 +336,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   const PopupMenuItem(
                     value: _ChatMenuAction.unmatch,
-                    child: Text('Deshacer match'),
+                    child: Text('Dejar de ser compañeros'),
                   ),
                   const PopupMenuItem(
                     value: _ChatMenuAction.report,
@@ -363,7 +377,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   } catch (e) {
                     if (!mounted) return;
                     messenger.showSnackBar(
-                      SnackBar(content: Text('Error enviando: $e')),
+                      SnackBar(
+                        content: Text(
+                          friendlyError(
+                            e,
+                            fallback: 'No se ha podido enviar el mensaje.',
+                          ),
+                        ),
+                      ),
                     );
                   }
                 },
@@ -390,7 +411,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Icon(Icons.error_outline, size: 48, color: context.colors.error),
               const SizedBox(height: 12),
               Text(
-                'Error cargando mensajes',
+                'No se han podido cargar los mensajes',
                 style: context.textStyles.titleMedium,
               ),
               const SizedBox(height: 6),
@@ -416,7 +437,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (msgs.isEmpty) {
       return Center(
         child: Text(
-          'No hay mensajes todavia',
+          'Todavía no hay mensajes',
           style: context.textStyles.titleMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),

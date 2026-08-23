@@ -36,7 +36,7 @@ class ProposalService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(_message(res.body, 'No se pudo enviar la propuesta'));
+      throw apiError(res, fallback: 'No se ha podido enviar la propuesta');
     }
 
     return Proposal.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -68,7 +68,7 @@ class ProposalService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(_message(res.body, 'No se pudo actualizar la propuesta'));
+      throw apiError(res, fallback: 'No se ha podido responder a la propuesta');
     }
 
     return Proposal.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -124,22 +124,11 @@ class ProposalService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(_message(res.body, 'No se pudo guardar la respuesta'));
+      throw apiError(res, fallback: 'No se ha podido guardar tu respuesta');
     }
   }
 
   /// El backend manda `{ "message": "..." }` en los 400/403 con texto ya
   /// redactado para el usuario — merece la pena mostrarlo en vez de un
   /// código de estado pelado.
-  String _message(String body, String fallback) {
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map && decoded['message'] is String) {
-        return decoded['message'] as String;
-      }
-    } catch (_) {
-      // cuerpo no-JSON: nos quedamos con el mensaje genérico
-    }
-    return fallback;
-  }
 }

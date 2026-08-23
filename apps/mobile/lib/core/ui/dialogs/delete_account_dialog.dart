@@ -62,7 +62,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             const SizedBox(height: 12),
             for (final item in const [
               'Tu perfil y tus fotos',
-              'Tus matches y todas tus conversaciones',
+              'Tus compañeros y todas tus conversaciones',
               'Los partidos y salidas que tengas acordados',
               'Tu nivel, tus credenciales y tus preferencias',
             ])

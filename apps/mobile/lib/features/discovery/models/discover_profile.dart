@@ -10,7 +10,7 @@ class DiscoverProfile {
   final String? city;
   final String? bio;
 
-  /// A que viene. Misma visibilidad que `bio`/`sports`: es la senal que
+  /// A qué viene. Misma visibilidad que `bio`/`sports`: es la senal que
   /// hace decidir si merece la pena deslizar.
   final Intention? intention;
   final List<String> photos;

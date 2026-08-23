@@ -32,6 +32,7 @@ import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
 import 'package:match_point/core/ui/profile/photo_source_sheet.dart';
 import 'package:match_point/core/ui/profile/avatar_gallery.dart';
+import '../../../core/network/connection_error.dart';
 
 class _PickedPhoto {
   final Uint8List bytes;
@@ -206,7 +207,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     if (_currentPage == 0) {
       final name = displayNameCtrl.text.trim();
       if (name.isEmpty) {
-        controller.setError('Display name is required');
+        controller.setError('Escribe el nombre con el que quieres aparecer');
         return;
       }
       if (name.length > _maxDisplayNameLength) {
@@ -379,7 +380,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
       if (mounted) context.go(AppRoutes.shell);
     } catch (e) {
-      controller.setError('No se pudo completar el registro: $e');
+      controller.setError(
+        friendlyError(e, fallback: 'No se ha podido completar el registro.'),
+      );
     } finally {
       if (mounted) controller.setLoading(false);
     }
@@ -450,7 +453,12 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _photoError = 'No se pudieron leer las fotos: $e');
+      setState(
+        () => _photoError = friendlyError(
+          e,
+          fallback: 'No se han podido leer las fotos.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _photoBusy = false);
     }
@@ -484,7 +492,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('¿Salir del registro?'),
         content: const Text(
-          'Vas a volver a la pantalla de login/registro. Nada de lo que '
+          'Vas a volver a la pantalla de inicio de sesión. Nada de lo que '
           'completaste todavía se guardó — no se pierde ningún dato ya '
           'creado, pero tendrás que volver a empezar el registro.',
         ),

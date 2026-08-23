@@ -7,12 +7,12 @@ import 'package:match_point/features/onboarding/models/intention.dart';
 
 /// Antes la primera seccion era un "objetivo" de 3 tarjetas cuya frase se
 /// guardaba **como la bio**: el resultado era que en toda la app solo habia
-/// tres descripciones posibles y todos los perfiles se leian igual. Ahora esa
+/// tres descripciónes posibles y todos los perfiles se leian igual. Ahora esa
 /// seccion es la **intencion**, un campo propio y estructurado (ver
-/// `intention.dart`), y la descripcion se escribe a mano en el paso de
+/// `intention.dart`), y la descripción se escribe a mano en el paso de
 /// perfil. Ademas aqui se setean las preferencias de a quien mostrar en
 /// Discovery (edad, genero).
-/// `distanceKm` sigue viviendo en el paso de ubicacion (tiene mas sentido
+/// `distanceKm` sigue viviendo en el paso de ubicación (tiene mas sentido
 /// ahi, ligado al mapa) - no se duplica aqui. Los deportes que quiere ver
 /// no se preguntan aqui: por defecto son los mismos que ya eligio como
 /// propios (ver `_effectiveSportsWanted` en onboarding_profile_screen.dart)
@@ -22,7 +22,7 @@ class OnboardingPreferencesStep extends StatelessWidget {
   final Intention? intention;
   final ValueChanged<Intention?> onIntentionChanged;
 
-  /// Cuando puedes jugar. Va en este paso y no en el de perfil porque
+  /// Cuándo puedes jugar. Va en este paso y no en el de perfil porque
   /// responde a la misma pregunta que la intencion: como juegas, no quien
   /// eres. Y es lo que mas decide si dos personas acaban coincidiendo.
   final WeeklyAvailability availability;
@@ -59,7 +59,7 @@ class OnboardingPreferencesStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('A que vienes', style: t.headlineMedium),
+          Text('A qué vienes', style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
             'Aparece en tu perfil. Es lo que hace que alguien sepa, antes de '
@@ -85,10 +85,10 @@ class OnboardingPreferencesStep extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 20),
 
-          Text('Cuando sueles tener libre', style: t.titleMedium),
+          Text('Cuándo sueles tener libre', style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'No hace falta que sea exacto. Lo vera quien quiera proponerte '
+            'No hace falta que sea exacto. Lo verá quien quiera proponerte '
             'algo, para no elegir un hueco en el que nunca puedes.',
             style: t.bodySmall,
           ),
@@ -104,13 +104,10 @@ class OnboardingPreferencesStep extends StatelessWidget {
 
           Text('Rango de edad', style: t.titleMedium),
           const SizedBox(height: 4),
-          Text(
-            'A quien quieres ver en Discovery, por edad.',
-            style: t.bodySmall,
-          ),
+          Text('La edad de las personas que quieres ver.', style: t.bodySmall),
           const SizedBox(height: 8),
           Text(
-            '${ageRange.start.round()} - ${ageRange.end.round()} anos',
+            '${ageRange.start.round()} - ${ageRange.end.round()} años',
             style: t.titleLarge,
           ),
           RangeSlider(

@@ -37,7 +37,7 @@ class DiscoveryIntroBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Esta es gente cerca buscando jugar a tu nivel. Desliza '
+                  'Estas son personas de tu zona buscando jugar a tu nivel. Desliza '
                   'a la derecha si quieres organizar un partido, a la '
                   'izquierda si no — toca la tarjeta para ver el perfil '
                   'completo antes de decidir.',

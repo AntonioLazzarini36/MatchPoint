@@ -15,7 +15,7 @@ import '../../../theme/app_theme.dart';
 /// mapa: es el patron que usan Uber/Glovo y evita el lio de arrastrar un
 /// marcador con el dedo justo encima, tapandolo.
 class MapPointPicker extends StatefulWidget {
-  /// Donde abrir el mapa. Normalmente la ubicacion del perfil, para no
+  /// Donde abrir el mapa. Normalmente la ubicación del perfil, para no
   /// empezar en mitad del oceano.
   final LatLng initialCenter;
   final String title;

@@ -11,6 +11,7 @@ import '../../../core/ui/dialogs/confirm_dialog.dart';
 import '../../../core/ui/widgets/matches/partner_row.dart';
 import '../models/proposal.dart';
 import '../services/proposal_service.dart';
+import '../../../core/network/connection_error.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
@@ -71,11 +72,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final name = m.otherUser.profile?.displayName ?? 'esta persona';
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Deshacer match',
+      title: 'Dejar de ser compañeros',
       content:
-          '¿Seguro que quieres deshacer el match con $name? Se borrará '
+          '¿Seguro que quieres dejar de ser compañeros con $name? Se borrará '
           'también la conversación, y no se puede deshacer.',
-      confirmLabel: 'Deshacer match',
+      confirmLabel: 'Dejar de ser compañeros',
       destructive: true,
     );
     if (!confirmed) return;
@@ -85,9 +86,16 @@ class _MatchesScreenState extends State<MatchesScreen> {
       controller.reload();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('No se pudo deshacer: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyError(
+              e,
+              fallback: 'No se ha podido completar la operación.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -144,7 +152,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     if (matches.isEmpty) {
       return Center(
         child: Text(
-          'No tienes matches todavia',
+          'Todavía no tienes compañeros',
           style: context.textStyles.titleMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),

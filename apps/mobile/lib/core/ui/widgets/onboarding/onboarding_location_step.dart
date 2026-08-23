@@ -37,11 +37,11 @@ class OnboardingLocationStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Ubicacion', style: t.headlineMedium),
+          Text('Ubicación', style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Escribe donde estas — no usamos tu ubicacion del dispositivo, '
-            'la eliges tu y puedes cambiarla cuando quieras. La usamos '
+            'Escribe dónde estás — no usamos tu ubicación del dispositivo, '
+            'la eliges tú y puedes cambiarla cuando quieras. La usamos '
             'para mostrarte gente dentro del radio que elijas, nunca la '
             'compartimos exacta con nadie.',
             style: t.bodyLarge,
@@ -64,7 +64,7 @@ class OnboardingLocationStep extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                loc?.displayName ?? 'Elegir ubicacion',
+                                loc?.displayName ?? 'Elegir ubicación',
                                 style: t.titleMedium,
                                 overflow: TextOverflow.ellipsis,
                               ),

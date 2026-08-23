@@ -170,7 +170,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               const SizedBox(height: 16),
             ],
 
-            Text('Tu rival', style: context.textStyles.titleSmall),
+            Text('Con quién juegas', style: context.textStyles.titleSmall),
             const SizedBox(height: 8),
             _opponentCard(context),
             const SizedBox(height: 24),

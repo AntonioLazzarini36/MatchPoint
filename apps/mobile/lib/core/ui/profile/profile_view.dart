@@ -135,7 +135,7 @@ class ProfileView extends StatelessWidget {
 
                 if (data.intention != null) ...[
                   const SizedBox(height: 24),
-                  Text('A que viene', style: context.textStyles.titleMedium),
+                  Text('A qué viene', style: context.textStyles.titleMedium),
                   const SizedBox(height: 8),
                   _infoRow(
                     context,
@@ -151,7 +151,7 @@ class ProfileView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   (data.bio == null || data.bio!.trim().isEmpty)
-                      ? 'Aun no hay bio.'
+                      ? 'Todavía no ha escrito nada.'
                       : data.bio!,
                   style: context.textStyles.bodyMedium,
                 ),
@@ -211,7 +211,9 @@ class ProfileView extends StatelessWidget {
                 if (showStats) ...[
                   Row(
                     children: [
-                      Expanded(child: _buildStatCard(context, 'Matches', '—')),
+                      Expanded(
+                        child: _buildStatCard(context, 'Compañeros', '—'),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(child: _buildStatCard(context, 'Likes', '—')),
                       const SizedBox(width: 12),
@@ -254,7 +256,7 @@ class ProfileView extends StatelessWidget {
   Widget _sportsWrap(BuildContext context, List<Sport> sports) {
     if (sports.isEmpty) {
       return Text(
-        'Aun no hay deportes.',
+        'Todavía no ha elegido deportes.',
         style: context.textStyles.bodyMedium?.copyWith(
           color: context.colors.outline,
         ),

@@ -35,7 +35,7 @@ Future<void> showDiscoveryMatchDialog(
             Icon(Icons.handshake, color: context.colors.primary, size: 80),
             const SizedBox(height: 16),
             Text(
-              '¡Es un Match!',
+              '¡Ya sois compañeros!',
               style: context.textStyles.displaySmall?.copyWith(
                 color: context.colors.primary,
                 fontWeight: FontWeight.bold,
@@ -43,7 +43,7 @@ Future<void> showDiscoveryMatchDialog(
             ),
             const SizedBox(height: 8),
             Text(
-              'Tú y ${user.displayName} podéis organizar un partido.',
+              'Tú y ${user.displayName} ya podéis hablar y organizar una quedada.',
               textAlign: TextAlign.center,
               style: context.textStyles.bodyLarge,
             ),

@@ -185,8 +185,8 @@ pub async fn create_swipe(
     crate::push::spawn_notify(
         state,
         &dto.to_user_id,
-        "¡Nuevo match!".to_string(),
-        format!("{name} también quiere jugar contigo"),
+        "¡Ya sois compañeros!".to_string(),
+        format!("{name} también quiere jugar contigo. Ya podéis hablar"),
         serde_json::json!({ "type": "match", "matchId": saved_match.id }),
     );
 

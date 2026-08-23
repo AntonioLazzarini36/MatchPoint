@@ -119,7 +119,7 @@ class _PlaceSheet extends StatefulWidget {
 }
 
 class _PlaceSheetState extends State<_PlaceSheet> {
-  /// Centro inicial del mapa: la ubicacion del propio perfil, para no
+  /// Centro inicial del mapa: la ubicación del propio perfil, para no
   /// abrirlo en mitad del oceano. Se pide en segundo plano — si tarda o
   /// falla, el boton del mapa espera y el resto de opciones ya funcionan.
   LatLng? _myLocation;
@@ -156,7 +156,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
           initialCenter: center,
           title: widget.sport == Sport.running
               ? 'Punto de encuentro'
-              : 'Donde jugais',
+              : '¿Dónde jugáis?',
         ),
       ),
     );

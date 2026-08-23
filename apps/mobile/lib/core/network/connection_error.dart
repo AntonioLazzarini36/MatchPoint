@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'api_error.dart';
+
 /// La app no ha podido hablar con el servidor.
 ///
 /// Existe porque, sin esto, cada pantalla enseñaba lo que devolvía
@@ -61,11 +63,21 @@ Future<T> mapNetworkErrors<T>(Future<T> Function() run) async {
 ///
 /// Las pantallas ya hacían `e.toString().replaceFirst('Exception: ', '')` cada
 /// una por su cuenta; esto lo centraliza y de paso trata los de red.
-String friendlyError(Object error) {
+String friendlyError(Object error, {String? fallback}) {
   if (error is NoConnectionException || error is TimeoutFailure) {
     return error.toString();
   }
-  return error.toString().replaceFirst('Exception: ', '');
+  if (error is ApiException) {
+    // El backend redacta sus 4xx pensando en que se lean; los 5xx llegan ya
+    // convertidos en una frase genérica por `http_error.rs`.
+    return error.message;
+  }
+  // Cualquier otra excepción es un fallo interno de la app: su texto es
+  // diagnóstico, no un mensaje. Se enseña lo que la pantalla sepa decir de
+  // lo que estaba intentando, y si no sabe, una frase honesta.
+  return fallback ??
+      'No se ha podido completar la operación. Inténtalo de '
+          'nuevo en unos segundos.';
 }
 
 /// Si merece la pena ofrecer "Reintentar" con el mismo botón grande: un

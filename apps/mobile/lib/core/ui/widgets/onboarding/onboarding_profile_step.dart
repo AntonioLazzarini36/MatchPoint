@@ -14,9 +14,9 @@ class OnboardingProfileStep extends StatelessWidget {
   final Gender? gender;
   final ValueChanged<Gender?> onGenderChanged;
 
-  /// Descripcion libre. Antes este campo no existia en ningun sitio: la bio
+  /// Descripción libre. Antes este campo no existia en ningun sitio: la bio
   /// se rellenaba sola con la frase del "objetivo", asi que solo habia tres
-  /// descripciones posibles en toda la app y ninguna la habia escrito nadie.
+  /// descripciónes posibles en toda la app y ninguna la habia escrito nadie.
   final TextEditingController bioCtrl;
 
   final Set<String> selectedSports;
@@ -49,7 +49,7 @@ class OnboardingProfileStep extends StatelessWidget {
           Text('Tu perfil', style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Esto es lo que va a ver el resto de la gente en tu perfil.',
+            'Esto es lo que verá el resto de la gente en tu perfil.',
             style: t.bodyLarge,
           ),
           const SizedBox(height: 24),
@@ -58,7 +58,7 @@ class OnboardingProfileStep extends StatelessWidget {
             controller: displayNameCtrl,
             textInputAction: TextInputAction.next,
             onSubmitted: (_) => onNameSubmitted?.call(),
-            decoration: const InputDecoration(labelText: 'Display name'),
+            decoration: const InputDecoration(labelText: 'Nombre visible'),
           ),
           const SizedBox(height: 12),
 
@@ -67,7 +67,7 @@ class OnboardingProfileStep extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             child: InputDecorator(
               decoration: const InputDecoration(
-                labelText: 'Birth date',
+                labelText: 'Fecha de nacimiento',
                 border: OutlineInputBorder(),
               ),
               child: Text(birthDateLabel),
@@ -79,8 +79,8 @@ class OnboardingProfileStep extends StatelessWidget {
           Text('Género', style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Opcional. Ayuda a quien filtra por esto a encontrarte — y a '
-            'que a ti no te aparezca quien no buscas.',
+            'Opcional. Ayuda a que te encuentre quien filtra por esto — y a '
+            'y a que no te aparezca quien no buscas.',
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -106,7 +106,7 @@ class OnboardingProfileStep extends StatelessWidget {
           Text('¿A qué deporte juegas?', style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Elege uno o los dos — esto decide a quién ves en Discovery y '
+            'Elige uno o los dos — esto decide a quién ves en Descubrir y '
             'quién te ve a ti.',
             style: t.bodySmall,
           ),
@@ -152,8 +152,8 @@ class OnboardingProfileStep extends StatelessWidget {
           Text('Sobre ti', style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Opcional, pero es lo que hace que tu perfil no sea uno mas. '
-            'Cuando juegas, que buscas en un companero, lo que sea.',
+            'Opcional, pero es lo que hace que tu perfil no sea uno más. '
+            'Cuándo juegas, qué buscas en un compañero, lo que quieras contar.',
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -168,7 +168,7 @@ class OnboardingProfileStep extends StatelessWidget {
             decoration: const InputDecoration(
               hintText:
                   'Juego los martes por la tarde cerca del centro. '
-                  'Busco a alguien constante mas que competitivo.',
+                  'Busco a alguien constante más que competitivo.',
               alignLabelWithHint: true,
             ),
           ),

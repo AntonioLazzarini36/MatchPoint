@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 ///
 /// Antes esto se preguntaba en el onboarding como "objetivo" y la frase
 /// elegida **se guardaba como la bio**, así que en toda la app sólo existían
-/// tres descripciones posibles y todos los perfiles se leían igual. Son dos
+/// tres descripciónes posibles y todos los perfiles se leían igual. Son dos
 /// datos distintos: esto es estructurado —se enseña como etiqueta y algún día
 /// se podrá filtrar por ello— y la bio vuelve a ser texto que escribe la
 /// persona.

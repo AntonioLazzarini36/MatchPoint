@@ -15,7 +15,9 @@ pub enum PhotoError {
     NotAnImage,
     #[error("La foto supera el límite de 5 MB")]
     TooLarge,
-    #[error("multipart error: {0}")]
+    // Se responde con 400, asi que este texto llega al movil: ni en ingles
+    // ni con el detalle de la libreria dentro.
+    #[error("No hemos podido leer la foto. Vuelve a intentarlo")]
     Multipart(#[from] axum::extract::multipart::MultipartError),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
