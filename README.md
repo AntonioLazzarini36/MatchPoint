@@ -139,9 +139,10 @@ Todo bajo auth lleva `Authorization: Bearer <accessToken>` (15 min de vida; refr
 
 Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al migrar a Diesel).
 
-- Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS), `SkillLevelValue` (BEGINNER, INTERMEDIATE, ADVANCED, COMPETITIVE), `Gender` (MALE, FEMALE, OTHER), `ProposalStatus` (PENDING, ACCEPTED, DECLINED, CANCELLED)
+- Enums: `Sport` (TENNIS, RUNNING), `SwipeType` (LIKE, PASS), `SkillLevelValue` (BEGINNER, INTERMEDIATE, ADVANCED, COMPETITIVE), `Gender` (MALE, FEMALE, OTHER), `ProposalStatus` (PENDING, ACCEPTED, DECLINED, CANCELLED), `Intention` (COMPETE, TRAIN, LEARN, FUN), `SessionOutcome` (WON, LOST, DRAW — sólo tenis)
 - **User**: id, email(unique), passwordHash, createdAt, updatedAt
-- **Profile**: id, userId(unique FK), displayName, birthDate, gender?, city?, bio?, photos[], sports[], latitude?, longitude?, yearsPlaying?, club?, achievements[], avgPaceMinPerKm?, avgDistanceKm?, timestamps
+- **Profile**: id, userId(unique FK), displayName, birthDate, gender?, intention?, city?, bio?, photos[], sports[], **availability**, latitude?, longitude?, yearsPlaying?, club?, achievements[], avgPaceMinPerKm?, avgDistanceKm?, timestamps
+  - `availability` es un entero de 21 bits (`bit = día * 3 + franja`, lunes primero, mañana/tarde/noche): el horario que esa persona **suele** tener libre. No filtra ni ordena nada — se enseña a quien va a proponer una quedada para que no elija un hueco imposible.
 - **Preferences**: id, userId(unique FK), sportsWanted[], distanceKm, ageMin, ageMax, genderPreference?(`Gender`), timestamps
 - **Proposal**: id, matchId(FK), proposedById(FK), sport, placeName?, placeLat?, placeLng?, scheduledAt, status, timestamps — un plan concreto para jugar, colgado de un match
 - **SkillLevel**: id, userId(FK), sport, level, timestamps — unique(userId,sport). Nivel auto-declarado, no un rating calculado — ver punto 3 abajo.
@@ -149,6 +150,9 @@ Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al
 - **Swipe**: id, fromUserId(FK), toUserId(FK), sport, type, createdAt — unique(fromUserId,toUserId,sport)
 - **Match**: id, userAId(FK), userBId(FK), sport, createdAt — unique(userAId,userBId,sport)
 - **Message**: id, matchId(FK), senderId(FK), ciphertext, createdAt, readAt?
+- **SessionFeedback**: id, proposalId(FK), userId(FK), played, outcome?, wouldRepeat?, timestamps — unique(proposalId,userId). Lo que cierra el bucle: de aquí sale "habéis jugado N veces".
+- **DeviceToken**: id, userId(FK), token(unique), platform, timestamps — para las push (FCM)
+- **Report**: id, reporterId(FK), reportedId(FK), reason, reviewedAt?, reviewNote?, createdAt
 
 ## Próximos pasos
 
@@ -166,8 +170,10 @@ Postgres, nombres en PascalCase/camelCase heredados de Prisma (no renombrados al
 12. ✅ **Quedadas con estado (2026-08-04)**: tabla `Proposal` y su ciclo completo (proponer → aceptar/rechazar/cancelar), pantalla propia y ficha de la quedada con mapa. Antes "proponer un partido" era un mensaje de texto que se perdía scrolleando.
 13. ✅ **Verificación de email (2026-08-05)**: código de 6 dígitos, backend y pantalla. Apagable con `EMAIL_VERIFICATION_ENABLED` mientras no haya un dominio de correo propio — ver "Despliegue".
 14. ✅ **Borrar cuenta (2026-08-05)**: `DELETE /me`, con confirmación escribiendo "BORRAR". Cierra el hueco de RGPD.
-15. **Para publicar en Google Play**: ver `claude_helpers/nextsteps.md` — bloqueos duros (el applicationId sigue siendo `com.example.match_point`, que Play prohíbe; la firma es la de debug; nombre e icono de fábrica; falta política de privacidad) y lo que hace falta antes de dejar entrar a gente que no conoces (push real, revisión de reportes, rate limiting fuera de auth).
-16. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, la cobertura sigue siendo mínima), super-like, y **login con Google/Apple** — esto último necesita credenciales externas (proyecto de Google Cloud, cuenta de Apple Developer) que hay que crear antes de que escribir código sirva de algo. Igual que **push de verdad (FCM)**: hoy los badges se refrescan sondeando cada 15s, pero sólo con la app abierta. Detalle completo en `claude_helpers/status.md`.
+15. ✅ **Identidad, firma y push (2026-08-21/22)**: `com.matchpoint.app`, keystore de release propio, nombre e icono derivados del logo, y notificaciones push por FCM probadas en producción con la app cerrada. Cola de moderación (`/admin/reports`) y rate limiting por usuario fuera de auth.
+16. ✅ **Horario semanal y avatares (2026-08-22/23)**: la disponibilidad pasó de seis franjas gruesas que no se veían en ninguna pantalla a una rejilla semanal que se enseña **al proponer una quedada**, atenuando los días y horas en que la otra persona no suele poder (sin bloquear: es referencia, no agenda). Y el paso de fotos ofrece seis avatares de la app, para no obligar a subir una foto propia para poder empezar.
+17. **Para publicar en Google Play**: ver `claude_helpers/nextsteps.md` — quedan los dos bloqueos de la ficha (política de privacidad y formulario de Data Safety) y dos tareas del usuario: copia del keystore y rotar la clave de Firebase.
+18. Sin decidir todavía / sin definir alcance: rediseño general de UI (`redesign/ui-overhaul`), suite de tests (`test/full-app-suite`, la cobertura sigue siendo mínima), super-like, y **login con Google/Apple** — esto último necesita credenciales externas (proyecto de Google Cloud, cuenta de Apple Developer) que hay que crear antes de que escribir código sirva de algo.  Detalle completo en `claude_helpers/status.md`.
 
 ## Despliegue
 
@@ -191,10 +197,13 @@ Lo mínimo que conviene saber:
 Para compilar la app apuntando al backend desplegado:
 
 ```bash
-flutter build apk --release --dart-define=API_BASE_URL=https://tu-servicio.up.railway.app
+flutter build apk --release --dart-define=API_BASE_URL=https://matchpoint-production-bfd0.up.railway.app
 ```
 
-Sin `--dart-define`, la app apunta a `localhost`, que en un móvil es el propio móvil.
+Sin `--dart-define`, la app cae en `10.0.2.2:3000` (el alias del emulador): instala bien y luego
+**ninguna petición llega**, que es la peor forma de fallar. Comprobarlo antes de repartir el APK
+buscando la URL dentro de `lib/arm64-v8a/libapp.so`. Añadir `--split-per-abi` si hay que enviarlo por
+chat: el universal pesa ~55 MB y el de arm64 ~22 MB.
 
 ## Documentar un endpoint nuevo (OpenAPI)
 

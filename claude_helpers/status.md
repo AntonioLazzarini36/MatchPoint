@@ -1011,6 +1011,66 @@ GitHub, solo lo apunto para cuando quieras cerrarlos/asignarlos):
     firma `CN=MatchPoint, …, C=ES` con huella SHA-256 `5d18be53…4ce2dd`,
     idéntica a la del keystore nuevo — o sea, ya no es la clave de debug.
 
+### 2026-08-22 / 23 — horario semanal, avatares y reset de producción
+
+Todo esto está en `feature/rust-backend` y **desplegado en Railway**, y la
+app instalada en el móvil del usuario es la build `2003`.
+
+- **La disponibilidad pasa a ser un horario semanal** (`0510857` backend,
+  `9860049` móvil). Antes eran seis franjas gruesas metidas en un enum, que
+  se rellenaban en el registro, **no se veían en ninguna otra pantalla de la
+  app** y sin embargo *ordenaban Discover*. El usuario lo señaló así: "es muy
+  variable… no es un calendario, no hace mucha falta; daría la opción de
+  rellenar los momentos que SUELE tener libre, aunque no sea source of truth,
+  para que quien vaya a proponerle algo lo tenga en cuenta".
+  - `Profile.availability` es ahora un `INTEGER` de 21 bits
+    (`bit = día * 3 + franja`), migración `weekly_availability`.
+  - Rejilla 7×3 que se rellena **arrastrando el dedo**: 21 casillas tocadas
+    una a una es justo lo que hace que nadie lo rellene.
+  - Aparece en registro, Ajustes, perfil y —lo importante— en el flujo de
+    proponer: el paso del día atenúa los días que la otra persona no suele
+    tener libres, y el de la hora atenúa las horas fuera de sus franjas *de
+    ese día*. **Ninguno de los dos bloquea nada**: es referencia, no agenda.
+  - **Ya no ordena ni filtra Discover.** Un dato que la propia persona
+    describe como "lo que suelo" no debería decidir a quién conoces.
+  - El corte 14:00/20:00 entre franjas vive sólo en
+    `WeeklyAvailability.bandOfHour`, con un test que lo ancla: si se
+    desalinea de la rejilla, el selector atenúa horas que sí están marcadas.
+
+- **Avatares para no tener que subir una foto al registrarse** (`75e480b`).
+  Seis ilustraciones en `assets/avatars/`, ofrecidas como tercera salida de
+  la hoja de "Añadir foto" y anunciadas en el texto del propio paso — quien
+  no quiere poner su cara abandona *en esa pantalla*, antes de tocar el botón
+  donde vive la alternativa. Motivo: el perfil necesita una foto para salir
+  en Discover, y ese requisito delante de alguien que acaba de instalar la
+  app es donde más gente se cae. Un test comprueba los seis: PNG, 16:9 y por
+  debajo del límite de 5 MB, que es lo que el backend acepta.
+
+- **Endpoints de operación** (`0510857`, `5f0df7e`):
+  - `GET/DELETE /admin/incomplete-accounts` — cuentas sin perfil o sin fotos;
+    nunca toca a quien tenga algún match.
+  - `POST /admin/reset?confirm=BORRAR-TODO` — vacía la instalación entera,
+    cuentas **y ficheros de fotos** (las fotos no cuelgan de ningún cascade:
+    borrar sólo las filas dejaba el volumen lleno de caras sin cuenta).
+  - La palabra de confirmación va aparte de la clave porque la clave es la
+    misma que se usa a diario para leer la cola de moderación.
+
+- **Producción vaciada a petición del usuario** el 2026-08-22 ("quiero hacer
+  un reset… voy a enseñarle la app a gente cercana"): 9 cuentas y 5 ficheros
+  de fotos borrados, incluida la cuenta del propio usuario. **Ahora mismo hay
+  cero usuarios en producción**, así que Discover sale vacío hasta que se
+  registren al menos dos personas cercanas con deporte en común.
+  Comprobado además que `EMAIL_VERIFICATION_ENABLED` está **apagado** en
+  producción — con él encendido, cualquiera que no sea el titular de la
+  cuenta de Resend se estrella al registrarse.
+
+- **La disponibilidad ya no sale en la tarjeta de Discovery.** Antes se
+  enseñaba "N franjas en común"; ese número se calculaba en `/discover` y
+  desapareció con el cambio. Si se quiere volver a enseñar algo ahí, hay que
+  decidir *qué*, porque "franjas en común" era justo la lectura de "fuente de
+  verdad" que el cambio quería quitar.
+
+
 ## Pendiente / próximos pasos
 
 > **Para publicar en Google Play, ver [`nextsteps.md`](nextsteps.md)**:

@@ -1,7 +1,9 @@
 # Próximos pasos: de "funciona" a "publicable en Google Play"
 
 > Escrito el 2026-08-06, tras el repaso completo de la app ya desplegada en
-> Railway y funcionando en móvil y web. Ordenado por lo que **bloquea** la
+> Railway y funcionando en móvil y web. **Actualizado el 2026-08-23**: casi
+> todo lo naranja y amarillo está hecho; quedan los dos bloqueos de la ficha
+> de Play (#4 y #5) y dos tareas del usuario. Ordenado por lo que **bloquea** la
 > publicación, no por dificultad.
 >
 > Al final está la lista de **lo que necesita algo tuyo** (dominio, cuentas,
@@ -144,10 +146,25 @@ si repetiría — tabla `SessionFeedback`, una fila por persona y quedada.
 puntuar. Elo/Glicko deja de estar bloqueado por falta de datos y pasa a ser
 sólo una decisión de algoritmo.
 
-### 17. El icono de la barra de notificaciones sale como silueta blanca
-Android exige un icono monocromo ahí y, al no dárselo, aplasta el del
-lanzador. Se genera con el mismo `tool/gen_app_icon.dart` y se declara en el
-manifest.
+### 17. ~~El icono de la barra de notificaciones sale como silueta blanca~~ ✅ hecho (2026-08-22)
+`tool/gen_app_icon.dart` genera además `ic_notification.png` en cinco
+densidades (la silueta del logo: círculo con la ranura del divisor) y el
+manifest lo declara. Los dibujos con detalle —raqueta y zapatilla— se
+descartaron: a 24 dp quedaban en dos manchas grises, comprobado simulando el
+tamaño real.
+
+### 18. Verificación de email: apagada y comprobada (2026-08-22)
+`EMAIL_VERIFICATION_ENABLED` está en **false** en producción, y así debe
+seguir mientras no haya dominio de correo: con ella encendida, cualquiera que
+no sea el titular de la cuenta de Resend se estrella nada más registrarse.
+Comprobado contra producción leyendo `emailVerificationEnabled` en `/me`.
+
+### 19. Producción está vacía a propósito (2026-08-22)
+Se vació entera a petición del usuario antes de enseñar la app a gente
+cercana. **Cero cuentas**: Discover sale vacío hasta que se registren al menos
+dos personas cercanas con deporte en común, y con una sola cuenta parece que
+la app está rota. Si hace falta repetirlo:
+`POST /admin/reset?confirm=BORRAR-TODO` con `X-Admin-Key`.
 
 ---
 
@@ -155,8 +172,9 @@ manifest.
 
 | Qué | Para qué sirve | Coste |
 |---|---|---|
-| **Decidir el applicationId** | Bloqueo #1. Irreversible tras publicar | Gratis, pero definitivo |
-| **Generar el keystore** | Bloqueo #2. Guardarlo con copia de seguridad | Gratis |
+| ~~Decidir el applicationId~~ ✅ | Hecho: `com.matchpoint.app` | — |
+| **Copia del keystore** ⚠️ | Existe en **un solo disco** (`~/keys/matchpoint-release.p12`). Perderlo = no poder actualizar nunca la app publicada | Gratis, 5 min |
+| **Rotar la clave de Firebase** ⚠️ | Se envió por chat a petición tuya (2026-08-22) para configurarla desde el móvil | Gratis, 5 min |
 | **Comprar un dominio** | Resuelve de golpe: política de privacidad alojada, verificación de email (#9) y una URL decente para la API | ~10 €/año |
 | **Proyecto de Firebase** | Push de verdad (#8) | Gratis |
 | **Cuenta de Google Play** | Publicar | 25 $, pago único |
@@ -168,12 +186,17 @@ reportes, tests, estado de "sin conexión" y WebSockets.
 
 ## Orden sugerido
 
-1. **applicationId + keystore.** Es lo único irreversible; decidirlo antes de
-   que haya usuarios.
-2. **Nombre, icono, botones muertos, pantalla fantasma.** Media tarde, y
-   cambia por completo la primera impresión.
-3. **Dominio.** Desbloquea tres cosas a la vez por 10 €.
-4. **Firebase y push.** Es lo que más cambia el uso real.
-5. **Rate limiting + revisión de reportes.** Lo que hace falta para dejar
-   entrar a gente que no conoces.
-6. **Tests**, antes de que la app tenga usuarios a los que romperle algo.
+Los puntos 1, 2, 4 y 5 del orden original ya están hechos (identidad y
+firma, nombre e icono, Firebase y push, rate limiting y cola de moderación).
+Lo que queda, en orden:
+
+1. **Copia del keystore y rotar la clave de Firebase.** Dos tareas tuyas de
+   cinco minutos, y la primera es la única de toda la lista que, si sale mal,
+   no tiene arreglo.
+2. **Política de privacidad (#4) y Data Safety (#5).** Son los dos bloqueos
+   duros que quedan para publicar. La política se puede redactar y alojar
+   gratis en GitHub Pages sin esperar al dominio.
+3. **Dominio.** Desbloquea correo verificado (#18) y una URL decente.
+4. **Tests** de auth y del ciclo de fotos, antes de que haya usuarios.
+5. **El chat sondea cada 4 s (#15).** Con push funcionando ya no se
+   justifica.
