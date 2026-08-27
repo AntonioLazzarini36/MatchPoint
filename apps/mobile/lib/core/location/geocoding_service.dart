@@ -60,6 +60,101 @@ class GeocodingService {
         .toList();
   }
 
+  /// De código postal a municipio.
+  ///
+  /// Es la vía principal para elegir dónde vives, y no una alternativa al
+  /// buscador libre: un código postal es un dato que la gente **sabe** y que
+  /// se teclea igual siempre, mientras que escribir el nombre del sitio
+  /// devuelve barrios, calles y urbanizaciones mezclados, y obliga a decidir
+  /// cuál de los ocho resultados parecidos es el tuyo. Cinco dígitos dan un
+  /// municipio y ya está.
+  ///
+  /// Va con `country=es` porque el formato de código postal es cosa de cada
+  /// país y esta app es de aquí; el buscador por nombre sigue funcionando en
+  /// todo el mundo, que es la salida para quien no esté en España.
+  ///
+  /// El nombre se compone de `addressdetails` en vez de usar el
+  /// `display_name` que devuelve Nominatim: ese trae el código, el municipio,
+  /// la comarca, la provincia, la comunidad y el país en una sola línea
+  /// ("29639, Benalmádena, Costa del Sol Occidental, Málaga, Andalucía,
+  /// España"), que no cabe en la tarjeta y no ayuda a reconocer nada.
+  Future<List<LocationResult>> searchPostalCode(String code) async {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return const [];
+
+    final uri = Uri.parse(_baseUrl).replace(
+      queryParameters: {
+        'postalcode': trimmed,
+        'country': 'es',
+        'format': 'jsonv2',
+        'addressdetails': '1',
+        'limit': '5',
+        'accept-language': 'es',
+      },
+    );
+
+    final res = await http.get(
+      uri,
+      headers: {'User-Agent': 'MatchPointApp/1.0 (dev)'},
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw apiError(res, fallback: 'No se ha podido buscar el código postal');
+    }
+
+    final decoded = jsonDecode(res.body) as List<dynamic>;
+    return decoded
+        .map((e) {
+          final m = e as Map<String, dynamic>;
+          final lat = double.tryParse(m['lat']?.toString() ?? '');
+          final lon = double.tryParse(m['lon']?.toString() ?? '');
+          if (lat == null || lon == null) return null;
+          return LocationResult(
+            displayName: _placeName(m),
+            latitude: lat,
+            longitude: lon,
+          );
+        })
+        .whereType<LocationResult>()
+        .toList();
+  }
+
+  /// "Municipio, Provincia" a partir de `addressdetails`.
+  ///
+  /// `village` antes que `town` por el mismo motivo que en `reverse`: en la
+  /// Costa del Sol `town` devuelve nombres compuestos larguísimos donde
+  /// `village` da el municipio a secas.
+  static String _placeName(Map<String, dynamic> m) {
+    final address = m['address'] as Map<String, dynamic>?;
+    if (address == null) return (m['display_name'] ?? '').toString();
+
+    String? pick(List<String> keys) {
+      for (final key in keys) {
+        final value = address[key]?.toString().trim();
+        if (value != null && value.isNotEmpty) return value;
+      }
+      return null;
+    }
+
+    final town = pick([
+      'village',
+      'town',
+      'city',
+      'municipality',
+      'suburb',
+      'neighbourhood',
+    ]);
+    // `state_district` es donde Nominatim mete la **provincia** en España
+    // (comprobado con el 29639: `state` trae "Andalucía" y `county` la
+    // comarca, "Costa del Sol Occidental"). La provincia es lo que la gente
+    // reconoce al leerlo, así que va delante de las dos.
+    final province = pick(['province', 'state_district', 'state', 'county']);
+
+    if (town == null) return province ?? (m['display_name'] ?? '').toString();
+    if (province == null || province == town) return town;
+    return '$town, $province';
+  }
+
   /// De coordenadas a una direccion legible ("Calle Rio Guadalhorce,
   /// Benalmadena"). Se usa para poner nombre a los sitios que en
   /// OpenStreetMap no lo tienen — mandarle a alguien "Pistas de tenis" a

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Desde Android 9 el trafico HTTP sin cifrar esta bloqueado por defecto, y en
+  un APK de *release* no hay ninguna excepcion automatica. Eso hace que una
+  build apuntada al backend local (API_BASE_URL=http://localhost:3000, que es
+  como se prueba un cambio en el movil antes de desplegarlo) se instale bien y
+  luego falle en todas las peticiones, con la misma pinta que un servidor
+  caido.
+
+  La excepcion se abre SOLO para los tres nombres que son siempre la maquina
+  de desarrollo:
+    localhost / 127.0.0.1 : lo que ve el movil detras de `adb reverse`
+    10.0.2.2              : el alias del host en el emulador de Android
+
+  Todo lo demas, incluida la API de produccion, sigue exigiendo HTTPS. Esto no
+  afloja la seguridad de la app publicada: solo deja de romper el flujo de
+  probar en un movil de verdad.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

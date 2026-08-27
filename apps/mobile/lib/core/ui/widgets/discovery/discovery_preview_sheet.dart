@@ -7,7 +7,7 @@ import '../../../utils/sport_words.dart';
 import '../../../../features/discovery/models/discover_profile.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import '../../../../features/discovery/models/sport.dart';
-import 'discovery_mini_card.dart' show distanceLabel;
+import '../../../utils/distance_label.dart';
 import '../../profile/network_photo.dart';
 
 /// Vista ampliada de un perfil, al tocar su tarjeta. Es un modal y no una

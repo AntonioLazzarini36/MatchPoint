@@ -1,6 +1,7 @@
 import 'dart:convert';
 import '../../../core/network/api_error.dart';
 import 'package:match_point/core/network/api_client.dart';
+import '../models/discover_filters.dart';
 import '../models/discover_profile.dart';
 import '../models/sport.dart';
 import '../models/swipe_response.dart';
@@ -11,12 +12,19 @@ class DiscoveryService {
   final ApiClient api;
   DiscoveryService(this.api);
 
-  Future<List<DiscoverProfile>> fetchFeed({required Sport sport}) async {
+  Future<List<DiscoverProfile>> fetchFeed({
+    required Sport sport,
+    DiscoverFilters filters = DiscoverFilters.none,
+  }) async {
     // ApiClient no tiene query params, asi que los montamos en la URL
-    final res = await api.get(
-      '/discover?sport=${Uri.encodeQueryComponent(sport.apiValue)}',
-      auth: true,
-    );
+    final query = {'sport': sport.apiValue, ...filters.toQuery()};
+    final qs = query.entries
+        .map(
+          (e) =>
+              '${e.key}=${Uri.encodeQueryComponent(e.value)}',
+        )
+        .join('&');
+    final res = await api.get('/discover?$qs', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(res, fallback: 'No se han podido cargar los perfiles');

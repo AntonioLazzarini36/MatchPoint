@@ -42,6 +42,15 @@ class DiscoverProfile {
   /// Esta persona ya te dio like: darle like tú cierra el match al momento.
   final bool likesYou;
 
+  /// Los huecos del horario en los que esta persona y tú coincidís. Lo
+  /// calcula el backend (necesita los dos horarios, y el del otro no sale
+  /// entero del servidor cruzado con el tuyo), y es lo primero que enseña
+  /// la lista: es la respuesta a "¿podemos quedar de verdad?".
+  final WeeklyAvailability sharedAvailability;
+
+  /// Cuántos son. Viene hecho del backend porque además ordena el feed.
+  final int sharedSlots;
+
   DiscoverProfile({
     required this.userId,
     required this.displayName,
@@ -61,6 +70,8 @@ class DiscoverProfile {
     this.availability = WeeklyAvailability.empty,
     this.matchesYourLevel = false,
     this.likesYou = false,
+    this.sharedAvailability = WeeklyAvailability.empty,
+    this.sharedSlots = 0,
   });
 
   String? get mainPhoto => photos.isNotEmpty ? photos.first : null;
@@ -98,6 +109,8 @@ class DiscoverProfile {
       distanceKm: (p['distanceKm'] as num?)?.toDouble(),
       matchesYourLevel: p['matchesYourLevel'] == true,
       likesYou: p['likesYou'] == true,
+      sharedAvailability: WeeklyAvailability.fromJson(p['sharedAvailability']),
+      sharedSlots: (p['sharedSlots'] as num?)?.toInt() ?? 0,
     );
   }
 }

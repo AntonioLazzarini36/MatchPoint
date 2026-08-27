@@ -19,6 +19,11 @@ import 'package:match_point/features/discovery/models/sport.dart';
 /// que se confirma esta página.
 class OnboardingPreviewStep extends StatelessWidget {
   final List<Uint8List> photos;
+
+  /// El avatar elegido, cuando no hay ninguna foto propia. Se pinta desde el
+  /// asset porque a estas alturas todavía no se ha convertido a bytes: eso
+  /// pasa al confirmar, junto con la subida (ver `OnboardingProfileScreen`).
+  final String? avatarAsset;
   final String displayName;
   final int? age;
   final String? city;
@@ -34,17 +39,18 @@ class OnboardingPreviewStep extends StatelessWidget {
   const OnboardingPreviewStep({
     super.key,
     required this.photos,
+    this.avatarAsset,
     required this.displayName,
     required this.age,
     required this.city,
     required this.bio,
     required this.sports,
     required this.skillLevels,
-    required this.yearsPlaying,
-    required this.club,
-    required this.avgPaceMinPerKm,
-    required this.avgDistanceKm,
-    required this.achievements,
+    this.yearsPlaying,
+    this.club,
+    this.avgPaceMinPerKm,
+    this.avgDistanceKm,
+    this.achievements = const [],
   });
 
   bool get _hasCredentials =>
@@ -80,14 +86,16 @@ class OnboardingPreviewStep extends StatelessWidget {
               aspectRatio: kPhotoAspectRatio,
               child: photos.isNotEmpty
                   ? Image.memory(photos.first, fit: BoxFit.cover)
-                  : Container(
-                      color: scheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.person,
-                        size: 64,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
+                  : (avatarAsset != null
+                        ? Image.asset(avatarAsset!, fit: BoxFit.cover)
+                        : Container(
+                            color: scheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.person,
+                              size: 64,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          )),
             ),
           ),
           for (final photo in photos.skip(1))
@@ -162,11 +170,11 @@ class _CredentialsPreview extends StatelessWidget {
   final List<String> achievements;
 
   const _CredentialsPreview({
-    required this.yearsPlaying,
-    required this.club,
-    required this.avgPaceMinPerKm,
-    required this.avgDistanceKm,
-    required this.achievements,
+    this.yearsPlaying,
+    this.club,
+    this.avgPaceMinPerKm,
+    this.avgDistanceKm,
+    this.achievements = const [],
   });
 
   @override

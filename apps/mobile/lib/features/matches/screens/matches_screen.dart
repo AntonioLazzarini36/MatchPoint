@@ -150,13 +150,40 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final matches = controller.matches;
 
     if (matches.isEmpty) {
-      return Center(
-        child: Text(
-          'Todavía no tienes compañeros',
-          style: context.textStyles.titleMedium?.copyWith(
-            color: context.colors.onSurfaceVariant,
+      // Misma composición que el vacío de Partidos (icono + título + una
+      // frase que dice qué hacer): era un `Text` centrado a secas, y puestas
+      // las dos pantallas una al lado de la otra se notaba que a esta no la
+      // había mirado nadie. El mensaje es el que ya había.
+      return ListView(
+        children: [
+          const SizedBox(height: 100),
+          Icon(
+            Icons.groups_outlined,
+            size: 64,
+            color: context.colors.outline,
           ),
-        ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Todavía no tienes compañeros',
+              style: context.textStyles.titleMedium?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Cuando alguien a quien has dado "Quiero jugar" te lo devuelva, '
+              'aparecerá aquí y podréis hablar.',
+              textAlign: TextAlign.center,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       );
     }
 

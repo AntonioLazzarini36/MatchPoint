@@ -38,9 +38,8 @@ class WelcomeScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
-                      'Encuentra a tu compañero ideal para jugar al tenis '
-                      'o preparar tu próxima carrera, a tu nivel y cerca '
-                      'de ti.',
+                      'Encuentra con quién jugar al tenis: gente de tu '
+                      'nivel, cerca de ti, y disponibles cuando tú lo estés.',
                       textAlign: TextAlign.center,
                       style: t.bodyLarge?.copyWith(color: Colors.white70),
                     ),

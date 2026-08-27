@@ -21,6 +21,7 @@ import '../../../core/network/connection_error.dart';
 import '../../../core/ui/widgets/availability_picker.dart';
 import '../../onboarding/models/availability.dart';
 import '../../onboarding/models/gender.dart';
+import '../../../core/utils/app_sports.dart';
 import '../../onboarding/models/intention.dart';
 import '../../onboarding/models/profile.dart';
 import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
@@ -686,24 +687,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                       onTap: _savingRadius ? null : _changeRadius,
                     ),
-                    _SettingsRow(
-                      icon: Icons.sports_tennis,
-                      iconBackground: context.colors.tertiaryContainer,
-                      iconColor: context.colors.onTertiaryContainer,
-                      title: 'Deportes',
-                      subtitle: _sportsSubtitle,
-                      trailing: _savingSports
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.chevron_right,
-                              color: context.colors.outline,
-                            ),
-                      onTap: _savingSports ? null : _changeSports,
-                    ),
+                    // Sin fila de "Deportes" mientras la app sea de uno solo:
+                    // era la única puerta que quedaba para marcar correr, y
+                    // dejarla abierta significa perfiles que dicen que corren
+                    // en una app donde correr ya no existe. Vuelve sola en
+                    // cuanto haya un segundo deporte (ver `app_sports.dart`).
+                    if (!isSingleSportApp)
+                      _SettingsRow(
+                        icon: Icons.sports_tennis,
+                        iconBackground: context.colors.tertiaryContainer,
+                        iconColor: context.colors.onTertiaryContainer,
+                        title: 'Deportes',
+                        subtitle: _sportsSubtitle,
+                        trailing: _savingSports
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                Icons.chevron_right,
+                                color: context.colors.outline,
+                              ),
+                        onTap: _savingSports ? null : _changeSports,
+                      ),
                     _SettingsRow(
                       icon: Icons.schedule,
                       iconBackground: context.colors.tertiaryContainer,

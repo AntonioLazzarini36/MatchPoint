@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,7 +5,6 @@ import '../../../app/routes.dart';
 import '../../../core/location/location_result.dart';
 import '../../../core/network/api.dart';
 import '../../../core/storage/token_storage.dart';
-import '../../../core/ui/profile/photo_grid_editor.dart';
 import '../../auth/models/auth_response.dart';
 import '../../auth/models/login_request.dart';
 import '../../auth/models/register_request.dart';
@@ -15,36 +12,21 @@ import '../../auth/services/auth_service.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
+import '../../../core/utils/app_sports.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_step_scaffold.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding/onboarding_skill_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding/onboarding_preferences_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_play_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding/onboarding_photo_step.dart';
+import 'package:match_point/core/ui/widgets/onboarding/onboarding_avatar_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
-import 'package:match_point/features/onboarding/models/intention.dart';
-import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
-import 'package:match_point/core/ui/profile/photo_source_sheet.dart';
 import 'package:match_point/core/ui/profile/avatar_gallery.dart';
 import '../../../core/network/connection_error.dart';
-
-class _PickedPhoto {
-  final Uint8List bytes;
-  final String filename;
-  final String contentType;
-
-  const _PickedPhoto({
-    required this.bytes,
-    required this.filename,
-    required this.contentType,
-  });
-}
 
 class OnboardingProfileScreen extends StatefulWidget {
   /// Null cuando se llega aquí ya logueado (cuenta a medias de un intento
@@ -61,55 +43,55 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
-  static const _totalPages = 6;
-  static const _skillStepIndex = 1;
-  static const _locationStepIndex = 3;
-  static const _photoStepIndex = 4;
-  static const _previewStepIndex = 5;
+  // El wizard pasó de seis pantallas a cinco, y en otro orden:
+  //
+  //   0. Ubicación   — primero, porque es lo que decide si hay alguien
+  //   1. Perfil      — nombre, edad, género, descripción
+  //   2. Tu partido  — nivel + cuándo sueles poder (lo que empareja)
+  //   3. Avatar      — opcional; quien lo salta se lleva uno por defecto
+  //   4. Así te van a ver
+  //
+  // Lo que desapareció: elegir deporte (la app es de tenis, ver
+  // `app_sports.dart`), las credenciales (años/club/logros — se rellenan
+  // desde Ajustes cuando ya hay motivo) y el paso entero de preferencias
+  // (rango de edad, género, "a qué vienes"), que son filtros con valores
+  // por defecto razonables y que en una app vacía sólo sirven para dejarla
+  // más vacía. Todo eso sigue existiendo en Ajustes.
+  static const _totalPages = 5;
+  static const _locationStepIndex = 0;
+  static const _profileStepIndex = 1;
+  static const _playStepIndex = 2;
+  static const _avatarStepIndex = 3;
+  static const _previewStepIndex = 4;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // Empieza vacío a propósito: con los dos marcados desde el arranque no
-  // quedaba claro qué habías elegido vos y qué no (feedback del usuario,
-  // 2026-08-02) — mejor forzar una elección explícita, validada abajo.
-  final Set<String> _selectedSports = {};
-
-  /// null = no lo ha dicho. Antes esto era un String con la frase del
-  /// "objetivo" que acababa guardada como bio; ahora es un campo propio.
-  Intention? _intention;
   WeeklyAvailability _availability = WeeklyAvailability.empty;
-  double _radiusKm = 15;
+  double _radiusKm = 25;
   LocationResult? _selectedLocation;
 
-  // Preferencias de a quien mostrar en Discovery mas adelante (ver
-  // onboarding_preferences_step.dart) - independientes de _selectedSports
-  // (lo que el usuario juega). _sportsWanted vacio significa "todavia no
-  // lo toco" y cae a los mismos deportes que juega como default sensato
-  // (ver _effectiveSportsWanted abajo), sin necesitar sincronizarlo a
-  // mano en cada cambio de _selectedSports.
-  RangeValues _ageRange = const RangeValues(18, 60);
-  final Set<Sport> _sportsWanted = {};
   Gender? _gender;
-  Gender? _genderPreference;
 
   Map<Sport, SkillLevel> _skillLevels = {};
-  // Tenis: años jugando + club. Correr: ritmo/distancia media. Se
-  // muestran condicionalmente en OnboardingSkillStep según los deportes
-  // elegidos arriba — ver status.md, "Reposicionamiento de producto".
-  int? _yearsPlaying;
-  String _club = '';
-  double? _avgPaceMinPerKm;
-  double? _avgDistanceKm;
-  List<String> _achievements = [];
 
   final displayNameCtrl = TextEditingController();
   final bioCtrl = TextEditingController();
   DateTime? birthDate;
 
-  final List<_PickedPhoto> _localPhotos = [];
-  bool _photoBusy = false;
-  String? _photoError;
+  /// El avatar elegido en el último paso. No se convierte a bytes hasta el
+  /// final: guardar la ruta del asset deja el paso instantáneo (cambiar de
+  /// avatar es repintar una rejilla, no recortar y recodificar un PNG) y el
+  /// trabajo se hace una sola vez, al crear el perfil de verdad.
+  String? _avatarAsset;
+
+  /// Con qué se queda quien salta el paso.
+  ///
+  /// Saltar **no puede** significar quedarse sin foto: `/discover` esconde los
+  /// perfiles que no tienen ninguna, así que sería registrarse para no
+  /// aparecer, sin que nada lo avise. Se coge el primero de la lista y no uno
+  /// al azar para que el registro siga siendo reproducible.
+  static String get _fallbackAvatar => kAvatarAssets.first;
 
   late final OnboardingController controller;
   late final AuthService authService;
@@ -135,41 +117,19 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     super.dispose();
   }
 
-  String? _sportToBackend(String uiSport) {
-    switch (uiSport) {
-      case 'Tenis':
-        return 'TENNIS';
-      case 'Correr':
-        return 'RUNNING';
-      default:
-        return null;
-    }
-  }
+  /// Ya no se elige: es el deporte de la app (ver `app_sports.dart`). Se
+  /// sigue mandando la lista porque `Profile.sports` sigue siendo un array
+  /// en el backend, y volver a encender un segundo deporte no debería
+  /// obligar a migrar los perfiles creados mientras tanto.
+  List<String> _sportsForBackend() =>
+      enabledSports.map((s) => s.apiValue).toList();
 
-  List<String> _sportsForBackend() {
-    return _selectedSports.map(_sportToBackend).whereType<String>().toList();
-  }
-
-  List<Sport> _sportsAsEnum() {
-    return _sportsForBackend().map(SportApi.fromApi).toList();
-  }
-
-  Set<Sport> get _effectiveSportsWanted =>
-      _sportsWanted.isEmpty ? _sportsAsEnum().toSet() : _sportsWanted;
-
-  /// El paso de nivel/credenciales es el único realmente opcional del
-  /// wizard — en vez de escribir "(opcional)" en la pantalla, el botón
-  /// mismo dice "Saltar" mientras no haya nada cargado, y pasa a
-  /// "Siguiente" en cuanto tocás algo (feedback del usuario, 2026-08-02).
-  bool get _hasCredentialsFilled {
-    return _yearsPlaying != null ||
-        _club.isNotEmpty ||
-        _avgPaceMinPerKm != null ||
-        _avgDistanceKm != null ||
-        _achievements.isNotEmpty;
-  }
-
-  bool get _isSkillStepEmpty => _skillLevels.isEmpty && !_hasCredentialsFilled;
+  /// El paso de "Tu juego" es opcional: se puede pasar sin decir el nivel ni
+  /// marcar horario. En vez de escribir "(opcional)" en la pantalla, el
+  /// botón mismo dice "Saltar" mientras no haya nada puesto (feedback del
+  /// usuario, 2026-08-02).
+  bool get _isPlayStepEmpty =>
+      _skillLevels.isEmpty && _availability.isEmpty;
 
   int? get _age {
     final b = birthDate;
@@ -200,11 +160,16 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   }
 
   static const _maxDisplayNameLength = 30;
-  static const _maxClubLength = 60;
-  static const _maxAchievementLength = 80;
 
   Future<void> _goNextOrFinish() async {
-    if (_currentPage == 0) {
+    if (_currentPage == _locationStepIndex && _selectedLocation == null) {
+      controller.setError(
+        'Elige dónde juegas para poder enseñarte gente cerca de ti',
+      );
+      return;
+    }
+
+    if (_currentPage == _profileStepIndex) {
       final name = displayNameCtrl.text.trim();
       if (name.isEmpty) {
         controller.setError('Escribe el nombre con el que quieres aparecer');
@@ -217,35 +182,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         return;
       }
       if (birthDate == null) {
-        controller.setError('Birth date is required');
+        controller.setError('Elige tu fecha de nacimiento');
         return;
       }
-      if (_selectedSports.isEmpty) {
-        controller.setError('Elige al menos un deporte');
-        return;
-      }
-    }
-
-    if (_currentPage == _skillStepIndex) {
-      if (_club.length > _maxClubLength) {
-        controller.setError(
-          'El club no puede superar los $_maxClubLength caracteres',
-        );
-        return;
-      }
-      if (_achievements.any((a) => a.length > _maxAchievementLength)) {
-        controller.setError(
-          'Cada logro no puede superar los $_maxAchievementLength caracteres',
-        );
-        return;
-      }
-    }
-
-    if (_currentPage == _locationStepIndex && _selectedLocation == null) {
-      controller.setError(
-        'Elige tu ubicación para poder mostrarte gente cerca tuyo',
-      );
-      return;
     }
 
     if (_currentPage < _previewStepIndex) {
@@ -311,42 +250,36 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // mandarse como null explícito ("prefiero no decirlo") y
       // `UpdateProfileRequest` omite los nulos — ver `updateGender`.
       await controller.service.updateGender(_gender);
-      // Mismo motivo que el género: null es una respuesta válida ("no lo
-      // digo") y `UpdateProfileRequest` omitiría la clave.
-      await controller.service.updateIntention(_intention);
       await controller.service.updateAvailability(_availability);
       await controller.service.updateDiscoveryRadius(_radiusKm.round());
+      // El resto de preferencias (rango de edad, género que quiero ver) se
+      // quedan en sus valores por defecto: ya no se preguntan en el
+      // registro y se cambian desde Ajustes. `sportsWanted` sí se manda,
+      // para que sea el deporte activo y no una lista vacía.
       await controller.service.updatePreferences(
-        ageMin: _ageRange.start.round(),
-        ageMax: _ageRange.end.round(),
-        sportsWanted: _effectiveSportsWanted.toList(),
-        genderPreference: _genderPreference,
+        ageMin: 18,
+        ageMax: 60,
+        sportsWanted: enabledSports,
+        genderPreference: null,
       );
 
-      final mySports = _sportsAsEnum().toSet();
       final levelsForMySports = Map<Sport, SkillLevel>.fromEntries(
-        _skillLevels.entries.where((e) => mySports.contains(e.key)),
+        _skillLevels.entries.where((e) => enabledSports.contains(e.key)),
       );
       if (levelsForMySports.isNotEmpty) {
         await controller.service.updateSkillLevels(levelsForMySports);
       }
-      if (_hasCredentialsFilled) {
-        await controller.service.updateCredentials(
-          yearsPlaying: _yearsPlaying,
-          club: _club.isEmpty ? null : _club,
-          avgPaceMinPerKm: _avgPaceMinPerKm,
-          avgDistanceKm: _avgDistanceKm,
-          achievements: _achievements,
-        );
-      }
 
-      for (final photo in _localPhotos) {
-        await controller.service.uploadPhoto(
-          bytes: photo.bytes,
-          filename: photo.filename,
-          contentType: photo.contentType,
-        );
-      }
+      // El registro ya no sube fotos de la galería: sube el avatar elegido, o
+      // el de reserva si se saltó el paso, para que nadie acabe sin foto y
+      // por tanto invisible en Descubrir. Se convierte a bytes aquí y no al
+      // elegirlo: cambiar de avatar en la rejilla no debe costar un recorte.
+      final bytes = await loadAvatarBytes(_avatarAsset ?? _fallbackAvatar);
+      await controller.service.uploadPhoto(
+        bytes: bytes,
+        filename: '${DateTime.now().microsecondsSinceEpoch}.png',
+        contentType: 'image/png',
+      );
 
       if (!mounted) return;
 
@@ -386,90 +319,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     } finally {
       if (mounted) controller.setLoading(false);
     }
-  }
-
-  /// Varias de una tacada: rellenar el perfil foto a foto (elegir,
-  /// recortar, confirmar, repetir) es lo primero que hace alguien recién
-  /// llegado, y de una en una se hace eterno.
-  Future<void> _addOnboardingPhotos() async {
-    final remaining = PhotoGridEditor.maxPhotos - _localPhotos.length;
-    if (remaining <= 0) {
-      setState(
-        () => _photoError = 'Máximo ${PhotoGridEditor.maxPhotos} fotos.',
-      );
-      return;
-    }
-
-    final picked = await pickPhotos(context, limit: remaining);
-    if (picked.isEmpty || !mounted) return;
-
-    setState(() {
-      _photoBusy = true;
-      _photoError = null;
-    });
-
-    try {
-      // El avatar ya viene apaisado y elegido de una rejilla: pasarlo por
-      // la vista previa de recorte seria enseñar el mismo dibujo dos veces
-      // seguidas para no decidir nada.
-      final avatar = picked.avatarAsset;
-      if (avatar != null) {
-        final bytes = await loadAvatarBytes(avatar);
-        if (!mounted) return;
-        setState(() {
-          _localPhotos.add(
-            _PickedPhoto(
-              bytes: bytes,
-              filename: '${DateTime.now().microsecondsSinceEpoch}.png',
-              contentType: 'image/png',
-            ),
-          );
-        });
-        return;
-      }
-
-      final originals = <Uint8List>[];
-      for (final file in picked.files) {
-        originals.add(await file.readAsBytes());
-      }
-      if (!mounted) return;
-      // Recorte a 16:9 con vista previa: la app enseña las fotos siempre
-      // en horizontal, así que es mejor que el usuario vea el encuadre
-      // final ahora que descubra después que le cortó la cabeza.
-      final cropped = await showPhotoCropPreview(context, originals: originals);
-      if (cropped == null || cropped.isEmpty || !mounted) return;
-      setState(() {
-        for (final bytes in cropped) {
-          _localPhotos.add(
-            _PickedPhoto(
-              bytes: bytes,
-              // El recorte re-codifica a PNG (ver landscape_crop.dart), así
-              // que el nombre/tipo originales ya no describen los bytes.
-              filename: '${DateTime.now().microsecondsSinceEpoch}.png',
-              contentType: 'image/png',
-            ),
-          );
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(
-        () => _photoError = friendlyError(
-          e,
-          fallback: 'No se han podido leer las fotos.',
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _photoBusy = false);
-    }
-  }
-
-  void _deleteOnboardingPhoto(int index) {
-    if (_localPhotos.length <= 1) return;
-    setState(() {
-      _photoError = null;
-      _localPhotos.removeAt(index);
-    });
   }
 
   /// En la primera página, "atrás" ya no tiene otra página del wizard a
@@ -523,9 +372,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     return AnimatedBuilder(
       animation: controller,
       builder: (_, _) {
-        final onPhotoStepWithoutPhoto =
-            _currentPage == _photoStepIndex && _localPhotos.isEmpty;
-
         return OnboardingStepScaffold(
           currentPage: _currentPage,
           totalPages: _totalPages,
@@ -534,15 +380,16 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
           // hay a dónde "saltar" (el redirect global mandaría de vuelta
           // aquí igualmente).
           onSkip: null,
-          onNext: (controller.isLoading || onPhotoStepWithoutPhoto)
-              ? null
-              : _goNextOrFinish,
+          // El paso del avatar ya no bloquea: quien lo salta se lleva uno
+          // por defecto (ver `_fallbackAvatar`), que es mejor que quedarse
+          // sin foto y por tanto fuera de Descubrir.
+          onNext: controller.isLoading ? null : _goNextOrFinish,
           isLoading: controller.isLoading,
           nextLabel: _currentPage == _previewStepIndex
               ? 'Confirmar y crear perfil'
-              : _currentPage == _photoStepIndex
-              ? 'Ver preview'
-              : (_currentPage == _skillStepIndex && _isSkillStepEmpty
+              : _currentPage == _avatarStepIndex
+              ? (_avatarAsset == null ? 'Saltar' : 'Ver preview')
+              : (_currentPage == _playStepIndex && _isPlayStepEmpty
                     ? 'Saltar'
                     : 'Siguiente'),
           errorText: controller.error,
@@ -551,58 +398,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) => setState(() => _currentPage = index),
             children: [
-              OnboardingProfileStep(
-                displayNameCtrl: displayNameCtrl,
-                birthDate: birthDate,
-                onPickBirthDate: _pickBirthDate,
-                birthDateLabel: birthDate == null
-                    ? 'Select date'
-                    : _formatDate(birthDate!),
-                gender: _gender,
-                onGenderChanged: (g) => setState(() => _gender = g),
-                bioCtrl: bioCtrl,
-                selectedSports: _selectedSports,
-                onSportToggle: (sport, selected) {
-                  setState(() {
-                    if (selected) {
-                      _selectedSports.add(sport);
-                    } else {
-                      _selectedSports.remove(sport);
-                    }
-                  });
-                },
-                onNameSubmitted: _goNextOrFinish,
-              ),
-              OnboardingSkillStep(
-                sports: _sportsAsEnum(),
-                skillLevels: _skillLevels,
-                onSkillLevelsChanged: (levels) =>
-                    setState(() => _skillLevels = levels),
-                yearsPlaying: _yearsPlaying,
-                onYearsPlayingChanged: (v) => setState(() => _yearsPlaying = v),
-                club: _club,
-                onClubChanged: (v) => setState(() => _club = v),
-                avgPaceMinPerKm: _avgPaceMinPerKm,
-                onAvgPaceMinPerKmChanged: (v) =>
-                    setState(() => _avgPaceMinPerKm = v),
-                avgDistanceKm: _avgDistanceKm,
-                onAvgDistanceKmChanged: (v) =>
-                    setState(() => _avgDistanceKm = v),
-                achievements: _achievements,
-                onAchievementsChanged: (v) => setState(() => _achievements = v),
-                onFieldSubmitted: _goNextOrFinish,
-              ),
-              OnboardingPreferencesStep(
-                intention: _intention,
-                onIntentionChanged: (v) => setState(() => _intention = v),
-                availability: _availability,
-                onAvailabilityChanged: (v) => setState(() => _availability = v),
-                ageRange: _ageRange,
-                onAgeRangeChanged: (v) => setState(() => _ageRange = v),
-                genderPreference: _genderPreference,
-                onGenderPreferenceChanged: (v) =>
-                    setState(() => _genderPreference = v),
-              ),
               OnboardingLocationStep(
                 location: _selectedLocation,
                 onLocationChanged: (loc) =>
@@ -610,26 +405,41 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 radiusKm: _radiusKm,
                 onRadiusChanged: (v) => setState(() => _radiusKm = v),
               ),
-              OnboardingPhotoStep(
-                photos: _localPhotos.map((p) => p.bytes).toList(),
-                busy: _photoBusy,
-                error: _photoError,
-                onAdd: _addOnboardingPhotos,
-                onDelete: _deleteOnboardingPhoto,
+              OnboardingProfileStep(
+                displayNameCtrl: displayNameCtrl,
+                birthDate: birthDate,
+                onPickBirthDate: _pickBirthDate,
+                birthDateLabel: birthDate == null
+                    ? 'Elegir fecha'
+                    : _formatDate(birthDate!),
+                gender: _gender,
+                onGenderChanged: (g) => setState(() => _gender = g),
+                bioCtrl: bioCtrl,
+                onNameSubmitted: _goNextOrFinish,
+              ),
+              OnboardingPlayStep(
+                skillLevels: _skillLevels,
+                onSkillLevelsChanged: (levels) =>
+                    setState(() => _skillLevels = levels),
+                availability: _availability,
+                onAvailabilityChanged: (v) => setState(() => _availability = v),
+              ),
+              OnboardingAvatarStep(
+                selectedAsset: _avatarAsset,
+                onSelect: (asset) => setState(() => _avatarAsset = asset),
               ),
               OnboardingPreviewStep(
-                photos: _localPhotos.map((p) => p.bytes).toList(),
+                photos: const [],
+                // Todavía no hay bytes del avatar (se cargan al crear el
+                // perfil), así que el preview lo pinta desde el asset.
+                avatarAsset: _avatarAsset ?? _fallbackAvatar,
                 displayName: displayNameCtrl.text.trim(),
                 age: _age,
                 city: _selectedLocation?.displayName,
                 bio: bioCtrl.text.trim().isEmpty ? null : bioCtrl.text.trim(),
-                sports: _sportsAsEnum(),
+                sports: enabledSports,
                 skillLevels: _skillLevels,
-                yearsPlaying: _yearsPlaying,
-                club: _club.isEmpty ? null : _club,
-                avgPaceMinPerKm: _avgPaceMinPerKm,
-                avgDistanceKm: _avgDistanceKm,
-                achievements: _achievements,
+                achievements: const [],
               ),
             ],
           ),

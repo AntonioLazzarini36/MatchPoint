@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:match_point/app/routes.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/utils/app_sports.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 
 import '../chat_controller.dart';
@@ -164,12 +165,17 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Mientras no lleguen los perfiles se usa el del match, que siempre es
   /// válido: así el botón funciona desde el primer frame en vez de
   /// aparecer medio segundo después.
+  ///
+  /// `onlyEnabled` recorta además a los deportes que la app ofrece hoy: hay
+  /// cuentas de cuando se podía elegir correr, y sin ese recorte a dos de
+  /// ellas les saldría un botón de proponer una salida en una app que ya no
+  /// habla de correr por ningún otro sitio.
   List<Sport> get _sharedSports {
     final mine = _mySports;
     final theirs = _theirSports;
-    if (mine == null || theirs == null) return [widget.sport];
+    if (mine == null || theirs == null) return onlyEnabled([widget.sport]);
     final shared = mine.where(theirs.contains).toList();
-    return shared.isEmpty ? [widget.sport] : shared;
+    return onlyEnabled(shared.isEmpty ? [widget.sport] : shared);
   }
 
   Future<void> _loadSharedSports() async {

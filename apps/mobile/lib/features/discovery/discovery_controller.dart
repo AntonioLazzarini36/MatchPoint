@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:match_point/core/utils/app_sports.dart';
+
+import 'models/discover_filters.dart';
 import 'models/discover_profile.dart';
 import 'models/sport.dart';
 import 'models/swipe_type.dart';
@@ -9,20 +12,23 @@ class DiscoveryController extends ChangeNotifier {
 
   /// Qué deportes pedirle al backend, en orden de preferencia.
   ///
-  /// Es `Preferences.sportsWanted` (lo que el usuario quiere *ver*), con
-  /// `Profile.sports` (lo que *juega*) como valor por defecto cuando no ha
-  /// tocado esa preferencia — ver `discovery_screen.dart`, que resuelve
-  /// las dos cosas contra `/me` antes de instanciar esto. Hasta
-  /// 2026-08-04 esto miraba solo `Profile.sports` y `sportsWanted` se
-  /// guardaba sin que nadie lo leyera nunca: la preferencia existía en
-  /// Ajustes pero no hacía absolutamente nada.
-  ///
-  /// Si acaba vacío (perfil sin deportes, no debería pasar tras el
-  /// onboarding) cae a tenis, para no dejar el feed vacío para siempre.
+  /// Mientras la app sea de un solo deporte esto es siempre `[tennis]` (ver
+  /// `app_sports.dart`): la pregunta "¿a qué quieres jugar?" desapareció de
+  /// la interfaz porque tenía una sola respuesta posible. La lista se
+  /// mantiene —y el bucle de abajo que pide un feed por deporte también—
+  /// porque encender el segundo deporte es volver a llenarla, no reescribir
+  /// esto.
   final List<Sport> sports;
 
-  DiscoveryController(this.service, {required List<Sport> sports})
-    : sports = sports.isEmpty ? const [Sport.tennis] : sports;
+  /// Cuándo puedes jugar y contra qué nivel. Es la pregunta con la que
+  /// arranca la pantalla; el feed es su respuesta.
+  DiscoverFilters filters;
+
+  DiscoveryController(
+    this.service, {
+    required List<Sport> sports,
+    this.filters = DiscoverFilters.none,
+  }) : sports = onlyEnabled(sports);
 
   bool loading = false;
 
@@ -42,6 +48,14 @@ class DiscoveryController extends ChangeNotifier {
 
   Future<void> init() async => reload();
 
+  /// Cambia los filtros y vuelve a pedir el feed. No se puede conservar el
+  /// stack anterior: cambiar el "cuándo" cambia quién es candidato, así que
+  /// lo que ya estaba en pantalla puede haber dejado de cumplir.
+  Future<void> setFilters(DiscoverFilters next) async {
+    filters = next;
+    await reload();
+  }
+
   /// El backend solo filtra por un deporte a la vez (`?sport=`), así que
   /// para "varios deportes a la vez" pedimos un feed por cada deporte
   /// buscado y los unimos por `userId` — un candidato que encaja en más
@@ -52,7 +66,9 @@ class DiscoveryController extends ChangeNotifier {
     notifyListeners();
     try {
       final feeds = await Future.wait(
-        sports.map((sport) => service.fetchFeed(sport: sport)),
+        sports.map(
+          (sport) => service.fetchFeed(sport: sport, filters: filters),
+        ),
       );
       final merged = <String, DiscoverProfile>{};
       for (final feed in feeds) {
@@ -82,9 +98,8 @@ class DiscoveryController extends ChangeNotifier {
     return sports.first;
   }
 
-  /// Swipea un perfil concreto — cualquiera de las tarjetas visibles en la
-  /// fila horizontal, no solo "la de arriba" (ya no existe ese concepto,
-  /// ver discovery_screen.dart).
+  /// Marca a alguien como "quiero jugar" o "ahora no". La tarjeta sale de la
+  /// lista al instante y vuelve si la petición falla.
   Future<({bool matched, String? matchId, DiscoverProfile user})> swipeUser({
     required DiscoverProfile user,
     required SwipeType type,

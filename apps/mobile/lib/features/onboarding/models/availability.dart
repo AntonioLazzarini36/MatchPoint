@@ -21,6 +21,17 @@ class WeeklyAvailability {
     'Sábado',
     'Domingo',
   ];
+  /// Para frases cortas ("sáb mañana"), donde `dayNames` no cabe y `days`
+  /// (una sola letra) no se entiende fuera de la rejilla.
+  static const shortDayNames = [
+    'lun',
+    'mar',
+    'mié',
+    'jue',
+    'vie',
+    'sáb',
+    'dom',
+  ];
   static const bands = ['Mañana', 'Tarde', 'Noche'];
 
   final int mask;
@@ -29,6 +40,26 @@ class WeeklyAvailability {
   static const empty = WeeklyAvailability(0);
 
   bool get isEmpty => mask == 0;
+  bool get isNotEmpty => mask != 0;
+
+  /// Los huecos que dos personas tienen en común. Es lo que el backend
+  /// manda ya calculado en `/discover` (`sharedAvailability`), pero también
+  /// se necesita en el cliente para cruzar el filtro elegido con el horario
+  /// de alguien.
+  WeeklyAvailability intersect(WeeklyAvailability other) =>
+      WeeklyAvailability(mask & other.mask);
+
+  /// Los huecos marcados, uno a uno y en texto corto ("sáb mañana").
+  ///
+  /// Distinto de [summary], que agrupa por franja para describir una semana
+  /// entera: aquí lo normal son dos o tres huecos concretos (los que se
+  /// comparten con alguien) y agruparlos los haría más difíciles de leer,
+  /// no menos.
+  List<String> get slotLabels => [
+    for (var d = 0; d < 7; d++)
+      for (var b = 0; b < 3; b++)
+        if (has(d, b)) '${shortDayNames[d]} ${bands[b].toLowerCase()}',
+  ];
 
   static int bit(int day, int band) => 1 << (day * 3 + band);
 

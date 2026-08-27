@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../network/api.dart';
 import '../../../theme/app_theme.dart';
 import '../../../../features/discovery/models/sport.dart';
+import '../../../utils/app_sports.dart';
+import '../../../utils/sport_words.dart';
 import '../../../../features/onboarding/models/gender.dart';
 import '../../../../features/onboarding/models/profile.dart';
 import '../../../../features/onboarding/services/profile_service.dart';
@@ -155,35 +157,35 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
                 ),
                 onChanged: (v) => setState(() => _ageRange = v),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Deportes que quieres ver',
-                style: context.textStyles.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  // Sólo tus deportes: esto acota lo que ves, no lo
-                  // amplia. Ofrecer uno que no juegas sería ofrecer
-                  // matches que luego no se pueden convertir en una
-                  // quedada, porque proponer exige que ambos lo practiquen.
-                  for (final sport in widget.mySports)
-                    FilterChip(
-                      label: Text(sport.label),
-                      avatar: Icon(
-                        sport == Sport.tennis
-                            ? Icons.sports_tennis
-                            : Icons.directions_run,
-                        size: 18,
+              // El selector de deporte sólo aparece si hay más de uno que
+              // elegir: en una app de tenis es un control con una sola
+              // opción, que es peor que no tenerlo.
+              if (!isSingleSportApp) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Deportes que quieres ver',
+                  style: context.textStyles.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    // Sólo tus deportes: esto acota lo que ves, no lo
+                    // amplia. Ofrecer uno que no juegas sería ofrecer
+                    // matches que luego no se pueden convertir en una
+                    // quedada, porque proponer exige que ambos lo practiquen.
+                    for (final sport in widget.mySports)
+                      FilterChip(
+                        label: Text(sport.label),
+                        avatar: Icon(sportIcon(sport), size: 18),
+                        selected: _sportsWanted.contains(sport),
+                        onSelected: (v) => _toggleSport(sport, v),
+                        showCheckmark: false,
                       ),
-                      selected: _sportsWanted.contains(sport),
-                      onSelected: (v) => _toggleSport(sport, v),
-                      showCheckmark: false,
-                    ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               Text('Quiero ver', style: context.textStyles.titleSmall),
               const SizedBox(height: 8),

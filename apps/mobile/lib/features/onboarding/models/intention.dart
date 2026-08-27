@@ -50,7 +50,7 @@ extension IntentionApi on Intention {
       case Intention.compete:
         return 'Partidos serios, con marcador';
       case Intention.train:
-        return 'Preparar una carrera o mantenerme en forma';
+        return 'Coger ritmo y mantenerme en forma';
       case Intention.learn:
         return 'Busco a alguien mejor que me haga subir de nivel';
       case Intention.fun:

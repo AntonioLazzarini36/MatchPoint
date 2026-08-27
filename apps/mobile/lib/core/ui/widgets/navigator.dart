@@ -16,12 +16,14 @@ class NavigatorShell extends StatefulWidget {
 class NavigatorShellState extends State<NavigatorShell> {
   int _index = 0;
 
-  /// "Quedadas" va justo detrás de Matches: el recorrido natural es
+  /// "Partidos" va justo detrás de Compañeros: el recorrido natural es
   /// match -> hablar -> quedar, y tener el plan a un toque es la mitad del
-  /// producto ("organizar la quedada", no sólo hacer match).
+  /// producto ("organizar el partido", no sólo hacer match).
   ///
-  /// Se llama "Quedadas" y no "Partidos" porque también cubre salidas a
-  /// correr — ver `core/utils/sport_words.dart`.
+  /// Se llamó "Quedadas" mientras la app entrelazaba tenis y correr, porque
+  /// a quien sólo corre una pestaña de "Partidos" le hablaba de algo que no
+  /// hace. Sin running (ver `core/utils/app_sports.dart`) ese paraguas ya no
+  /// hace falta, y "partido" es como lo llama todo el mundo.
   final _screens = const [
     DiscoveryScreen(),
     MatchesScreen(),
@@ -94,7 +96,7 @@ class NavigatorShellState extends State<NavigatorShell> {
               const Icon(Icons.event),
               _counts.pendingProposals + _counts.sessionsToConfirm,
             ),
-            label: 'Quedadas',
+            label: 'Partidos',
           ),
           const NavigationDestination(
             icon: Icon(Icons.person_outline),

@@ -94,7 +94,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Quedadas')),
+      appBar: AppBar(title: const Text('Partidos')),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody(context)),
     );
   }

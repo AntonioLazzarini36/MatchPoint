@@ -30,17 +30,17 @@ class DiscoveryIntroBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Encuentra tu compañero de juego',
+                  'Empieza por cuándo puedes jugar',
                   style: context.textStyles.titleSmall?.withColor(
                     context.colors.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Estas son personas de tu zona buscando jugar a tu nivel. Desliza '
-                  'a la derecha si quieres organizar un partido, a la '
-                  'izquierda si no — toca la tarjeta para ver el perfil '
-                  'completo antes de decidir.',
+                  'Marca las franjas en las que sueles tener libre y te ponemos '
+                  'primero a quien coincide contigo. Toca a alguien para ver '
+                  'su perfil, o dale a "Quiero jugar" y, si te lo devuelve, '
+                  'ya podéis quedar.',
                   style: context.textStyles.bodySmall?.withColor(
                     context.colors.onPrimaryContainer,
                   ),
