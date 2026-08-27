@@ -81,6 +81,12 @@ pub struct AppConfig {
     /// confiar en ella *sin* un proxy delante permitiría saltarse el
     /// límite inventando una IP distinta en cada intento.
     pub trust_proxy: bool,
+    /// Si una cuenta recién creada nace con compañeros, conversación y
+    /// partidos ya puestos (ver `crate::demo`). **Sí en desarrollo, no en
+    /// producción**: sirve para enseñar la app sin tener que montar dos
+    /// cuentas a mano delante de la persona, y en producción sería
+    /// inventarle a alguien compañeros que no eligió.
+    pub demo_seed_new_users: bool,
 
     /// API key de Resend. `None` = los correos se escriben en el log en
     /// vez de enviarse (ver `mail::Mailer`), que es lo que permite
@@ -282,6 +288,10 @@ impl AppConfig {
             .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
             .unwrap_or(false);
 
+        let demo_seed_new_users = env::var("DEMO_SEED_NEW_USERS")
+            .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
+            .unwrap_or(app_env == AppEnv::Development);
+
         let run_migrations = env::var("RUN_MIGRATIONS")
             .map(|v| !matches!(v.to_lowercase().as_str(), "0" | "false" | "no"))
             .unwrap_or(true);
@@ -316,6 +326,7 @@ impl AppConfig {
             cors_allowed_origins,
             cors_declared,
             trust_proxy,
+            demo_seed_new_users,
             run_migrations,
             email_verification_enabled,
             resend_api_key,

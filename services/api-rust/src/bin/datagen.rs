@@ -84,10 +84,18 @@ const fn slot(dia: i32, franja: i32) -> i32 {
     1 << (dia * 3 + franja)
 }
 
-/// Un horario de ejemplo con pinta de real —noches entre semana y la mañana
-/// del sabado— para que el flujo de proponer tenga algo que enseñar al
-/// probarlo.
+/// Horarios de ejemplo con pinta de real, y **distintos entre sí**.
+///
+/// Que sean distintos es el punto: desde que el feed ordena y filtra por
+/// "cuándo podéis los dos", sembrar a los diez perfiles con el mismo horario
+/// deja la pantalla diciendo lo mismo en todas las filas — que es exactamente
+/// como se vería si la funcionalidad no estuviera hecha.
 const WEEK_EVENINGS: i32 = slot(0, 2) | slot(1, 1) | slot(2, 2) | slot(3, 1) | slot(5, 0);
+const WEEKENDS: i32 = slot(5, 0) | slot(5, 1) | slot(6, 0) | slot(6, 1);
+const EARLY_BIRD: i32 = slot(0, 0) | slot(1, 0) | slot(2, 0) | slot(3, 0) | slot(4, 0) | slot(5, 0);
+const AFTER_WORK: i32 = slot(1, 2) | slot(3, 2) | slot(4, 2) | slot(5, 2);
+const MIDWEEK_AFTERNOONS: i32 = slot(1, 1) | slot(2, 1) | slot(3, 1);
+const ALMOST_ALWAYS: i32 = WEEK_EVENINGS | WEEKENDS | MIDWEEK_AFTERNOONS;
 
 const FAKE_PROFILES: &[FakeProfile] = &[
     FakeProfile {
@@ -119,11 +127,11 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         latitude: 36.5988,
         longitude: -4.5163,
         bio: "Corro 10k tres veces por semana. Busco gente para rodajes largos.",
-        sports: &[Sport::Running],
+        sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
-        availability: WEEK_EVENINGS,
+        availability: WEEKENDS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -144,7 +152,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Learn),
-        availability: WEEK_EVENINGS,
+        availability: EARLY_BIRD,
         gender_preference: None,
         years_playing: Some(2),
         club: None,
@@ -165,7 +173,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
         intention: Some(Intention::Fun),
-        availability: WEEK_EVENINGS,
+        availability: AFTER_WORK,
         gender_preference: None,
         years_playing: Some(12),
         club: Some("Club de Tenis Torremolinos"),
@@ -182,11 +190,11 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         latitude: 36.5411,
         longitude: -4.6247,
         bio: "Preparando media maratón. Ritmos suaves entre semana.",
-        sports: &[Sport::Running],
+        sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
-        availability: WEEK_EVENINGS,
+        availability: MIDWEEK_AFTERNOONS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -207,7 +215,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
-        availability: WEEK_EVENINGS,
+        availability: WEEKENDS,
         gender_preference: None,
         years_playing: Some(1),
         club: None,
@@ -224,11 +232,11 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         latitude: 36.5959,
         longitude: -4.6372,
         bio: "Más de trail que de asfalto, pero acepto rodajes urbanos.",
-        sports: &[Sport::Running],
+        sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Learn),
-        availability: WEEK_EVENINGS,
+        availability: ALMOST_ALWAYS,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -269,11 +277,11 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         latitude: 36.5988,
         longitude: -4.5163,
         bio: "Empezando en esto del running, busco gente paciente.",
-        sports: &[Sport::Running],
+        sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
-        availability: WEEK_EVENINGS,
+        availability: EARLY_BIRD,
         gender_preference: None,
         years_playing: None,
         club: None,
@@ -294,7 +302,7 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
-        availability: WEEK_EVENINGS,
+        availability: AFTER_WORK,
         gender_preference: None,
         years_playing: Some(7),
         club: None,
@@ -440,12 +448,36 @@ async fn seed_one(
     Ok(true)
 }
 
-/// Escribe (si no existe ya) las fotos generadas de un perfil y devuelve
-/// sus URLs publicas, en el mismo formato que las que sube la app
+/// Donde viven los avatares que usa la app.
+///
+/// Ruta relativa a `services/api-rust/`, que es desde donde se ejecuta
+/// datagen. **No se usa `include_bytes!`** aunque sería más robusto: el
+/// macro resolvería en tiempo de compilacion, y el contexto de build del
+/// `Dockerfile` es `services/api-rust`, asi que una ruta que sale de ahi
+/// rompe la imagen — y con ella el job `docker` de CI. Leerlos en tiempo de
+/// ejecucion mantiene el crate compilable en cualquier contexto, a cambio de
+/// que si no estan se caiga al dibujo generado (ver abajo).
+const AVATAR_DIR: &str = "../../apps/mobile/assets/avatars";
+const AVATAR_COUNT: u32 = 6;
+
+/// Escribe (si no existe ya) las fotos de un perfil sembrado y devuelve sus
+/// URLs publicas, en el mismo formato que las que sube la app
 /// (`{public_base_url}/uploads/{archivo}`).
 ///
-/// El nombre del archivo se deriva del email, asi que re-sembrar no
-/// duplica archivos ni cambia las fotos de nadie.
+/// **Usa los mismos avatares que ofrece la app** en vez del dibujo generado
+/// de una pista en perspectiva. El dibujo cumplia su funcion —que los
+/// perfiles sembrados salieran en Discover, que exige foto— pero enseñar la
+/// app con diez tarjetas de una pista naranja vacia se ve exactamente como
+/// lo que es: relleno. Los avatares son personas dibujadas, que es lo que va
+/// en ese hueco, y ademas son los mismos que se le ofrecen a quien se
+/// registra, asi que la pantalla se ve coherente.
+///
+/// Si los avatares no estan donde se esperan (otro directorio de trabajo, un
+/// clon parcial) se cae al dibujo generado: es preferible un perfil feo a un
+/// perfil sin foto, que directamente no aparece.
+///
+/// El nombre del archivo se deriva del email, asi que re-sembrar no duplica
+/// archivos ni cambia las fotos de nadie.
 fn ensure_photos(cfg: &AppConfig, email: &str, sport: Sport, count: u32) -> Vec<String> {
     let dir = Path::new(&cfg.photos_dir);
     if let Err(e) = std::fs::create_dir_all(dir) {
@@ -458,12 +490,23 @@ fn ensure_photos(cfg: &AppConfig, email: &str, sport: Sport, count: u32) -> Vec<
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect();
 
+    // Reparto estable por email: el mismo perfil se queda siempre con el
+    // mismo avatar entre ejecuciones, y dos perfiles seguidos no repiten.
+    let seed = email.bytes().map(|b| b as u32).sum::<u32>();
+
     let mut urls = Vec::new();
     for variant in 0..count {
-        let filename = format!("seed-{slug}-{variant}.png");
+        let avatar_index = (seed + variant) % AVATAR_COUNT + 1;
+        let source = Path::new(AVATAR_DIR).join(format!("character{avatar_index}.jpg"));
+
+        let (bytes, ext) = match std::fs::read(&source) {
+            Ok(bytes) => (bytes, "jpg"),
+            Err(_) => (photo::render(email, sport, variant), "png"),
+        };
+
+        let filename = format!("seed-{slug}-{variant}.{ext}");
         let path = dir.join(&filename);
         if !path.exists() {
-            let bytes = photo::render(email, sport, variant);
             if let Err(e) = std::fs::write(&path, &bytes) {
                 eprintln!("  ! no se pudo escribir {}: {e}", path.display());
                 continue;

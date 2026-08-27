@@ -88,7 +88,15 @@ pub async fn create_swipe(
         })
         .on_conflict((swipes::from_user_id, swipes::to_user_id, swipes::sport))
         .do_update()
-        .set(swipes::swipe_type.eq(dto.swipe_type))
+        // `created_at` también, no sólo el tipo: es la fecha que decide
+        // cuándo caduca un PASS (ver `discover::service::PASS_EXPIRES_AFTER_DAYS`).
+        // Sin refrescarla, volver a pasar de alguien que reapareció al mes
+        // arrastraría la fecha del primer descarte y lo devolvería al feed
+        // acto seguido, en bucle.
+        .set((
+            swipes::swipe_type.eq(dto.swipe_type),
+            swipes::created_at.eq(chrono::Utc::now()),
+        ))
         .returning(swipes::id)
         .get_result::<String>(&mut conn)
         .await?;

@@ -143,6 +143,19 @@ pub struct DiscoverProfile {
     /// property of the profile, so it must not leak from
     /// `/users/:userId/profile` or the `otherUser` side of `/matches`.
     pub likes_you: bool,
+    /// Los huecos del horario semanal que esta persona y el que mira
+    /// tienen **en común**, como el mismo mapa de bits de 21 posiciones
+    /// que `availability`. `0` = no coinciden en nada (o alguno de los dos
+    /// no lo ha rellenado).
+    ///
+    /// Es relativo a quien mira, igual que `distance_km` y `likes_you`, y
+    /// por lo tanto vale `0` fuera de `/discover`: en
+    /// `/users/:userId/profile` no hay "el otro" contra el que cruzarlo.
+    pub shared_availability: i32,
+    /// Cuántos huecos son esos. Derivado de `shared_availability`, pero se
+    /// manda hecho porque es lo que la lista enseña ("coincidís en 3
+    /// huecos") y ordena.
+    pub shared_slots: i32,
 }
 
 impl From<crate::models::Profile> for DiscoverProfile {
@@ -167,6 +180,8 @@ impl From<crate::models::Profile> for DiscoverProfile {
             distance_km: None,
             matches_your_level: false,
             likes_you: false,
+            shared_availability: 0,
+            shared_slots: 0,
         }
     }
 }
@@ -217,11 +232,57 @@ pub enum DiscoverError {
     Pool(String),
 }
 
+/// Cuánto tarda un PASS en dejar de esconder a alguien.
+///
+/// Un PASS era permanente, y con la densidad real de la app eso vacía el
+/// feed para siempre: en una ciudad con treinta personas que juegan al
+/// tenis, dos tardes deslizando y no queda nadie — nunca más. Un "hoy no"
+/// no es "nunca", así que caduca. El LIKE sí es permanente: o acabó en
+/// match (y entonces se habla por el chat, no por el feed) o la otra
+/// persona todavía puede corresponderlo.
+pub const PASS_EXPIRES_AFTER_DAYS: i64 = 30;
+
+/// Lo que se le pide al feed. Antes era un `Option<Sport>` suelto; ahora
+/// son tres cosas y una tupla de tres `Option` en la firma no se lee.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DiscoverFilters {
+    pub sport: Option<Sport>,
+    /// Mapa de bits de 21 posiciones (mismo formato que
+    /// `Profile.availability`): sólo sale quien tenga **algún** hueco
+    /// marcado dentro de esta máscara. `None` o `0` = sin filtrar.
+    pub availability: Option<i32>,
+    /// Sólo gente con este nivel declarado en el deporte que se mira.
+    pub level: Option<SkillLevel>,
+}
+
+impl DiscoverFilters {
+    pub fn for_sport(sport: Sport) -> Self {
+        Self {
+            sport: Some(sport),
+            ..Self::default()
+        }
+    }
+}
+
+/// Cuántos bits tiene puestos una máscara de disponibilidad.
+fn slot_count(mask: i32) -> i32 {
+    mask.count_ones() as i32
+}
+
 pub async fn discover(
     state: &AppState,
     current_user_id: &str,
-    sport: Option<Sport>,
+    filters: DiscoverFilters,
 ) -> Result<Vec<DiscoverProfile>, DiscoverError> {
+    let DiscoverFilters {
+        sport,
+        availability: wanted_availability,
+        level: wanted_level,
+    } = filters;
+    // Un `0` no filtra nada (todo el mundo tiene algún bit fuera de él, y
+    // `x & 0 == 0` dejaría el feed vacío), así que se trata como "sin
+    // filtro" en vez de como "nadie".
+    let wanted_availability = wanted_availability.filter(|mask| *mask != 0);
     let mut conn = state
         .db
         .get()
@@ -252,11 +313,21 @@ pub async fn discover(
         }
     }
 
-    // Gente a la que ya di LIKE o PASS (para el deporte pedido, si se
-    // pidió uno) no debe volver a aparecer — ni siquiera tras un unmatch,
-    // que solo borra el Match, no el Swipe que lo originó.
+    // Gente a la que ya deslicé y que por tanto no debe volver a salir.
+    //
+    // El LIKE esconde para siempre; el PASS sólo durante
+    // `PASS_EXPIRES_AFTER_DAYS` (ver esa constante). El `created_at` que
+    // cuenta es el del último deslizamiento: `create_swipe` lo reescribe al
+    // hacer upsert, así que volver a pasar de alguien reinicia su plazo en
+    // vez de arrastrar la fecha del primer descarte.
+    let pass_cutoff = Utc::now() - chrono::Duration::days(PASS_EXPIRES_AFTER_DAYS);
     let mut swiped_query = swipes::table
         .filter(swipes::from_user_id.eq(current_user_id))
+        .filter(
+            swipes::swipe_type
+                .eq(SwipeType::Like)
+                .or(swipes::created_at.gt(pass_cutoff)),
+        )
         .into_boxed();
     if let Some(sport) = sport {
         swiped_query = swiped_query.filter(swipes::sport.eq(sport));
@@ -287,13 +358,21 @@ pub async fn discover(
     // No coordinates set -> nothing to filter by distance with, so every
     // candidate passes regardless of `distance_km` (same "not enforceable
     // yet for this viewer" spirit as the age fallback above).
-    let my_location = profiles::table
+    let me = profiles::table
         .filter(profiles::user_id.eq(current_user_id))
-        .select((profiles::latitude, profiles::longitude))
-        .first::<(Option<f64>, Option<f64>)>(&mut conn)
+        .select((
+            profiles::latitude,
+            profiles::longitude,
+            profiles::availability,
+            profiles::intention,
+        ))
+        .first::<(Option<f64>, Option<f64>, i32, Option<Intention>)>(&mut conn)
         .await
-        .optional()?
-        .and_then(|(lat, lng)| lat.zip(lng));
+        .optional()?;
+    let my_location = me.and_then(|(lat, lng, _, _)| lat.zip(lng));
+    let my_availability = me.map(|(_, _, availability, _)| availability).unwrap_or(0);
+    // A qué vengo yo, para poder comparar (ver `goal_fit`).
+    let my_intention = me.and_then(|(_, _, _, intention)| intention);
 
     let now = Utc::now();
     // birth_date <= this means "at least age_min years old".
@@ -344,11 +423,12 @@ pub async fn discover(
         query = query.filter(profiles::sports.overlaps_with(my_sports.clone()));
     }
 
-    // When we'll need to filter by distance afterwards (in Rust, no
-    // PostGIS), fetch a larger candidate pool up front — otherwise the
-    // SQL-side LIMIT could hand us 20 rows that all get filtered out by
-    // distance and we'd return fewer results than actually exist.
-    let fetch_limit: i64 = if my_location.is_some() { 200 } else { 20 };
+    // Distancia, disponibilidad y nivel se filtran en Rust (no hay PostGIS,
+    // y las dos últimas son operaciones de bits / de otra tabla), así que
+    // hay que traer un lote holgado: un LIMIT ajustado en SQL podría
+    // devolver 20 filas que se caen todas en esos filtros y dejar el feed
+    // vacío teniendo gente de sobra detrás.
+    const FETCH_LIMIT: i64 = 200;
 
     let rows = query
         .select((
@@ -370,7 +450,7 @@ pub async fn discover(
             profiles::avg_pace_min_per_km,
             profiles::avg_distance_km,
         ))
-        .limit(fetch_limit)
+        .limit(FETCH_LIMIT)
         .load::<(
             String,
             String,
@@ -434,6 +514,21 @@ pub async fn discover(
                     _ => None,
                 };
 
+                // Filtro explícito de "cuándo puedo jugar": basta con
+                // coincidir en **un** hueco. Quien no ha rellenado su
+                // horario (`availability == 0`) sí se queda fuera cuando se
+                // pide este filtro, y a propósito: la pregunta que hizo el
+                // que mira es "¿quién puede el sábado?", y de esa persona
+                // no se sabe. No es el mismo caso que el género o las
+                // coordenadas, donde el dato que falta no contradice nada.
+                if let Some(mask) = wanted_availability {
+                    if availability & mask == 0 {
+                        return None;
+                    }
+                }
+
+                let shared_availability = availability & my_availability;
+
                 Some(DiscoverProfile {
                     user_id,
                     display_name,
@@ -454,12 +549,12 @@ pub async fn discover(
                     distance_km: distance,
                     matches_your_level: false,
                     likes_you: false,
+                    shared_availability,
+                    shared_slots: slot_count(shared_availability),
                 })
             },
         )
         .collect();
-
-    result.truncate(40);
 
     // One batched query for skill levels instead of one per candidate.
     let ids: Vec<String> = result.iter().map(|p| p.user_id.clone()).collect();
@@ -470,23 +565,16 @@ pub async fn discover(
             .unwrap_or_default();
     }
 
-    // Quién te ha dado LIKE ya. Una sola consulta para todos los
-    // candidatos, no una por tarjeta.
-    // Sin filtrar por deporte, igual que el match: un like es "quiero
-    // jugar contigo". Filtrarlo aqui hacia que la chapa "te ha dado like"
-    // apareciera o no segun que feed estuvieras mirando, con la misma
-    // persona — y que a veces prometiera un match que luego no saltaba.
-    let liked_me: HashSet<String> = swipes::table
-        .filter(swipes::to_user_id.eq(current_user_id))
-        .filter(swipes::from_user_id.eq_any(&ids))
-        .filter(swipes::swipe_type.eq(SwipeType::Like))
-        .select(swipes::from_user_id)
-        .load::<String>(&mut conn)
-        .await?
-        .into_iter()
-        .collect();
-    for profile in &mut result {
-        profile.likes_you = liked_me.contains(&profile.user_id);
+    // Filtro explícito de nivel. Va después de traer los niveles porque
+    // viven en otra tabla; sólo tiene sentido con un deporte concreto
+    // pedido, que es como lo usa el cliente (el nivel es *por deporte*).
+    if let (Some(level), Some(sport)) = (wanted_level, sport) {
+        result.retain(|profile| {
+            profile
+                .skill_levels
+                .iter()
+                .any(|entry| entry.sport == sport && entry.level == level)
+        });
     }
 
     // Quién te ha dado LIKE ya. Una sola consulta para todos los
@@ -508,11 +596,8 @@ pub async fn discover(
         profile.likes_you = liked_me.contains(&profile.user_id);
     }
 
-    // Orden con intención, en vez del que devuelva Postgres: primero
-    // quien ya te ha dado like (un like tuyo cierra el match al instante),
-    // luego quien juega a tu mismo nivel en el deporte que estás mirando
-    // — que es la promesa de la app, encontrar con quién jugar de tu
-    // nivel, no la cara que salga antes en la tabla.
+    // Orden con intención, en vez del que devuelva Postgres. Ver el
+    // `sort_by_key` de abajo para el criterio y por qué.
     // Lista, no `HashMap`: `Sport` no implementa `Hash` (es un enum de
     // Diesel) y de todas formas son dos deportes.
     let my_levels = fetch_skill_levels(&mut conn, current_user_id).await?;
@@ -522,18 +607,6 @@ pub async fn discover(
             .find(|entry| entry.sport == s)
             .map(|entry| (s, entry.level))
     });
-
-    // A qué vengo yo, para poder comparar. La disponibilidad ya no entra
-    // aquí: cuándo puede jugar alguien varía de una semana a otra, así que
-    // ordenar el feed por ello convertiría una aproximación en un criterio.
-    // Vive en el flujo de proponer, que es donde de verdad ayuda.
-    let my_intention = profiles::table
-        .filter(profiles::user_id.eq(current_user_id))
-        .select(profiles::intention)
-        .first::<Option<Intention>>(&mut conn)
-        .await
-        .optional()?
-        .flatten();
 
     for profile in &mut result {
         profile.matches_your_level = my_level_for_sport
@@ -548,10 +621,12 @@ pub async fn discover(
 
     result.sort_by_key(|profile| {
         // 1. Quien ya te dio like: tu like cierra el match al instante.
-        // 2. Quien encaja con lo que buscas (ver `goal_fit`).
-        // 3. Lo demas, por cercania.
+        // 2. Con quién puedes coincidir de verdad — ver `overlap_rank`.
+        // 3. Quien encaja con lo que buscas (ver `goal_fit`).
+        // 4. Lo demas, por cercania.
         (
             !profile.likes_you,
+            std::cmp::Reverse(overlap_rank(profile.shared_slots)),
             std::cmp::Reverse(goal_fit(my_intention, my_level_for_sport, profile)),
             profile
                 .distance_km
@@ -560,9 +635,93 @@ pub async fn discover(
         )
     });
 
-    result.truncate(20);
+    // 50 y no 20: la pantalla dejó de ser un mazo de tres tarjetas y pasó a
+    // ser una lista que se recorre con el pulgar, así que cortar en 20
+    // escondía gente que sí cabía en la respuesta.
+    result.truncate(50);
 
     Ok(result)
+}
+
+/// Cuánta gente jugable hay ya alrededor de un punto.
+///
+/// Existe para una pregunta que hasta ahora la app contestaba demasiado
+/// tarde: al elegir sitio en el registro. Alguien rellena seis pantallas,
+/// sube una foto, y **entonces** descubre que Descubrir está vacío. Con esto,
+/// el paso de ubicación dice "12 personas juegan al tenis a menos de 25 km"
+/// mientras aún está eligiendo, y cuando el número es 0 se puede decir la
+/// verdad en vez de dejar que la descubra al final.
+///
+/// **No lleva autenticación**, y no puede llevarla: en el registro no hay
+/// cuenta todavía (nada se crea hasta el último paso del wizard). Devuelve un
+/// número y nada más — ni perfiles, ni nombres, ni posiciones — y va detrás
+/// del mismo limitador por IP que `/auth/login`, así que no sirve para
+/// enumerar a nadie.
+pub async fn density(
+    state: &AppState,
+    lat: f64,
+    lng: f64,
+    radius_km: f64,
+    sport: Sport,
+) -> Result<i64, DiscoverError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| DiscoverError::Pool(e.to_string()))?;
+
+    let radius_km = radius_km.clamp(1.0, 300.0);
+
+    // Caja envolvente en SQL para no traerse la tabla entera, y la
+    // distancia real (Haversine) en Rust sobre lo que quede — mismo reparto
+    // que el filtro de distancia del feed. La caja es generosa a propósito:
+    // sobra con que no descarte a nadie que sí entra en el círculo.
+    let lat_delta = radius_km / 111.0;
+    let lng_delta = radius_km / (111.0 * lat.to_radians().cos().abs().max(0.01));
+
+    let rows = profiles::table
+        .filter(profiles::sports.contains(vec![sport]))
+        // Mismo criterio de "perfil completo" que el feed: si no saldría en
+        // Descubrir, contarlo aquí sería prometer gente que no se va a ver.
+        .filter(profiles::photos.ne(Vec::<String>::new()))
+        .filter(profiles::latitude.is_not_null())
+        .filter(profiles::longitude.is_not_null())
+        .filter(profiles::latitude.between(lat - lat_delta, lat + lat_delta))
+        .filter(profiles::longitude.between(lng - lng_delta, lng + lng_delta))
+        .select((profiles::latitude, profiles::longitude))
+        .limit(1000)
+        .load::<(Option<f64>, Option<f64>)>(&mut conn)
+        .await?;
+
+    let count = rows
+        .into_iter()
+        .filter_map(|(p_lat, p_lng)| p_lat.zip(p_lng))
+        .filter(|(p_lat, p_lng)| haversine_km(lat, lng, *p_lat, *p_lng) <= radius_km)
+        .count();
+
+    Ok(count as i64)
+}
+
+/// Cuánto pesa coincidir en el horario, a efectos de orden.
+///
+/// **Esto invierte la decisión del 2026-08-23**, que sacó la disponibilidad
+/// del orden del feed. Entonces era correcta: el dato era un enum de seis
+/// franjas gruesas rellenado en el registro y que no se veía en ninguna
+/// pantalla, así que ordenar "a quién conoces" por él era decidir con algo
+/// que nadie había mirado nunca. Ahora es lo contrario: es una rejilla de 21
+/// huecos, editable desde Ajustes, visible en el perfil, y —lo que cambia el
+/// argumento— **es lo que la persona que mira acaba de pedir explícitamente**
+/// en el filtro de "cuándo puedes jugar". Coincidir en el horario dejó de ser
+/// un dato blando sobre alguien y pasó a ser la pregunta.
+///
+/// Lo que se conserva de aquella decisión es la desconfianza en la precisión:
+/// se agrupa en 0 / 1 / 2 / 3-o-más en vez de ordenar por el número crudo.
+/// Con el número crudo, quien marca la semana entera gana siempre — y marcar
+/// 21 huecos no es estar más disponible, es haber arrastrado el dedo más
+/// rato. A partir de tres coincidencias ya hay margen de sobra para quedar,
+/// y lo que decide es el nivel y la distancia.
+fn overlap_rank(shared_slots: i32) -> i32 {
+    shared_slots.min(3)
 }
 
 /// Cuanto encaja un candidato con lo que **tu** has dicho que buscas.

@@ -15,7 +15,12 @@
 
 mod common;
 
-use common::{cleanup, fresh_cluster, make_user, set_level_and_intention, test_state};
+use common::{
+    age_swipe, cleanup, fresh_cluster, make_user, set_availability, set_level_and_intention,
+    test_state,
+};
+use matchpoint_api::discover::service::DiscoverFilters;
+use matchpoint_api::matches;
 use matchpoint_api::models::{Intention, SkillLevel, Sport, SwipeType};
 use matchpoint_api::proposals::dto::{CreateProposalDto, ProposalAction};
 use matchpoint_api::swipes::dto::CreateSwipeDto;
@@ -101,7 +106,12 @@ async fn discover_rechaza_un_deporte_que_no_juegas() {
     let c = fresh_cluster();
     let solo_tenis = make_user(&state, c, "solotenis", &[Sport::Tennis]).await;
 
-    let res = discover::service::discover(&state, &solo_tenis, Some(Sport::Running)).await;
+    let res = discover::service::discover(
+        &state,
+        &solo_tenis,
+        DiscoverFilters::for_sport(Sport::Running),
+    )
+    .await;
     assert!(
         res.is_err(),
         "pedir un deporte que no juegas tiene que fallar, no devolver gente"
@@ -119,7 +129,7 @@ async fn discover_solo_ensena_a_quien_comparte_deporte() {
     let comparte = make_user(&state, c, "comparte", &[Sport::Tennis]).await;
     let no_comparte = make_user(&state, c, "nocomparte", &[Sport::Running]).await;
 
-    let found = discover::service::discover(&state, &yo, None)
+    let found = discover::service::discover(&state, &yo, DiscoverFilters::default())
         .await
         .expect("discover");
     let ids: Vec<&str> = found.iter().map(|p| p.user_id.as_str()).collect();
@@ -145,7 +155,7 @@ async fn discover_no_repite_a_quien_ya_deslizaste() {
     let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
     let otro = make_user(&state, c, "otro", &[Sport::Tennis]).await;
 
-    let before = discover::service::discover(&state, &yo, None)
+    let before = discover::service::discover(&state, &yo, DiscoverFilters::default())
         .await
         .unwrap();
     assert!(before.iter().any(|p| p.user_id == otro));
@@ -162,7 +172,7 @@ async fn discover_no_repite_a_quien_ya_deslizaste() {
     .await
     .unwrap();
 
-    let after = discover::service::discover(&state, &yo, None)
+    let after = discover::service::discover(&state, &yo, DiscoverFilters::default())
         .await
         .unwrap();
     assert!(
@@ -351,7 +361,7 @@ async fn quien_quiere_mejorar_ve_antes_a_alguien_mejor() {
     .await;
     set_level_and_intention(&state, &mejor, Sport::Tennis, SkillLevel::Advanced, None).await;
 
-    let found = discover::service::discover(&state, &yo, Some(Sport::Tennis))
+    let found = discover::service::discover(&state, &yo, DiscoverFilters::for_sport(Sport::Tennis))
         .await
         .expect("discover");
 
@@ -397,7 +407,7 @@ async fn quien_viene_a_competir_ve_antes_a_alguien_de_su_nivel() {
     .await;
     set_level_and_intention(&state, &mejor, Sport::Tennis, SkillLevel::Advanced, None).await;
 
-    let found = discover::service::discover(&state, &yo, Some(Sport::Tennis))
+    let found = discover::service::discover(&state, &yo, DiscoverFilters::for_sport(Sport::Tennis))
         .await
         .expect("discover");
 
@@ -408,4 +418,280 @@ async fn quien_viene_a_competir_ve_antes_a_alguien_de_su_nivel() {
     );
 
     cleanup(&state, &[&yo, &igual, &mejor]).await;
+}
+
+// --- Oferta quemada: el PASS caduca, el unmatch no entierra a nadie ---
+
+/// Un PASS escondía a alguien para siempre. Con la densidad real de la app
+/// (decenas de personas por ciudad, no miles) eso vacía el feed en dos
+/// tardes y ya no se llena nunca más.
+#[tokio::test]
+async fn el_pass_caduca_y_esa_persona_vuelve_a_salir() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let otro = make_user(&state, c, "otro", &[Sport::Tennis]).await;
+
+    swipes::service::create_swipe(
+        &state,
+        &yo,
+        CreateSwipeDto {
+            to_user_id: otro.clone(),
+            sport: Sport::Tennis,
+            swipe_type: SwipeType::Pass,
+        },
+    )
+    .await
+    .unwrap();
+
+    let recien_pasado = discover::service::discover(&state, &yo, DiscoverFilters::default())
+        .await
+        .unwrap();
+    assert!(
+        !recien_pasado.iter().any(|p| p.user_id == otro),
+        "un pase reciente tiene que seguir escondiendo"
+    );
+
+    age_swipe(
+        &state,
+        &yo,
+        &otro,
+        discover::service::PASS_EXPIRES_AFTER_DAYS + 1,
+    )
+    .await;
+
+    let caducado = discover::service::discover(&state, &yo, DiscoverFilters::default())
+        .await
+        .unwrap();
+    assert!(
+        caducado.iter().any(|p| p.user_id == otro),
+        "pasado el plazo, esa persona tiene que volver al feed"
+    );
+
+    cleanup(&state, &[&yo, &otro]).await;
+}
+
+/// El LIKE no caduca: o cerró un match (y entonces se habla por el chat) o
+/// la otra persona todavía puede corresponderlo. Devolverlo al feed sería
+/// dejar dar like dos veces a la misma persona.
+#[tokio::test]
+async fn el_like_no_caduca() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let otro = make_user(&state, c, "otro", &[Sport::Tennis]).await;
+
+    swipes::service::create_swipe(&state, &yo, like(&otro, Sport::Tennis))
+        .await
+        .unwrap();
+    age_swipe(
+        &state,
+        &yo,
+        &otro,
+        discover::service::PASS_EXPIRES_AFTER_DAYS * 10,
+    )
+    .await;
+
+    let found = discover::service::discover(&state, &yo, DiscoverFilters::default())
+        .await
+        .unwrap();
+    assert!(
+        !found.iter().any(|p| p.user_id == otro),
+        "a quien diste like no se le vuelve a enseñar, por viejo que sea"
+    );
+
+    cleanup(&state, &[&yo, &otro]).await;
+}
+
+/// Deshacer un match borraba el match pero dejaba los dos LIKE en pie, y un
+/// LIKE esconde para siempre: las dos personas quedaban mutuamente
+/// invisibles de por vida, incluida la que no deshizo nada.
+#[tokio::test]
+async fn deshacer_un_match_no_esconde_a_los_dos_para_siempre() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let uno = make_user(&state, c, "uno", &[Sport::Tennis]).await;
+    let dos = make_user(&state, c, "dos", &[Sport::Tennis]).await;
+
+    swipes::service::create_swipe(&state, &uno, like(&dos, Sport::Tennis))
+        .await
+        .unwrap();
+    let res = swipes::service::create_swipe(&state, &dos, like(&uno, Sport::Tennis))
+        .await
+        .unwrap();
+    let match_id = res.match_id.expect("el like reciproco hace match");
+
+    matches::service::unmatch(&state, &match_id, &uno)
+        .await
+        .expect("unmatch");
+
+    // Justo después no se ven: es lo que se pidió al deshacer el match.
+    for (yo, otro) in [(&uno, &dos), (&dos, &uno)] {
+        let found = discover::service::discover(&state, yo, DiscoverFilters::default())
+            .await
+            .unwrap();
+        assert!(
+            !found.iter().any(|p| &p.user_id == otro),
+            "recien deshecho el match, no deben volver a verse todavia"
+        );
+    }
+
+    // Pero el like caducó a PASS, así que un mes después vuelven al feed.
+    age_swipe(
+        &state,
+        &uno,
+        &dos,
+        discover::service::PASS_EXPIRES_AFTER_DAYS + 1,
+    )
+    .await;
+    age_swipe(
+        &state,
+        &dos,
+        &uno,
+        discover::service::PASS_EXPIRES_AFTER_DAYS + 1,
+    )
+    .await;
+
+    for (yo, otro) in [(&uno, &dos), (&dos, &uno)] {
+        let found = discover::service::discover(&state, yo, DiscoverFilters::default())
+            .await
+            .unwrap();
+        assert!(
+            found.iter().any(|p| &p.user_id == otro),
+            "pasado el plazo se pueden volver a cruzar: un unmatch no es un bloqueo"
+        );
+    }
+
+    cleanup(&state, &[&uno, &dos]).await;
+}
+
+// --- Disponibilidad: de dato decorativo a criterio de búsqueda ---
+
+/// Bit del horario semanal: `día * 3 + franja`, lunes primero.
+fn slot(day: i32, band: i32) -> i32 {
+    1 << (day * 3 + band)
+}
+
+/// El filtro de "cuándo puedo jugar", que es la pregunta con la que ahora
+/// arranca la pantalla de buscar.
+#[tokio::test]
+async fn discover_filtra_por_cuando_puede_jugar_cada_uno() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let sabado = make_user(&state, c, "sabado", &[Sport::Tennis]).await;
+    let entresemana = make_user(&state, c, "entresemana", &[Sport::Tennis]).await;
+    let sinhorario = make_user(&state, c, "sinhorario", &[Sport::Tennis]).await;
+
+    set_availability(&state, &sabado, slot(5, 0)).await; // sábado mañana
+    set_availability(&state, &entresemana, slot(1, 1)).await; // martes tarde
+    set_availability(&state, &sinhorario, 0).await;
+
+    let filtros = DiscoverFilters {
+        sport: Some(Sport::Tennis),
+        availability: Some(slot(5, 0)),
+        ..DiscoverFilters::default()
+    };
+    let found = discover::service::discover(&state, &yo, filtros)
+        .await
+        .unwrap();
+    let ids: Vec<&str> = found.iter().map(|p| p.user_id.as_str()).collect();
+
+    assert!(
+        ids.contains(&sabado.as_str()),
+        "quien tiene ese hueco marcado tiene que salir"
+    );
+    assert!(
+        !ids.contains(&entresemana.as_str()),
+        "quien no tiene ese hueco no sale"
+    );
+    assert!(
+        !ids.contains(&sinhorario.as_str()),
+        "quien no ha rellenado el horario tampoco: la pregunta era cuando puede"
+    );
+
+    cleanup(&state, &[&yo, &sabado, &entresemana, &sinhorario]).await;
+}
+
+/// Una máscara vacía no puede significar "nadie": es lo que llega cuando el
+/// usuario no ha tocado el filtro todavía.
+#[tokio::test]
+async fn una_mascara_vacia_no_filtra_nada() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let otro = make_user(&state, c, "otro", &[Sport::Tennis]).await;
+
+    let filtros = DiscoverFilters {
+        sport: Some(Sport::Tennis),
+        availability: Some(0),
+        ..DiscoverFilters::default()
+    };
+    let found = discover::service::discover(&state, &yo, filtros)
+        .await
+        .unwrap();
+    assert!(
+        found.iter().any(|p| p.user_id == otro),
+        "sin huecos elegidos el feed no puede salir vacio"
+    );
+
+    cleanup(&state, &[&yo, &otro]).await;
+}
+
+/// El corazón del cambio de producto: con todo lo demás igual, sale antes
+/// quien coincide contigo en el horario que quien está más cerca.
+#[tokio::test]
+async fn coincidir_en_horario_pesa_mas_que_la_distancia() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    // Un poco más lejos que el otro, pero coincide en dos huecos.
+    let coincide = make_user(&state, (c.0 + 0.02, c.1), "coincide", &[Sport::Tennis]).await;
+    let cerca = make_user(&state, c, "cerca", &[Sport::Tennis]).await;
+
+    let mi_horario = slot(5, 0) | slot(6, 0); // fin de semana por la mañana
+    set_availability(&state, &yo, mi_horario).await;
+    set_availability(&state, &coincide, mi_horario).await;
+    set_availability(&state, &cerca, slot(2, 2)).await; // miércoles noche
+
+    let found = discover::service::discover(&state, &yo, DiscoverFilters::for_sport(Sport::Tennis))
+        .await
+        .unwrap();
+    let ids: Vec<&str> = found.iter().map(|p| p.user_id.as_str()).collect();
+    let pos_coincide = ids.iter().position(|id| *id == coincide).expect("coincide");
+    let pos_cerca = ids.iter().position(|id| *id == cerca).expect("cerca");
+
+    assert!(
+        pos_coincide < pos_cerca,
+        "con quien puedes quedar de verdad va antes que quien pilla mas cerca: {ids:?}"
+    );
+
+    let suyo = found.iter().find(|p| p.user_id == coincide).unwrap();
+    assert_eq!(
+        suyo.shared_slots, 2,
+        "los huecos en comun se mandan calculados, que es lo que la lista ensena"
+    );
+
+    cleanup(&state, &[&yo, &coincide, &cerca]).await;
+}
+
+/// `shared_availability`/`shared_slots` son relativos a quien mira, como
+/// `distanceKm` o `likesYou`: no pueden salir por el perfil público.
+#[tokio::test]
+async fn el_horario_en_comun_no_sale_del_perfil_publico() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let yo = make_user(&state, c, "yo", &[Sport::Tennis]).await;
+    let otro = make_user(&state, c, "otro", &[Sport::Tennis]).await;
+    set_availability(&state, &yo, slot(5, 0)).await;
+    set_availability(&state, &otro, slot(5, 0)).await;
+
+    let publico = matchpoint_api::users::service::get_profile(&state, &otro)
+        .await
+        .expect("perfil publico");
+
+    assert_eq!(publico.shared_slots, 0);
+    assert_eq!(publico.shared_availability, 0);
+
+    cleanup(&state, &[&yo, &otro]).await;
 }

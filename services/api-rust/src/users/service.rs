@@ -96,12 +96,14 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
     let skill_levels = fetch_skill_levels(&mut conn, &user_id).await?;
 
     Ok(DiscoverProfile {
-        // Los tres son relativos a quien mira, no propiedades publicas del
-        // perfil, y este endpoint no sabe quien mira mas alla de que este
-        // autenticado — ver los campos en discover/service.rs.
+        // Todos estos son relativos a quien mira, no propiedades publicas
+        // del perfil, y este endpoint no sabe quien mira mas alla de que
+        // este autenticado — ver los campos en discover/service.rs.
         distance_km: None,
         matches_your_level: false,
         likes_you: false,
+        shared_availability: 0,
+        shared_slots: 0,
         user_id,
         display_name,
         age: age_from_birth_date(birth_date),

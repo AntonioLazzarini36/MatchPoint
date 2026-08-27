@@ -345,6 +345,15 @@ pub async fn update_profile(
         .get_result::<Profile>(&mut conn)
         .await?;
 
+    // Primera vez que este usuario tiene perfil: en desarrollo se le dejan
+    // un par de compañeros y un partido puestos, para poder enseñar la app
+    // sin montar dos cuentas a mano (ver `crate::demo`). No en producción.
+    // Va **después** de guardar y sin propagar errores: que la demo falle no
+    // puede tumbar el registro de nadie.
+    if existing.is_none() {
+        crate::demo::seed_new_user(state, user_id).await;
+    }
+
     Ok(saved)
 }
 

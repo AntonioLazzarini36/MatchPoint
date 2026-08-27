@@ -22,7 +22,7 @@ use matchpoint_api::models::{
     Intention, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
 };
 use matchpoint_api::push::Pusher;
-use matchpoint_api::schema::{profiles, skill_levels, users};
+use matchpoint_api::schema::{profiles, skill_levels, swipes, users};
 use matchpoint_api::state::AppState;
 
 /// Variables que `AppConfig::from_env` exige. Se ponen aquí para que los
@@ -181,4 +181,32 @@ pub async fn set_level_and_intention(
         .execute(&mut conn)
         .await
         .expect("intention");
+}
+
+/// Fija el horario semanal habitual de alguien (`Profile.availability`),
+/// como el mapa de bits de 21 posiciones que usa el resto de la app:
+/// `bit = día * 3 + franja`, lunes primero, franjas mañana/tarde/noche.
+pub async fn set_availability(state: &AppState, user_id: &str, mask: i32) {
+    let mut conn = state.db.get().await.expect("pool");
+    diesel::update(profiles::table.filter(profiles::user_id.eq(user_id)))
+        .set(profiles::availability.eq(mask))
+        .execute(&mut conn)
+        .await
+        .expect("availability");
+}
+
+/// Envejece un swipe ya hecho, para poder comprobar la caducidad del PASS
+/// sin esperar un mes. Es la única forma de probarlo: el plazo lo mide el
+/// servicio contra `Utc::now()`.
+pub async fn age_swipe(state: &AppState, from: &str, to: &str, days: i64) {
+    let mut conn = state.db.get().await.expect("pool");
+    diesel::update(
+        swipes::table
+            .filter(swipes::from_user_id.eq(from))
+            .filter(swipes::to_user_id.eq(to)),
+    )
+    .set(swipes::created_at.eq(chrono::Utc::now() - chrono::Duration::days(days)))
+    .execute(&mut conn)
+    .await
+    .expect("age swipe");
 }

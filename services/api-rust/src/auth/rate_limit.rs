@@ -76,6 +76,15 @@ pub const MESSAGES: Quota = per_minute(30);
 /// Railway se paga.
 pub const PHOTOS: Quota = per_hour(20);
 
+/// Densidad ("cuánta gente hay cerca de aquí"). Mucho más suelta que la de
+/// auth, y a propósito: es una consulta de sólo lectura que devuelve un
+/// número, y quien la llama es el paso de ubicación del registro, donde mover
+/// el radio o cambiar de sitio son gestos normales que se repiten. Con la
+/// cuota de auth (10/min) bastaba con arrastrar el slider un rato para
+/// quedarse sin contador el resto del minuto — que es justo el momento en que
+/// alguien está decidiendo si la app le sirve.
+pub const DENSITY: Quota = per_minute(60);
+
 /// Reportes. Denunciar es legítimo, pero denunciar 500 veces es acoso o
 /// ruido para quien luego tenga que revisarlos.
 pub const REPORTS: Quota = per_hour(10);
@@ -185,6 +194,28 @@ pub async fn rate_limit(
 ) -> Response {
     let ip = client_ip(&state, &req, addr);
     match state.rate_limiter.check(format!("ip:{ip}"), AUTH).await {
+        Ok(()) => next.run(req).await,
+        Err(retry) => too_many(retry),
+    }
+}
+
+/// Middleware por IP para `/discover/density`, con su propia cuota.
+///
+/// Cubo separado del de auth (`density:` en vez de `ip:`) para que gastar
+/// consultas de densidad no deje a nadie sin poder iniciar sesión, ni al
+/// revés.
+pub async fn density_rate_limit(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let ip = client_ip(&state, &req, addr);
+    match state
+        .rate_limiter
+        .check(format!("density:{ip}"), DENSITY)
+        .await
+    {
         Ok(()) => next.run(req).await,
         Err(retry) => too_many(retry),
     }

@@ -17,8 +17,8 @@ use utoipa::ToSchema;
 
 use crate::chats::crypto;
 use crate::discover::service::{fetch_skill_levels, DiscoverProfile};
-use crate::models::{Profile, Sport};
-use crate::schema::{matches, messages, profiles, proposals, session_feedback};
+use crate::models::{Profile, Sport, SwipeType};
+use crate::schema::{matches, messages, profiles, proposals, session_feedback, swipes};
 use crate::state::AppState;
 
 #[derive(Debug, thiserror::Error)]
@@ -226,6 +226,35 @@ pub async fn unmatch(state: &AppState, match_id: &str, user_id: &str) -> Result<
     diesel::delete(matches::table.filter(matches::id.eq(match_id)))
         .execute(&mut conn)
         .await?;
+
+    // Los LIKE que provocaron el match pasan a PASS con fecha de hoy.
+    //
+    // Borrar el match no tocaba los swipes, y un LIKE esconde a alguien del
+    // feed **para siempre**: deshacer un match dejaba a las dos personas
+    // mutuamente invisibles el resto de su vida en la app. Con la densidad
+    // real que hay eso es tirar oferta a la basura, y encima castiga a quien
+    // no deshizo nada. Convertidos en PASS caducan como cualquier descarte
+    // (`discover::service::PASS_EXPIRES_AFTER_DAYS`): ninguno de los dos
+    // vuelve a ver al otro ahora mismo — que es lo que se pidió al deshacer
+    // el match — pero dentro de un mes se pueden volver a cruzar. Para
+    // cortar de verdad y para siempre está Reportar, que es lo que revisa
+    // una persona.
+    diesel::update(
+        swipes::table.filter(
+            swipes::from_user_id
+                .eq(&found.0)
+                .and(swipes::to_user_id.eq(&found.1))
+                .or(swipes::from_user_id
+                    .eq(&found.1)
+                    .and(swipes::to_user_id.eq(&found.0))),
+        ),
+    )
+    .set((
+        swipes::swipe_type.eq(SwipeType::Pass),
+        swipes::created_at.eq(chrono::Utc::now()),
+    ))
+    .execute(&mut conn)
+    .await?;
 
     Ok(())
 }
