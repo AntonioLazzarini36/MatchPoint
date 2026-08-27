@@ -9,6 +9,21 @@
 //
 // Qué le hace al original y por qué:
 //
+//  0. **Se queda con la raqueta y tira la zapatilla.** El original es un
+//     círculo partido: raqueta sobre naranja a la izquierda, zapatilla sobre
+//     azul a la derecha. Decía "tenis **y** correr", que era el
+//     posicionamiento de la app hasta que dejó de serlo — desde que sólo hay
+//     tenis (ver `lib/core/utils/app_sports.dart`), la mitad derecha anuncia
+//     algo que no existe, y es lo primero que ve alguien que instala la app.
+//     Así que se aísla la raqueta, se **centra** en el círculo y el fondo pasa
+//     a ser un naranja liso. El separador blanco desaparece con ella: sin dos
+//     mitades no hay nada que separar.
+//
+//     El dibujo no se rehace a mano ni se recorta a ojo: la máscara del paso 3
+//     ya sabe distinguir dibujo de fondo, así que la raqueta sale de ahí, se
+//     mide su caja y se coloca por su centro. Volver a exportar el logo a otro
+//     tamaño sigue sin obligar a tocar un número.
+//
 //  1. **Quita el marco, de dos formas distintas según a dónde vaya.** El
 //     original es un círculo sobre blanco opaco, que en el escritorio de un
 //     móvil se lee como un cuadrado blanco con un círculo dentro.
@@ -25,18 +40,17 @@
 //       recortado con las esquinas transparentes: ahí lo dibuja Flutter
 //       sobre el fondo de la pantalla, no lo recorta ningún sistema.
 //
-//  2. **Recolorea las dos mitades.** El original venía en naranja `#F4511E` y
-//     verde `#2E7D32`. Ese naranja es justo el que la app dejó atrás al pasar
-//     a la paleta de pista, y el verde es el `primary` de la marca, que en la
-//     app significa "acción/estado" y no "deporte". Se usan los colores que
-//     la app **ya** usa por deporte (`lib/core/utils/sport_words.dart`):
-//     tierra batida para tenis y azul de tartán para correr. Así el icono
-//     habla el mismo idioma que las tarjetas de Discovery.
+//  2. **Recolorea el fondo.** El original venía en naranja `#F4511E`, que es
+//     justo el que la app dejó atrás al pasar a la paleta de pista. Se usa el
+//     color que la app **ya** usa para el tenis
+//     (`lib/core/utils/sport_words.dart`: tierra batida), así que el icono
+//     habla el mismo idioma que el resto de la interfaz. Se descartó el verde
+//     de marca: en la app significa "acción/estado", no deporte.
 //
 //  3. **Separa el dibujo del fondo** para poder darle a Android un icono
-//     adaptativo de verdad: capa de atrás = el círculo con sus dos mitades,
-//     capa de delante = raqueta y zapatilla. Es lo que hace que el lanzador
-//     pueda moverlas por separado en vez de tratar el icono como una estampa.
+//     adaptativo de verdad: capa de atrás = el círculo naranja, capa de
+//     delante = la raqueta. Es lo que hace que el lanzador pueda moverlas por
+//     separado en vez de tratar el icono como una estampa.
 //
 //  4. **Ajusta el tamaño del dibujo a cada destino.** La capa de delante del
 //     icono adaptativo no se dibuja sobre los 108 dp de la capa sino dentro
@@ -53,31 +67,54 @@ import 'dart:typed_data';
 
 const _sourcePath = 'tool/logo_source.png';
 
-/// Colores por deporte, copiados de `lib/core/utils/sport_words.dart`.
+/// Color del tenis, copiado de `lib/core/utils/sport_words.dart`.
 const _tennis = [0xC6, 0x5F, 0x3B]; // tierra batida
-const _running = [0x3B, 0x7B, 0xC6]; // azul pista de atletismo
 const _white = [0xFF, 0xFF, 0xFF];
 
-/// Escala del dibujo (raqueta y zapatilla) en el icono del lanzador. En el
-/// original ocupan el 61% del ancho porque estaban pensados para caber dentro
-/// del círculo con su marco alrededor; sin marco se quedan pequeños y a 48 px
-/// las cuerdas de la raqueta desaparecen. Con 1.25 pasan al 76%.
-const _launcherArtScale = 1.25;
+/// Cuánto del lienzo ocupa la raqueta por su lado más largo, en el icono del
+/// lanzador.
+///
+/// Es una **fracción del resultado**, no un multiplicador sobre el tamaño que
+/// tuviera en el original: la raqueta ya no está donde estaba (se ha sacado de
+/// su mitad y se ha centrado), así que "un 25% más grande que antes" dejó de
+/// significar nada. La escala se calcula midiendo su caja — ver `_artScaleFor`.
+///
+/// El número sale de la zona segura del icono adaptativo, que es la más
+/// exigente de las tres salidas. La cuenta, en dp de los 108 de la capa:
+///
+///   la capa de delante se dibuja dentro del 68% central   -> 73,4 dp
+///   la raqueta ocupa 0,58/0,68 = 85% de esa capa           -> 62,6 dp
+///   Android garantiza no recortar un círculo de            -> 66 dp
+///
+/// O sea que la punta de la raqueta queda a 31,3 dp del centro, de los 33
+/// disponibles. Con 0,62 salían 67 dp, por encima del círculo garantizado, y
+/// un lanzador con máscara agresiva podía comerse la punta de la cabeza o el
+/// final del mango. En el icono plano y en el logo de dentro de la app sobra
+/// sitio, así que manda esta.
+const _launcherArtFraction = 0.58;
 
-/// El mismo tamaño aparente, pero en la capa de delante del icono adaptativo,
-/// que Android dibuja dentro del 68% central de la capa (el
-/// `<inset android:inset="16%">` que escribe `flutter_launcher_icons`)
-/// mientras que la de atrás ocupa los 108 dp enteros. Sale de igualar las dos
-/// fracciones vistas, y de paso deja el dibujo dentro del círculo de 66 dp
-/// que Android garantiza que no recorta en ningún móvil (su esquina más
-/// lejana queda a ~31 dp del centro, de los 33 disponibles).
-const _adaptiveArtScale = 1.22;
+/// La capa de delante del icono adaptativo se dibuja dentro del **68% central**
+/// de la capa (el `<inset android:inset="16%">` que escribe
+/// `flutter_launcher_icons`), mientras que la de atrás ocupa los 108 dp
+/// enteros. Para que la raqueta acabe viéndose del mismo tamaño que en el
+/// icono plano hay que pedirla proporcionalmente más grande dentro de su capa.
+const _adaptiveInset = 0.68;
+
+/// Cuánto del lienzo ocupa la raqueta en el icono de notificación. Más que en
+/// el lanzador: aquí no hay círculo de fondo del que quedar dentro, y el
+/// sistema añade su propio margen alrededor.
+const _notificationArtFraction = 0.84;
 
 
 void main() {
   final src = _decodePng(File(_sourcePath).readAsBytesSync());
   final geo = _measure(src);
-  final art = _artworkMask(src, geo);
+  final art = _racket(geo, _artworkMask(src, geo));
+
+  final launcherArtScale = art.scaleFor(geo.size, _launcherArtFraction);
+  // La capa de delante se dibuja dentro del 68% central de la suya, así que
+  // hay que pedirla más grande para que acabe viéndose igual que en el plano.
+  final adaptiveArtScale = launcherArtScale / _adaptiveInset;
 
   Directory('assets/icon').createSync(recursive: true);
 
@@ -87,20 +124,20 @@ void main() {
   // anteriores a los adaptativos.
   _write(
     'assets/icon/app_icon.png',
-    _compose(geo, art, fill: _Fill.bleed, artScale: _launcherArtScale),
+    _compose(geo, art, fill: _Fill.bleed, artScale: launcherArtScale),
   );
 
-  // Capa de atrás del adaptativo: la división sola.
+  // Capa de atrás del adaptativo: el naranja liso, sin nada encima.
   _write(
     'assets/icon/app_icon_background.png',
     _compose(geo, art, fill: _Fill.bleed, artScale: null),
   );
 
-  // Capa de delante: sólo raqueta y zapatilla, sobre transparente y con su
-  // escala, para caer justo donde toca de la capa de atrás.
+  // Capa de delante: sólo la raqueta, sobre transparente y con su escala,
+  // para caer justo en el centro del círculo que tiene detrás.
   _write(
     'assets/icon/app_icon_foreground.png',
-    _compose(geo, art, fill: _Fill.none, artScale: _adaptiveArtScale),
+    _compose(geo, art, fill: _Fill.none, artScale: adaptiveArtScale),
   );
 
   // --- Icono de la barra de notificaciones ---
@@ -116,7 +153,7 @@ void main() {
   // círculo partido por su separador. Es una sola forma, se lee de un
   // vistazo, y es exactamente la marca — nadie tiene que reconocer una
   // raqueta de doce píxeles para saber de qué app es.
-  final notification = _notificationIcon(geo.size);
+  final notification = _notificationIcon(geo, art);
   _write('assets/icon/app_icon_notification.png', notification);
 
   // Y directamente en `res/`, a los tamaños que Android espera: 24 dp en
@@ -145,7 +182,10 @@ void main() {
       art,
       fill: _Fill.circle,
       circleScale: circleScale,
-      artScale: circleScale,
+      // Mismo criterio que el icono plano: la raqueta ocupa una fracción del
+      // círculo, y aquí el círculo llena el lienzo, así que es la misma
+      // fracción del lienzo.
+      artScale: launcherArtScale,
     ),
   );
 
@@ -153,7 +193,8 @@ void main() {
     'Escritos assets/icon/app_icon{,_background,_foreground}.png y '
     'app_logo.png desde $_sourcePath '
     '(círculo r=${geo.radius.toStringAsFixed(0)}, '
-    'separador ${(geo.dividerHalfWidth * 2).toStringAsFixed(0)} px)',
+    'raqueta ${art.span.toStringAsFixed(0)} px '
+    'centrada en ${art.cx.toStringAsFixed(0)},${art.cy.toStringAsFixed(0)})',
   );
 }
 
@@ -194,43 +235,125 @@ _Image _resize(_Image src, int size) {
   return _Image(size, size, out);
 }
 
-/// El icono de la barra de estado: el logo reducido a una sola forma.
+/// El icono de la barra de estado: la raqueta sola.
 ///
-/// Un círculo sólido con el corte del separador. Nada más — a 24 dp cualquier
-/// detalle interior se convierte en ruido, y lo que tiene que quedar es la
-/// silueta.
-_Image _notificationIcon(int n) {
+/// Android lo pinta **monocromo** a 24 dp: coge la silueta y la rellena de un
+/// color. Si no se le da uno, aplasta el del lanzador y sale una mancha.
+///
+/// Antes esto era el círculo del logo con el corte del separador, porque a
+/// 24 dp la raqueta **y** la zapatilla daban doce píxeles cada una y salían dos
+/// borrones. Con un solo dibujo el problema desaparece: la raqueta se lleva los
+/// 24 px enteros. Lo que sí sigue sin sobrevivir a ese tamaño es la rejilla de
+/// cuerdas —líneas de menos de un píxel, que al reducir se van en gris—, así
+/// que la cabeza se **rellena**: se toma la silueta exterior de la raqueta y se
+/// pinta maciza. Una raqueta con la cabeza sólida se reconoce a 24 px; una con
+/// la cuerda dibujada es una mancha con textura.
+_Image _notificationIcon(_Geometry g, _Art art) {
+  final n = g.size;
+  final scale = art.scaleFor(n, _notificationArtFraction);
+  final centre = n / 2.0;
   final px = Uint8List(n * n * 4);
-  final c = n / 2.0;
-  // Con margen: el sistema añade el suyo, y un dibujo a sangre sale cortado.
-  final r = n * 0.40;
-  // El separador, proporcionalmente más ancho que en el logo: a 24 dp un
-  // corte fino desaparece y el círculo se ve macizo.
-  final gap = r * 0.13;
 
+  // Relleno por barrido horizontal: para cada fila, todo lo que quede entre el
+  // primer y el último píxel de dibujo es "dentro de la raqueta". Con una
+  // silueta convexa por filas —que es lo que es una raqueta: cabeza ovalada y
+  // mango— esto cierra la rejilla sin tocar el contorno, y no hace falta ni
+  // dilatar ni erosionar, que redondearía las esquinas del mango.
   for (var y = 0; y < n; y++) {
+    var first = -1, last = -1;
+    final row = Float32List(n);
     for (var x = 0; x < n; x++) {
-      final dx = x + 0.5 - c;
-      final dy = y + 0.5 - c;
-      final inside = (0.5 - (math.sqrt(dx * dx + dy * dy) - r)).clamp(0.0, 1.0);
-      final cut = (0.5 - (gap - dx.abs())).clamp(0.0, 1.0);
-      final alpha = inside * cut;
+      final sx = art.cx + (x + 0.5 - centre) / scale;
+      final sy = art.cy + (y + 0.5 - centre) / scale;
+      final v = _sample(art.mask, n, sx, sy);
+      row[x] = v;
+      if (v > 0.5) {
+        if (first < 0) first = x;
+        last = x;
+      }
+    }
 
+    for (var x = 0; x < n; x++) {
+      // Dentro del tramo: opaco. Fuera: el valor de la máscara, que conserva
+      // el antialiasing del borde exterior.
+      final a = (first >= 0 && x >= first && x <= last) ? 1.0 : row[x];
       final i = (y * n + x) * 4;
       px[i] = 255;
       px[i + 1] = 255;
       px[i + 2] = 255;
-      px[i + 3] = (alpha * 255).round().clamp(0, 255);
+      px[i + 3] = (a * 255).round().clamp(0, 255);
     }
   }
 
   return _Image(n, n, px);
 }
 
-/// Qué se pinta de fondo: nada (capa de delante del adaptativo), las dos
-/// mitades hasta el borde (icono del lanzador) o el círculo recortado (logo
-/// de dentro de la app).
+/// Qué se pinta de fondo: nada (capa de delante del adaptativo), naranja
+/// hasta el borde (icono del lanzador) o el círculo recortado (logo de dentro
+/// de la app).
 enum _Fill { none, bleed, circle }
+
+/// La raqueta aislada del original, con su caja ya medida.
+///
+/// `mask` es la máscara del dibujo con la mitad de la zapatilla puesta a cero;
+/// `cx`/`cy` son el centro de su caja, que es el punto que hay que hacer
+/// coincidir con el centro del lienzo para que quede centrada de verdad. El
+/// centroide daría un resultado peor: el mango pesa mucho y tiraría del dibujo
+/// hacia abajo, dejando la cabeza descentrada, que es lo que se mira.
+class _Art {
+  final Float32List mask;
+  final double cx, cy, span;
+
+  _Art({
+    required this.mask,
+    required this.cx,
+    required this.cy,
+    required this.span,
+  });
+
+  /// Cuánto hay que escalarla para que ocupe `fraction` del lienzo por su lado
+  /// más largo.
+  double scaleFor(int canvas, double fraction) => canvas * fraction / span;
+}
+
+/// Se queda con la mitad de la raqueta y mide dónde está.
+///
+/// El umbral de 0.35 es sólo para **medir** la caja, no para dibujar: la
+/// máscara sigue entrando entera en el render, con su antialiasing. Sin él,
+/// cualquier píxel de mezcla suelto en el borde del círculo estiraría la caja
+/// y la raqueta saldría más pequeña de lo pedido.
+_Art _racket(_Geometry g, Float32List full) {
+  final n = g.size;
+  final mask = Float32List(n * n);
+  var minX = n, maxX = -1, minY = n, maxY = -1;
+
+  for (var y = 0; y < n; y++) {
+    for (var x = 0; x < n; x++) {
+      // La raqueta es la mitad izquierda; la derecha es la zapatilla, que se
+      // va entera.
+      if (x - g.cx >= 0) continue;
+      final v = full[y * n + x];
+      if (v <= 0) continue;
+      mask[y * n + x] = v;
+      if (v < 0.35) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < 0) {
+    throw StateError('No se encontró la raqueta en $_sourcePath');
+  }
+
+  return _Art(
+    mask: mask,
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    span: math.max(maxX - minX, maxY - minY).toDouble(),
+  );
+}
 
 // --- Medir el original ---
 
@@ -362,7 +485,7 @@ Float32List _artworkMask(_Image src, _Geometry g) {
 
 _Image _compose(
   _Geometry g,
-  Float32List art, {
+  _Art art, {
   required _Fill fill,
   required double? artScale,
   double circleScale = 1.0,
@@ -374,10 +497,6 @@ _Image _compose(
   // verdad, que es lo que importa cuando el sistema lo recorta.
   final centre = n / 2.0;
   final radius = g.radius * circleScale;
-  // El separador acompaña al fondo que lleve: al círculo cuando se recorta, y
-  // al lienzo cuando va a sangre.
-  final dividerHalf =
-      g.dividerHalfWidth * (fill == _Fill.circle ? circleScale : 1.0);
 
   for (var y = 0; y < n; y++) {
     for (var x = 0; x < n; x++) {
@@ -400,22 +519,21 @@ _Image _compose(
 
       if (fill != _Fill.none) {
         // Con `circle`, un píxel de transición en el borde para que no salga
-        // dentado; con `bleed`, cobertura 1 en todo el lienzo. El separador se
-        // multiplica por esa misma cobertura, así que nunca se sale del fondo.
+        // dentado; con `bleed`, cobertura 1 en todo el lienzo. Un solo color:
+        // sin dos mitades no hay separador que pintar.
         final inside = fill == _Fill.circle
             ? (0.5 - (math.sqrt(dx * dx + dy * dy) - radius)).clamp(0.0, 1.0)
             : 1.0;
-        paint(dx < 0 ? _tennis : _running, inside);
-        paint(_white, (0.5 - (dx.abs() - dividerHalf)).clamp(0.0, 1.0) * inside);
+        paint(_tennis, inside);
       }
 
       if (artScale != null) {
         // Deshacer la escala para saber de qué punto del original viene este
-        // píxel. Al ir todo referido al mismo centro, raqueta y zapatilla
-        // caen siempre en su mitad, sea cual sea la escala.
-        final sx = g.cx + dx / artScale;
-        final sy = g.cy + dy / artScale;
-        paint(_white, _sample(art, g.size, sx, sy));
+        // píxel. Se referencia al **centro de la caja de la raqueta**, no al
+        // del círculo: es lo que la saca de su mitad y la deja centrada.
+        final sx = art.cx + dx / artScale;
+        final sy = art.cy + dy / artScale;
+        paint(_white, _sample(art.mask, g.size, sx, sy));
       }
 
       final i = (y * n + x) * 4;
