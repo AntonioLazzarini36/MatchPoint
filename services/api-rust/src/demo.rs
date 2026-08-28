@@ -24,9 +24,10 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl};
 
 use crate::chats::crypto;
 use crate::models::{
-    NewMatch, NewMessage, NewProposal, NewSwipe, ProposalStatus, Sport, SwipeType,
+    NewMatch, NewMessage, NewProposal, NewSessionFeedback, NewSwipe, ProposalStatus,
+    SessionOutcome, Sport, SwipeType,
 };
-use crate::schema::{matches, messages, profiles, proposals, swipes, users};
+use crate::schema::{matches, messages, profiles, proposals, session_feedback, swipes, users};
 use crate::state::AppState;
 
 /// Con cuánta gente se empieza. Tres: suficiente para que las listas no se
@@ -102,6 +103,34 @@ async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
                 sport,
                 ProposalStatus::Pending,
                 Duration::days(2),
+            )
+            .await?;
+        }
+
+        // El tercero trae **historial**: dos partidos ya jugados, uno ganado
+        // y otro perdido. Sin esto la sección "Terminados" sale vacía en una
+        // cuenta recién hecha, que es justo la pantalla que peor se enseña —
+        // el historial es la prueba de que la app sirve para algo, y sin
+        // ninguno hay que creérselo.
+        if i == 2 {
+            played(
+                &mut conn,
+                &match_id,
+                other,
+                user_id,
+                sport,
+                Duration::days(6),
+                SessionOutcome::Won,
+            )
+            .await?;
+            played(
+                &mut conn,
+                &match_id,
+                other,
+                user_id,
+                sport,
+                Duration::days(20),
+                SessionOutcome::Lost,
             )
             .await?;
         }
@@ -202,6 +231,64 @@ async fn say(
         })
         .execute(conn)
         .await?;
+    Ok(())
+}
+
+/// Un partido que ya pasó, con su resultado contado.
+///
+/// Se inserta con la fecha en el pasado directamente, saltándose la
+/// validación de `proposals::service::create` (que con razón no deja proponer
+/// para ayer): aquí no se está proponiendo nada, se está reconstruyendo algo
+/// que habría ocurrido.
+///
+/// El resultado se guarda **sólo del lado del usuario nuevo**: es lo único
+/// que `/me/proposals/history` devuelve, y rellenar también la fila de la
+/// otra persona sería inventarle una opinión a un perfil sembrado.
+#[allow(clippy::too_many_arguments)]
+async fn played(
+    conn: &mut AsyncPgConnection,
+    match_id: &str,
+    proposed_by: &str,
+    user_id: &str,
+    sport: Sport,
+    ago: Duration,
+    outcome: SessionOutcome,
+) -> anyhow::Result<()> {
+    let when = (Utc::now() - ago)
+        .date_naive()
+        .and_hms_opt(18, 0, 0)
+        .map(|d| d.and_utc())
+        .unwrap_or_else(|| Utc::now() - ago);
+
+    let proposal_id = uuid::Uuid::new_v4().to_string();
+    diesel::insert_into(proposals::table)
+        .values(NewProposal {
+            id: proposal_id.clone(),
+            match_id: match_id.to_string(),
+            proposed_by_id: proposed_by.to_string(),
+            sport,
+            place_name: Some("Club de Tenis Capellanía".to_string()),
+            place_lat: Some(36.5987),
+            place_lng: Some(-4.5432),
+            scheduled_at: when,
+            status: ProposalStatus::Accepted,
+            updated_at: Utc::now(),
+        })
+        .execute(conn)
+        .await?;
+
+    diesel::insert_into(session_feedback::table)
+        .values(NewSessionFeedback {
+            id: uuid::Uuid::new_v4().to_string(),
+            proposal_id,
+            user_id: user_id.to_string(),
+            played: true,
+            outcome: Some(outcome),
+            would_repeat: Some(true),
+        })
+        .execute(conn)
+        .await?;
+
     Ok(())
 }
 
