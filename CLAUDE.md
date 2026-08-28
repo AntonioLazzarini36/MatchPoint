@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 When given a task on this repo, execute it fully yourself, start to finish, without pausing to ask for permission or confirmation along the way. This includes:
 
-- Running any checks, builds, tests, lints (`cargo fmt`/`clippy`/`build`/`test`, `flutter analyze`/`test`).
+- Running any checks, builds, tests, lints (`cargo fmt`/`clippy`/`build`/`test`, `flutter analyze`/`test`). Treat any `flutter analyze` output as a failure, including `info` hints — see the CI section for why.
 - Starting/stopping Docker, the backend, the Flutter app, seeding or querying the dev DB, curling local endpoints.
 - Making implementation and scope decisions yourself (e.g. "should this fix also cover X related case?") instead of stopping to ask — use your best judgement, note the decision briefly in your summary, and keep going.
 
@@ -76,6 +76,15 @@ dart run flutter_launcher_icons      # fans them out to Android/iOS/web
 ### CI (`.github/workflows/ci.yml`)
 
 Three jobs, all triggered on every branch push: `backend` (fmt check, clippy `-D warnings`, build, test — against a real Postgres service container), `mobile` (analyze, test, `flutter build web --release`), `docker` (builds the `services/api-rust` image). Match these locally before pushing — clippy warnings and fmt diffs fail CI.
+
+**Gotcha — `flutter analyze` exits 1 on `info`-level hints, not just errors.** There is no severity threshold: one `prefer_is_not_empty` suggestion is enough to fail the whole `mobile` job on its first step, before `test` or the web build ever run. This bit once and cost three red commits, because the hint had been printing on every local run for a whole session and kept getting waved through as "only an info" — it *looks* advisory in the terminal and is a hard failure in CI.
+
+So the rule is: **`flutter analyze` must print `No issues found!`**. Anything else is a build break, whatever its label. `flutter analyze; echo $?` is the honest check; the summary line is not.
+
+Two more habits worth keeping, both learned the hard way:
+
+- **`flutter build web --release` is part of the job and is the step least likely to be run locally.** `analyze` and `test` catch type errors; the web build catches things they don't (a platform-specific import, an asset declared but missing). Run it before pushing mobile changes, not just the other two.
+- **Committing only one side still runs CI for both.** Backend-only commits were green on `backend` and red on `mobile` for days, because the mobile fix sat uncommitted in the working tree. A green local checkout proves nothing about what is pushed: to check what CI will actually see, reproduce the *committed* state — `git worktree add --detach <tmp> HEAD` gives it without disturbing uncommitted work.
 
 ## Backend architecture
 
