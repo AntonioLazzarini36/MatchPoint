@@ -63,10 +63,15 @@ struct FakeProfile {
     // coincidencia horaria tenga algo real que ordenar al probarlo.
     availability: i32,
     gender_preference: Option<Gender>,
-    // Tennis-oriented credentials — left None for running-only profiles.
+    // Experiencia: lo que se enseña en el perfil para que otra persona
+    // pueda juzgar si juega a su nivel.
     years_playing: Option<i32>,
     club: Option<&'static str>,
-    // Running-oriented credentials — left None for tennis-only profiles.
+    // Ritmo y distancia media son de correr. Se quedan en el modelo porque
+    // la columna sigue existiendo (running está apagado, no borrado — ver
+    // `app_sports.dart`), pero **ningún perfil sembrado los usa**: la app es
+    // de tenis y un perfil de prueba que hable de rodajes es justo lo que no
+    // se quiere enseñar.
     avg_pace_min_per_km: Option<f64>,
     avg_distance_km: Option<f64>,
     achievements: &'static [&'static str],
@@ -120,44 +125,44 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
-        email: "marcos.running@example.com",
+        email: "marcos.tenis@example.com",
         display_name: "Marcos",
         birth_date: "1993-09-02",
         city: "Benalmádena",
         latitude: 36.5988,
         longitude: -4.5163,
-        bio: "Corro 10k tres veces por semana. Busco gente para rodajes largos.",
+        bio: "Juego dos o tres tardes por semana. Fondo de pista y mucha paciencia.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
         availability: WEEKENDS,
         gender_preference: None,
-        years_playing: None,
+        years_playing: Some(7),
         club: None,
-        avg_pace_min_per_km: Some(5.2),
-        avg_distance_km: Some(10.0),
-        achievements: &["10K de Benalmádena 2025 - 45min"],
+        avg_pace_min_per_km: None,
+        avg_distance_km: None,
+        achievements: &[],
         skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
-        email: "sofia.multideporte@example.com",
+        email: "sofia.tenis@example.com",
         display_name: "Sofía",
         birth_date: "1999-01-20",
         city: "Málaga",
         latitude: 36.7213,
         longitude: -4.4214,
-        bio: "Tenis y running, un poco de todo. Recién llegada a la ciudad.",
+        bio: "Empecé hace poco y voy a clase los martes. Busco partidos tranquilos para coger ritmo.",
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Learn),
         availability: EARLY_BIRD,
         gender_preference: None,
-        years_playing: Some(2),
+        years_playing: Some(1),
         club: None,
-        avg_pace_min_per_km: Some(7.0),
-        avg_distance_km: Some(5.0),
+        avg_pace_min_per_km: None,
+        avg_distance_km: None,
         achievements: &[],
         skill_levels: &[SkillLevel::Beginner, SkillLevel::Beginner],
     },
@@ -183,24 +188,24 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         skill_levels: &[SkillLevel::Advanced],
     },
     FakeProfile {
-        email: "elena.maraton@example.com",
+        email: "elena.tenis@example.com",
         display_name: "Elena",
         birth_date: "1988-06-30",
         city: "Fuengirola",
         latitude: 36.5411,
         longitude: -4.6247,
-        bio: "Preparando media maratón. Ritmos suaves entre semana.",
+        bio: "Vuelvo después de dos años parada. Nivel medio, ganas de reengancharme.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
         availability: MIDWEEK_AFTERNOONS,
         gender_preference: None,
-        years_playing: None,
-        club: None,
-        avg_pace_min_per_km: Some(5.8),
-        avg_distance_km: Some(15.0),
-        achievements: &["Media maratón de Málaga 2025 - 1h52"],
+        years_playing: Some(9),
+        club: Some("Club de Tenis Capellanía"),
+        avg_pace_min_per_km: None,
+        avg_distance_km: None,
+        achievements: &[],
         skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
@@ -225,24 +230,24 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         skill_levels: &[SkillLevel::Beginner],
     },
     FakeProfile {
-        email: "carla.trail@example.com",
+        email: "carla.tenis@example.com",
         display_name: "Carla",
         birth_date: "1995-08-22",
         city: "Mijas",
         latitude: 36.5959,
         longitude: -4.6372,
-        bio: "Más de trail que de asfalto, pero acepto rodajes urbanos.",
+        bio: "Prefiero dobles, pero juego individuales si hace falta. Sin dramas por el marcador.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Learn),
         availability: ALMOST_ALWAYS,
         gender_preference: None,
-        years_playing: None,
+        years_playing: Some(4),
         club: None,
-        avg_pace_min_per_km: Some(6.5),
-        avg_distance_km: Some(18.0),
-        achievements: &["Trail Sierra de Mijas 21K - finisher 2024"],
+        avg_pace_min_per_km: None,
+        avg_distance_km: None,
+        achievements: &[],
         skill_levels: &[SkillLevel::Intermediate],
     },
     FakeProfile {
@@ -276,39 +281,39 @@ const FAKE_PROFILES: &[FakeProfile] = &[
         city: "Benalmádena",
         latitude: 36.5988,
         longitude: -4.5163,
-        bio: "Empezando en esto del running, busco gente paciente.",
+        bio: "Empezando en esto del tenis, busco gente paciente. Voy los sábados por la mañana.",
         sports: &[Sport::Tennis],
         sports_wanted: &[Sport::Running],
         gender: Some(Gender::Female),
         intention: Some(Intention::Compete),
         availability: EARLY_BIRD,
         gender_preference: None,
-        years_playing: None,
+        years_playing: Some(1),
         club: None,
-        avg_pace_min_per_km: Some(7.5),
-        avg_distance_km: Some(5.0),
+        avg_pace_min_per_km: None,
+        avg_distance_km: None,
         achievements: &[],
         skill_levels: &[SkillLevel::Beginner],
     },
     FakeProfile {
-        email: "hugo.ambos@example.com",
+        email: "hugo.tenis@example.com",
         display_name: "Hugo",
         birth_date: "1994-02-27",
         city: "Torremolinos",
         latitude: 36.6203,
         longitude: -4.4998,
-        bio: "Tenis en invierno, running en verano. Abierto a ambos.",
+        bio: "Juego desde el instituto. Nivel intermedio tirando a alto, disponible casi cualquier tarde.",
         sports: &[Sport::Tennis, Sport::Running],
         sports_wanted: &[Sport::Tennis, Sport::Running],
         gender: Some(Gender::Male),
         intention: Some(Intention::Train),
         availability: AFTER_WORK,
         gender_preference: None,
-        years_playing: Some(7),
-        club: None,
-        avg_pace_min_per_km: Some(5.5),
-        avg_distance_km: Some(12.0),
-        achievements: &[],
+        years_playing: Some(12),
+        club: Some("Club de Tenis Benalmádena"),
+        avg_pace_min_per_km: None,
+        avg_distance_km: None,
+        achievements: &["Campeón del torneo social de su club (2024)"],
         skill_levels: &[SkillLevel::Intermediate, SkillLevel::Intermediate],
     },
 ];
@@ -674,11 +679,23 @@ async fn seed_me(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+
+    // `--api` siembra una instalacion **remota** por su API publica en vez de
+    // por su base de datos, y por un motivo concreto: **las fotos**. Escribir
+    // en Postgres directo se puede hacer contra cualquier base, pero los
+    // ficheros los escribe quien ejecuta el comando, asi que las filas
+    // acabarian apuntando a `https://.../uploads/seed-....jpg` con esos
+    // ficheros en un portatil y no en el volumen del servidor: diez tarjetas
+    // con el hueco gris. Por la API cada perfil se crea como lo crearia una
+    // persona, asi que la foto sube por el mismo sitio que las de verdad.
+    if args.len() > 2 && args[1] == "--api" {
+        return remote::seed_all(args[2].trim_end_matches('/')).await;
+    }
+
     let cfg = AppConfig::from_env();
     let pool = db::build_pool(&cfg.database_url).await;
     let mut conn = pool.get().await.expect("failed to get a DB connection");
-
-    let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 && args[1] == "--me" {
         // cargo run --bin datagen -- --me email password "Display Name" "City"
@@ -946,5 +963,276 @@ mod photo {
                 .expect("png image data");
         }
         out
+    }
+}
+
+/// Sembrar una instalacion remota hablando por su API publica.
+///
+/// Existe por las fotos (ver el comentario de `--api` en `main`), y ademas
+/// tiene la ventaja de que cada perfil pasa por exactamente las mismas
+/// validaciones que una persona: si algo del alta esta roto, esto se entera.
+///
+/// Es idempotente: si el email ya existe hace login y actualiza el perfil, y
+/// la foto solo se sube en el alta para no ir apilando copias del mismo
+/// avatar hasta chocar con el maximo de 6.
+///
+/// Mete perfiles que no son personas en una instalacion que puede tener
+/// gente de verdad. Para deshacerlo: `POST /admin/reset?confirm=BORRAR-TODO`,
+/// que borra la instalacion **entera**, cuentas reales incluidas.
+mod remote {
+    use super::{FakeProfile, AVATAR_DIR, FAKE_PASSWORD, FAKE_PROFILES};
+    use matchpoint_api::models::{Gender, Intention, SkillLevel, Sport};
+    use serde_json::json;
+    use std::path::Path;
+
+    pub async fn seed_all(base: &str) -> anyhow::Result<()> {
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(60))
+            .build()?;
+
+        println!("Sembrando {} perfiles en {base}", FAKE_PROFILES.len());
+
+        let (mut created, mut updated) = (0, 0);
+        for (i, p) in FAKE_PROFILES.iter().enumerate() {
+            // `/auth/register` y `/auth/login` estan limitados a 10 por
+            // minuto y por IP. Diez altas de una tacada caben justo, pero una
+            // segunda pasada son diez registros fallidos **mas** diez logins
+            // y se choca con el 429 a mitad. Un respiro entre perfiles hace
+            // que repetir el comando siga funcionando.
+            if i > 0 {
+                tokio::time::sleep(std::time::Duration::from_secs(7)).await;
+            }
+            match seed_one(&http, base, p, i).await {
+                Ok(true) => {
+                    created += 1;
+                    println!("  + creado      {} ({})", p.email, p.display_name);
+                }
+                Ok(false) => {
+                    updated += 1;
+                    println!("  ~ actualizado {}", p.email);
+                }
+                Err(e) => eprintln!("  ! {} : {e}", p.email),
+            }
+        }
+
+        println!("Listo: {created} creados, {updated} actualizados.");
+        println!("Contrasena de todos: {FAKE_PASSWORD}");
+        Ok(())
+    }
+
+    /// `true` si la cuenta se creo ahora; `false` si ya existia.
+    async fn seed_one(
+        http: &reqwest::Client,
+        base: &str,
+        p: &FakeProfile,
+        index: usize,
+    ) -> anyhow::Result<bool> {
+        let creds = json!({ "email": p.email, "password": FAKE_PASSWORD });
+
+        let res = post_auth(http, &format!("{base}/auth/register"), &creds).await?;
+
+        // Registrar da 4xx si el email ya existe: entonces se entra con la
+        // misma contrasena y se actualiza, que es lo que hace esto repetible.
+        let (token, fresh) = if res.status().is_success() {
+            (token_from(res).await?, true)
+        } else {
+            let login = post_auth(http, &format!("{base}/auth/login"), &creds).await?;
+            if !login.status().is_success() {
+                anyhow::bail!("ni registro ni login: {}", login.status());
+            }
+            (token_from(login).await?, false)
+        };
+
+        let profile = json!({
+            "displayName": p.display_name,
+            "birthDate": p.birth_date,
+            "city": p.city,
+            "bio": p.bio,
+            "sports": p.sports.iter().map(sport_api).collect::<Vec<_>>(),
+            "latitude": p.latitude,
+            "longitude": p.longitude,
+            "availability": p.availability,
+            "gender": p.gender.map(gender_api),
+            "intention": p.intention.map(intention_api),
+            "yearsPlaying": p.years_playing,
+            "club": p.club,
+            "achievements": p.achievements,
+            "avgPaceMinPerKm": p.avg_pace_min_per_km,
+            "avgDistanceKm": p.avg_distance_km,
+        });
+        let r = http
+            .patch(format!("{base}/me/profile"))
+            .bearer_auth(&token)
+            .json(&profile)
+            .send()
+            .await?;
+        if !r.status().is_success() {
+            anyhow::bail!(
+                "perfil: {} {}",
+                r.status(),
+                r.text().await.unwrap_or_default()
+            );
+        }
+        // Cuantas fotos tiene ya, segun el propio servidor. Se mira aqui y no
+        // se deduce de "acabo de crear la cuenta": si una pasada anterior
+        // creo el perfil pero se quedo sin subir la foto, la unica forma de
+        // arreglarlo al repetir el comando es preguntar por el estado real.
+        let has_photo = r
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|v| {
+                v.get("photos")
+                    .and_then(|p| p.as_array())
+                    .map(|a| !a.is_empty())
+            })
+            .unwrap_or(false);
+
+        if !p.skill_levels.is_empty() {
+            let levels: Vec<_> = p
+                .sports
+                .iter()
+                .zip(p.skill_levels.iter())
+                .map(|(s, l)| json!({ "sport": sport_api(s), "level": level_api(l) }))
+                .collect();
+            let r = http
+                .patch(format!("{base}/me/skill-levels"))
+                .bearer_auth(&token)
+                .json(&json!({ "levels": levels }))
+                .send()
+                .await?;
+            if !r.status().is_success() {
+                anyhow::bail!("niveles: {}", r.status());
+            }
+        }
+
+        if !has_photo {
+            upload_avatar(http, base, &token, index).await?;
+        }
+
+        Ok(fresh)
+    }
+
+    /// Llama a un endpoint de auth respetando su limitador.
+    ///
+    /// `/auth/register` y `/auth/login` van a 10 por minuto y por IP, y una
+    /// segunda pasada gasta **dos** peticiones por perfil (el registro que
+    /// falla porque ya existe, mas el login), asi que diez perfiles se comen
+    /// veinte y la mitad se queda fuera. En vez de adivinar cuanto esperar,
+    /// se lee la cabecera `retry-after` que el propio servidor manda con el
+    /// 429 y se reintenta una vez.
+    async fn post_auth(
+        http: &reqwest::Client,
+        url: &str,
+        body: &serde_json::Value,
+    ) -> anyhow::Result<reqwest::Response> {
+        let res = http.post(url).json(body).send().await?;
+        if res.status() != reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return Ok(res);
+        }
+
+        let wait = res
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(60)
+            .min(90);
+        println!("    (limite alcanzado, esperando {wait}s)");
+        tokio::time::sleep(std::time::Duration::from_secs(wait + 1)).await;
+
+        Ok(http.post(url).json(body).send().await?)
+    }
+
+    async fn token_from(res: reqwest::Response) -> anyhow::Result<String> {
+        let body: serde_json::Value = res.json().await?;
+        body.get("accessToken")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+            .ok_or_else(|| anyhow::anyhow!("respuesta sin accessToken"))
+    }
+
+    /// Sube un avatar por el endpoint real de fotos.
+    ///
+    /// El cuerpo multipart se monta a mano en vez de activar la feature
+    /// `multipart` de reqwest: son veinte lineas deterministas, y esa feature
+    /// entraria tambien en el binario del servidor, que no sube nada a ningun
+    /// sitio. Mismo criterio que el PNG dibujado a mano de este fichero.
+    async fn upload_avatar(
+        http: &reqwest::Client,
+        base: &str,
+        token: &str,
+        index: usize,
+    ) -> anyhow::Result<()> {
+        let n = index % 6 + 1;
+        let path = Path::new(AVATAR_DIR).join(format!("character{n}.jpg"));
+        let bytes = std::fs::read(&path)
+            .map_err(|e| anyhow::anyhow!("no se pudo leer {}: {e}", path.display()))?;
+
+        const BOUNDARY: &str = "----matchpointseed7f3a9c1e";
+        let mut body = Vec::new();
+        body.extend_from_slice(format!("--{BOUNDARY}\r\n").as_bytes());
+        // El campo tiene que llamarse `photo`: `me/photos.rs` se salta en
+        // silencio cualquier otro nombre y contesta "No se ha recibido
+        // ninguna foto", un 400 que no dice cual era el nombre bueno.
+        body.extend_from_slice(
+            b"Content-Disposition: form-data; name=\"photo\"; filename=\"avatar.jpg\"\r\n",
+        );
+        body.extend_from_slice(b"Content-Type: image/jpeg\r\n\r\n");
+        body.extend_from_slice(&bytes);
+        body.extend_from_slice(format!("\r\n--{BOUNDARY}--\r\n").as_bytes());
+
+        let r = http
+            .post(format!("{base}/me/photos"))
+            .bearer_auth(token)
+            .header(
+                "content-type",
+                format!("multipart/form-data; boundary={BOUNDARY}"),
+            )
+            .body(body)
+            .send()
+            .await?;
+
+        if !r.status().is_success() {
+            anyhow::bail!(
+                "foto: {} {}",
+                r.status(),
+                r.text().await.unwrap_or_default()
+            );
+        }
+        Ok(())
+    }
+
+    fn sport_api(s: &Sport) -> &'static str {
+        match s {
+            Sport::Tennis => "TENNIS",
+            Sport::Running => "RUNNING",
+        }
+    }
+
+    fn gender_api(g: Gender) -> &'static str {
+        match g {
+            Gender::Male => "MALE",
+            Gender::Female => "FEMALE",
+            Gender::Other => "OTHER",
+        }
+    }
+
+    fn intention_api(i: Intention) -> &'static str {
+        match i {
+            Intention::Compete => "COMPETE",
+            Intention::Train => "TRAIN",
+            Intention::Learn => "LEARN",
+            Intention::Fun => "FUN",
+        }
+    }
+
+    fn level_api(l: &SkillLevel) -> &'static str {
+        match l {
+            SkillLevel::Beginner => "BEGINNER",
+            SkillLevel::Intermediate => "INTERMEDIATE",
+            SkillLevel::Advanced => "ADVANCED",
+            SkillLevel::Competitive => "COMPETITIVE",
+        }
     }
 }

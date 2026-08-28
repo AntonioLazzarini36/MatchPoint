@@ -30,7 +30,8 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::models::{
-    Match, NewProposal, NewSessionFeedback, Proposal, ProposalStatus, SessionFeedback, Sport,
+    Match, NewProposal, NewSessionFeedback, Proposal, ProposalStatus, SessionFeedback,
+    SessionOutcome, Sport,
 };
 use crate::proposals::dto::{CreateProposalDto, ProposalAction, SessionFeedbackDto};
 use crate::schema::{matches, profiles, proposals, session_feedback};
@@ -219,18 +220,19 @@ pub async fn create(
     let found = assert_member(&mut conn, match_id, user_id).await?;
     assert_both_play(&mut conn, &found, dto.sport).await?;
 
-    // Supersede whatever was still on the table (see module docs).
-    diesel::update(
-        proposals::table
-            .filter(proposals::match_id.eq(match_id))
-            .filter(proposals::status.eq(ProposalStatus::Pending)),
-    )
-    .set((
-        proposals::status.eq(ProposalStatus::Cancelled),
-        proposals::updated_at.eq(Utc::now()),
-    ))
-    .execute(&mut conn)
-    .await?;
+    // **Una propuesta nueva ya no cancela la que hubiera pendiente.**
+    //
+    // La regla existia porque una contraoferta es implicitamente un "no" a la
+    // anterior, y eso es cierto cuando se esta renegociando *la misma*
+    // quedada. Pero impedia lo que la gente quiere hacer de verdad: cerrar el
+    // martes y el jueves con la misma persona. Con una sola propuesta viva por
+    // match habia que esperar a que aceptaran la primera para poder mandar la
+    // segunda.
+    //
+    // Lo que se pierde: proponer una hora distinta ya no retira la anterior,
+    // asi que quedan las dos sobre la mesa y la otra persona podria aceptar la
+    // vieja. A cambio, quien propone puede retirarla (`CANCEL`), que es
+    // explicito y no adivina intenciones.
 
     let created = diesel::insert_into(proposals::table)
         .values(NewProposal {
@@ -501,6 +503,107 @@ pub async fn list_upcoming(
             other_user_id: other_id,
             other_display_name,
             other_photo,
+        });
+    }
+
+    Ok(result)
+}
+
+/// Un partido ya jugado, con lo que se contó de él.
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayedSession {
+    #[serde(flatten)]
+    pub proposal: ProposalResponse,
+    pub other_user_id: String,
+    pub other_display_name: String,
+    pub other_photo: Option<String>,
+    /// Lo que **tú** contaste: si se jugó y cómo acabó. `None` mientras no
+    /// hayas respondido — la quedada existe igual, sólo que sin resultado.
+    pub played: Option<bool>,
+    pub outcome: Option<SessionOutcome>,
+}
+
+/// El historial: partidos que ya pasaron, del más reciente al más antiguo.
+///
+/// Hasta ahora la app tiraba todo lo jugado: `/me/proposals` sólo devuelve lo
+/// que está por venir, y en cuanto un partido pasaba desaparecía de la
+/// pantalla — con él, la única prueba de que la app sirve para algo. Y los
+/// datos estaban ahí: `SessionFeedback` guarda desde hace tiempo si se jugó y
+/// quién ganó, pero no había forma de volver a verlos.
+///
+/// Sólo `ACCEPTED`: una propuesta que nadie aceptó no es un partido, es una
+/// propuesta que no salió, y meterla en el historial sería inflar la cuenta.
+pub async fn list_history(
+    state: &AppState,
+    user_id: &str,
+) -> Result<Vec<PlayedSession>, ProposalsError> {
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| ProposalsError::Pool(e.to_string()))?;
+
+    // El mismo margen que `list_upcoming`, para que una quedada no salga a la
+    // vez en las dos listas ni desaparezca de las dos durante unas horas.
+    let cutoff = Utc::now() - Duration::hours(3);
+
+    let rows = proposals::table
+        .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
+        .filter(
+            matches::user_a_id
+                .eq(user_id)
+                .or(matches::user_b_id.eq(user_id)),
+        )
+        .filter(proposals::status.eq(ProposalStatus::Accepted))
+        .filter(proposals::scheduled_at.lt(cutoff))
+        .order(proposals::scheduled_at.desc())
+        .limit(100)
+        .select((
+            proposals::all_columns,
+            matches::user_a_id,
+            matches::user_b_id,
+        ))
+        .load::<(Proposal, String, String)>(&mut conn)
+        .await?;
+
+    let mut result = Vec::with_capacity(rows.len());
+    for (proposal, user_a_id, user_b_id) in rows {
+        let other_id = if user_a_id == user_id {
+            user_b_id
+        } else {
+            user_a_id
+        };
+
+        let other = profiles::table
+            .filter(profiles::user_id.eq(&other_id))
+            .select((profiles::display_name, profiles::photos))
+            .first::<(String, Vec<String>)>(&mut conn)
+            .await
+            .optional()?;
+        let (other_display_name, other_photo) = match other {
+            Some((name, photos)) => (name, photos.into_iter().next()),
+            None => ("Sin nombre".to_string(), None),
+        };
+
+        // Sólo la fila propia: lo que dijo la otra persona es asunto suyo, y
+        // enseñar "dice que ganó él" al lado de "dices que ganaste tú" sería
+        // abrir una discusión que la app no puede arbitrar.
+        let mine = session_feedback::table
+            .filter(session_feedback::proposal_id.eq(&proposal.id))
+            .filter(session_feedback::user_id.eq(user_id))
+            .select((session_feedback::played, session_feedback::outcome))
+            .first::<(bool, Option<SessionOutcome>)>(&mut conn)
+            .await
+            .optional()?;
+
+        result.push(PlayedSession {
+            proposal: ProposalResponse::from_row(proposal, user_id),
+            other_user_id: other_id,
+            other_display_name,
+            other_photo,
+            played: mine.map(|(played, _)| played),
+            outcome: mine.and_then(|(_, outcome)| outcome),
         });
     }
 

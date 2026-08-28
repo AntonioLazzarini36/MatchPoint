@@ -22,7 +22,7 @@ use matchpoint_api::models::{
     Intention, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
 };
 use matchpoint_api::push::Pusher;
-use matchpoint_api::schema::{profiles, skill_levels, swipes, users};
+use matchpoint_api::schema::{profiles, proposals, skill_levels, swipes, users};
 use matchpoint_api::state::AppState;
 
 /// Variables que `AppConfig::from_env` exige. Se ponen aquí para que los
@@ -209,4 +209,14 @@ pub async fn age_swipe(state: &AppState, from: &str, to: &str, days: i64) {
     .execute(&mut conn)
     .await
     .expect("age swipe");
+}
+
+/// Mueve una propuesta al pasado, para poder probar el historial sin esperar.
+pub async fn age_proposal(state: &AppState, proposal_id: &str, hours_ago: i64) {
+    let mut conn = state.db.get().await.expect("pool");
+    diesel::update(proposals::table.filter(proposals::id.eq(proposal_id)))
+        .set(proposals::scheduled_at.eq(chrono::Utc::now() - chrono::Duration::hours(hours_ago)))
+        .execute(&mut conn)
+        .await
+        .expect("age proposal");
 }

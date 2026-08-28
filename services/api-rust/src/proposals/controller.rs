@@ -18,7 +18,7 @@ use crate::openapi::ErrorResponse;
 use crate::proposals::dto::{CreateProposalDto, RespondProposalDto, SessionFeedbackDto};
 use crate::proposals::service::{self, ProposalsError};
 #[allow(unused_imports)]
-use crate::proposals::service::{ProposalResponse, UpcomingSession};
+use crate::proposals::service::{PlayedSession, ProposalResponse, UpcomingSession};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -29,6 +29,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/proposals/:proposalId", patch(respond))
         .route("/me/proposals", get(list_upcoming))
+        .route("/me/proposals/history", get(list_history))
         // Separado de `/me/proposals` a proposito: son dos preguntas
         // distintas ("que tengo por jugar" y "que tengo por contar") y
         // mezclarlas obligaria al cliente a filtrar por fecha.
@@ -128,6 +129,23 @@ async fn list_upcoming(State(state): State<AppState>, user: AuthUser) -> impl In
     match service::list_upcoming(&state, &user.user_id).await {
         Ok(list) => Json(list).into_response(),
         Err(err) => error_response(err),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/me/proposals/history",
+    tag = "proposals",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Partidos ya jugados, del mas reciente al mas antiguo", body = Vec<PlayedSession>),
+        (status = 401, description = "Token ausente o invalido", body = ErrorResponse),
+    )
+)]
+async fn list_history(State(state): State<AppState>, user: AuthUser) -> impl IntoResponse {
+    match service::list_history(&state, &user.user_id).await {
+        Ok(sessions) => Json(sessions).into_response(),
+        Err(err) => crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err),
     }
 }
 

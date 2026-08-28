@@ -16,8 +16,8 @@
 mod common;
 
 use common::{
-    age_swipe, cleanup, fresh_cluster, make_user, set_availability, set_level_and_intention,
-    test_state,
+    age_proposal, age_swipe, cleanup, fresh_cluster, make_user, set_availability,
+    set_level_and_intention, test_state,
 };
 use matchpoint_api::discover::service::DiscoverFilters;
 use matchpoint_api::matches;
@@ -278,10 +278,15 @@ async fn nadie_acepta_su_propia_propuesta() {
     cleanup(&state, &[&a, &b]).await;
 }
 
-/// Una contraoferta es implícitamente un "no" a la anterior: dos propuestas
-/// vivas a la vez dejarían a los dos preguntándose cuál están aceptando.
+/// Se pueden tener **varios partidos abiertos con la misma persona**.
+///
+/// Antes, crear una propuesta cancelaba la pendiente: la idea era que una
+/// contraoferta es implícitamente un "no" a la anterior. Cierto cuando se
+/// renegocia la misma quedada, y falso para lo que la gente hace de verdad —
+/// cerrar el martes y el jueves con el mismo compañero. Con la regla vieja
+/// había que esperar a que aceptaran la primera para poder mandar la segunda.
 #[tokio::test]
-async fn una_propuesta_nueva_cancela_la_pendiente() {
+async fn se_pueden_tener_varias_propuestas_vivas_con_la_misma_persona() {
     let state = test_state().await;
     let c = fresh_cluster();
     let (a, b, match_id) = matched_pair(&state, c, &[Sport::Tennis], &[Sport::Tennis]).await;
@@ -300,7 +305,51 @@ async fn una_propuesta_nueva_cancela_la_pendiente() {
         .iter()
         .filter(|p| p.status == matchpoint_api::models::ProposalStatus::Pending)
         .count();
-    assert_eq!(pending, 1, "solo puede quedar una propuesta viva");
+    assert_eq!(pending, 2, "las dos siguen en pie, cada una con su fecha");
+
+    cleanup(&state, &[&a, &b]).await;
+}
+
+/// El historial: lo ya jugado no puede desaparecer de la app.
+///
+/// Sólo entra lo `ACCEPTED` y ya pasado — una propuesta que nadie aceptó no
+/// es un partido, es una propuesta que no salió.
+#[tokio::test]
+async fn el_historial_trae_lo_jugado_y_no_lo_que_esta_por_venir() {
+    let state = test_state().await;
+    let c = fresh_cluster();
+    let (a, b, match_id) = matched_pair(&state, c, &[Sport::Tennis], &[Sport::Tennis]).await;
+
+    // Uno por venir, aceptado.
+    let futuro = proposals::service::create(&state, &match_id, &a, proposal(Sport::Tennis, 48))
+        .await
+        .unwrap();
+    proposals::service::respond(&state, &futuro.id, &b, ProposalAction::Accept)
+        .await
+        .unwrap();
+
+    // Y otro que ya pasó. `create` no admite fechas pasadas (con razón), así
+    // que se acepta y se le mueve la fecha por debajo, que es lo que habría
+    // pasado solo con el tiempo.
+    let pasado = proposals::service::create(&state, &match_id, &a, proposal(Sport::Tennis, 24))
+        .await
+        .unwrap();
+    proposals::service::respond(&state, &pasado.id, &b, ProposalAction::Accept)
+        .await
+        .unwrap();
+    age_proposal(&state, &pasado.id, 72).await;
+
+    let history = proposals::service::list_history(&state, &a).await.unwrap();
+    let ids: Vec<&str> = history.iter().map(|s| s.proposal.id.as_str()).collect();
+
+    assert!(
+        ids.contains(&pasado.id.as_str()),
+        "lo jugado tiene que salir"
+    );
+    assert!(
+        !ids.contains(&futuro.id.as_str()),
+        "lo que aun no ha pasado es agenda, no historial"
+    );
 
     cleanup(&state, &[&a, &b]).await;
 }
