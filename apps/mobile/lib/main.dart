@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app/app.dart';
+import 'core/analytics/analytics.dart';
 import 'core/push/push_service.dart';
 
 Future<void> main() async {
@@ -22,6 +23,11 @@ Future<void> main() async {
   // encuentre Firebase ya arrancado. No lanza si falla: quedarse sin
   // notificaciones es molesto, que la app no abra es peor.
   await PushService.init();
+
+  // Despues de `PushService.init`, que es quien arranca Firebase: sin eso
+  // `FirebaseAnalytics.instance` no tiene a que agarrarse. Si Firebase no
+  // arranco, `init` lo detecta y todos los eventos pasan a ser no-ops.
+  Analytics.init();
 
   // Si ya hay sesion guardada hay que registrar el dispositivo igual: sin
   // esto solo se registraria al iniciar sesion, que es justo el caso raro —

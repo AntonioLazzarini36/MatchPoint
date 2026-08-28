@@ -12,6 +12,7 @@ import '../../auth/services/auth_service.dart';
 import '../models/update_profile_request.dart';
 import '../onboarding_controller.dart';
 import '../services/profile_service.dart';
+import '../../../core/analytics/analytics.dart';
 import '../../../core/utils/app_sports.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
@@ -52,11 +53,22 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   //   4. Así te van a ver
   //
   // Lo que desapareció: elegir deporte (la app es de tenis, ver
-  // `app_sports.dart`), las credenciales (años/club/logros — se rellenan
+  // `app_sports.dart`), las experiencia (años/club/logros — se rellenan
   // desde Ajustes cuando ya hay motivo) y el paso entero de preferencias
   // (rango de edad, género, "a qué vienes"), que son filtros con valores
   // por defecto razonables y que en una app vacía sólo sirven para dejarla
   // más vacía. Todo eso sigue existiendo en Ajustes.
+  /// Nombre de cada paso para la analitica. Por nombre y no por numero: si
+  /// manana se reordenan los pasos, un embudo guardado por indices pasa a
+  /// mentir sin que nadie se entere.
+  static const _stepNames = [
+    'ubicacion',
+    'perfil',
+    'nivel_horario',
+    'avatar',
+    'preview',
+  ];
+
   static const _totalPages = 5;
   static const _locationStepIndex = 0;
   static const _profileStepIndex = 1;
@@ -101,6 +113,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     super.initState();
     controller = OnboardingController(ProfileService(Api.client));
     authService = AuthService(Api.client);
+    Analytics.onboardingStart();
     _skipIfHasProfile();
   }
 
@@ -189,6 +202,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
     if (_currentPage < _previewStepIndex) {
       controller.setError(null);
+      Analytics.onboardingStep(_stepNames[_currentPage]);
       await _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -311,6 +325,9 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         );
       }
 
+      Analytics.onboardingStep(_stepNames[_previewStepIndex]);
+      Analytics.signupCompleted();
+
       if (mounted) context.go(AppRoutes.shell);
     } catch (e) {
       controller.setError(
@@ -363,6 +380,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     // intento anterior, ver el comentario de `widget.email` arriba) —
     // sin esto, `router.dart` redirige de vuelta a /onboarding en vez de
     // dejar ver login/registro, porque sigue habiendo un token válido.
+    Analytics.onboardingAbandoned(_stepNames[_currentPage]);
     await TokenStorage.clear();
     if (mounted) context.go(AppRoutes.onboardingAuth);
   }

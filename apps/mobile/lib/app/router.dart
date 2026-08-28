@@ -18,6 +18,7 @@ import 'package:match_point/features/profile/screens/other_profile_screen.dart';
 import 'package:match_point/features/profile/screens/profile_screen.dart';
 import 'package:match_point/features/profile/screens/settings_screen.dart';
 
+import 'package:match_point/core/analytics/analytics.dart';
 import 'package:match_point/core/ui/widgets/navigator.dart'; // o tu path real
 
 final _authGate = AuthGate();
@@ -25,6 +26,12 @@ final _authGate = AuthGate();
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.welcome,
+    // Registro automatico de cambios de pantalla. Se monta aqui y no evento a
+    // evento porque asi no hay pantallas que se olviden: cualquiera que se
+    // añada al router queda medida sin tocar nada. La lista se construye
+    // filtrando nulos porque sin Firebase (o si falla al arrancar) el
+    // observador no existe, y eso no puede impedir que la app navegue.
+    observers: [?Analytics.observer],
     routes: [
       // --- AUTH / ONBOARDING ---
       GoRoute(

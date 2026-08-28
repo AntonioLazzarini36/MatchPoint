@@ -1,3 +1,4 @@
+import 'package:match_point/core/analytics/analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'models/chat_message.dart';
 import 'services/chat_service.dart';
@@ -75,6 +76,7 @@ class ChatController extends ChangeNotifier {
 
     try {
       final created = await service.sendMessage(matchId: matchId, text: t);
+      Analytics.messageSent();
       _messages.add(created);
     } catch (e) {
       error = e.toString();
