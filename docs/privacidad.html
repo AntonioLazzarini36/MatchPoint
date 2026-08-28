@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de privacidad · MatchPoint</title>
+<style>
+  :root { --ink:#1A2320; --muted:#5C6B65; --line:#DDE6E1; --accent:#0E7A57; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px 20px 80px; max-width: 720px;
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: #fff;
+  }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 36px 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 15px; }
+  th, td { border: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
+  th { background: #F4F8F6; font-weight: 600; }
+  code { background: #F4F8F6; padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  .todo { background: #FFF6D8; border: 1px solid #E9CF74; padding: 12px 14px; border-radius: 8px; }
+  a { color: var(--accent); }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>Política de privacidad de MatchPoint</h1>
+<p class="sub">Última actualización: 27 de agosto de 2026</p>
+
+<h2>Quiénes somos</h2>
+<p>
+  MatchPoint es una aplicación para encontrar con quién jugar al tenis. El
+  responsable del tratamiento de tus datos es <strong>Antonio Lazzarini Sola</strong>,
+  y puedes contactar en <strong>antonio.lazzarinisola@gmail.com</strong>.
+</p>
+
+<h2>Qué datos recogemos y para qué</h2>
+<table>
+  <tr><th>Dato</th><th>Para qué</th><th>¿Lo ve otra gente?</th></tr>
+  <tr><td>Correo electrónico</td><td>Identificar tu cuenta e iniciar sesión</td><td>No</td></tr>
+  <tr><td>Contraseña</td><td>Acceder a tu cuenta. Se guarda cifrada (bcrypt), nunca en claro, y no podemos leerla</td><td>No</td></tr>
+  <tr><td>Nombre visible</td><td>Que te reconozcan</td><td>Sí</td></tr>
+  <tr><td>Fecha de nacimiento</td><td>Calcular tu edad y filtrar por franja de edad</td><td>Sólo la <em>edad</em>. La fecha exacta nunca sale del servidor</td></tr>
+  <tr><td>Género</td><td>Filtro opcional de a quién ves y quién te ve</td><td>Sí, si lo indicas. Es opcional</td></tr>
+  <tr><td>Zona (código postal o municipio)</td><td>Enseñarte gente cerca. <strong>La eliges tú, no se toma del GPS del móvil</strong></td><td>Sólo el nombre del municipio y la <em>distancia</em> en km. Tus coordenadas nunca salen del servidor</td></tr>
+  <tr><td>Foto o avatar</td><td>Que te reconozcan en la pista</td><td>Sí</td></tr>
+  <tr><td>Nivel, años jugando, club, logros</td><td>Emparejarte con gente de tu nivel</td><td>Sí. Todo es opcional salvo el nivel</td></tr>
+  <tr><td>Horario semanal habitual</td><td>Enseñarte antes a quien coincide contigo</td><td>Sí</td></tr>
+  <tr><td>Mensajes del chat</td><td>Que habléis para organizar el partido</td><td>Sólo la persona con la que hablas</td></tr>
+  <tr><td>Partidos propuestos y su resultado</td><td>Organizar quedadas y cerrar el ciclo</td><td>Sólo la persona con la que juegas</td></tr>
+  <tr><td>Identificador del dispositivo (token de notificaciones)</td><td>Avisarte de mensajes y propuestas</td><td>No</td></tr>
+</table>
+
+<h2>Cómo protegemos los mensajes</h2>
+<p>
+  Los mensajes del chat se guardan <strong>cifrados</strong> en la base de datos
+  (AES-256-GCM) y sólo se descifran para entregártelos a ti y a la persona con
+  la que hablas.
+</p>
+
+<h2>Uso de la aplicación (analítica)</h2>
+<p>
+  Usamos Google Analytics para Firebase para saber cuánta gente completa el
+  registro, llega a ver perfiles o acaba jugando un partido. Nos dice
+  <strong>qué ocurre en la app, no quién lo hace</strong>: no enviamos tu
+  correo, tu nombre, tus mensajes ni tu ubicación a la analítica, y no
+  vinculamos esos datos con tu cuenta. Firebase asigna un identificador
+  anónimo de instalación.
+</p>
+
+<h2>Base legal</h2>
+<ul>
+  <li><strong>Ejecución de un contrato</strong> (art. 6.1.b RGPD): los datos de tu perfil y tus mensajes son necesarios para que el servicio funcione. Sin ellos no hay app.</li>
+  <li><strong>Interés legítimo</strong> (art. 6.1.f): analítica agregada para mejorar el producto, y moderación de contenidos denunciados.</li>
+  <li><strong>Consentimiento</strong> (art. 6.1.a): las notificaciones push, que puedes conceder o denegar y revocar cuando quieras desde los ajustes del móvil.</li>
+</ul>
+
+<h2>Con quién compartimos datos</h2>
+<p>No vendemos tus datos ni los cedemos con fines publicitarios. Sólo intervienen los proveedores necesarios para que la app funcione:</p>
+<table>
+  <tr><th>Proveedor</th><th>Para qué</th></tr>
+  <tr><td>Railway</td><td>Alojamiento del servidor y la base de datos</td></tr>
+  <tr><td>Google (Firebase)</td><td>Notificaciones push y analítica</td></tr>
+  <tr><td>Resend</td><td>Envío del correo de verificación, si está activado</td></tr>
+  <tr><td>OpenStreetMap / Nominatim</td><td>Convertir el código postal o el nombre del sitio en coordenadas, y los mapas. Se les envía lo que escribes en el buscador, no tu identidad</td></tr>
+</table>
+
+<h2>Cuánto tiempo guardamos tus datos</h2>
+<p>
+  Mientras tengas la cuenta abierta. Cuando la borras, se elimina todo:
+  perfil, fotos, deslizamientos, compañeros, mensajes y partidos. El borrado es
+  inmediato y definitivo, no hay copia de recuperación ni papelera.
+</p>
+
+<h2>Tus derechos</h2>
+<p>Puedes ejercer en cualquier momento los derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad:</p>
+<ul>
+  <li><strong>Rectificación:</strong> desde Ajustes en la propia app.</li>
+  <li><strong>Supresión:</strong> Ajustes → Borrar cuenta. Borra todo lo anterior sin intervención nuestra.</li>
+  <li><strong>Acceso y portabilidad:</strong> escríbenos a <strong>antonio.lazzarinisola@gmail.com</strong> y te enviamos una copia de tus datos.</li>
+</ul>
+<p>
+  Si crees que no tratamos tus datos correctamente, puedes reclamar ante la
+  <a href="https://www.aepd.es">Agencia Española de Protección de Datos</a>.
+</p>
+
+<h2>Edad mínima</h2>
+<p>
+  MatchPoint es para mayores de 18 años. No recogemos datos de menores de forma
+  consciente; si detectamos una cuenta de un menor, la eliminamos.
+</p>
+
+<h2>Seguridad y meterse con otra gente</h2>
+<p>
+  Quedas con desconocidos en sitios públicos: usa el sentido común. Dentro de
+  la app puedes <strong>deshacer un compañero</strong> (corta el contacto por
+  completo) y <strong>denunciar un perfil</strong>, que pasa a una cola que
+  revisamos.
+</p>
+
+<h2>Cambios en esta política</h2>
+<p>
+  Si cambia algo relevante, actualizaremos esta página y la fecha de arriba.
+</p>
+
+<footer>
+  MatchPoint · <a href="terminos.html">Términos de uso</a>
+</footer>
+
+</body>
+</html>
