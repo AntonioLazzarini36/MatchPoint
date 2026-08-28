@@ -27,13 +27,22 @@ use crate::models::{
     NewMatch, NewMessage, NewProposal, NewSessionFeedback, NewSwipe, ProposalStatus,
     SessionOutcome, Sport, SwipeType,
 };
-use crate::schema::{matches, messages, profiles, proposals, session_feedback, swipes, users};
+use crate::schema::{
+    matches, messages, preferences, profiles, proposals, session_feedback, swipes, users,
+};
 use crate::state::AppState;
 
-/// Con cuánta gente se empieza. Tres: suficiente para que las listas no se
-/// vean vacías, poco para que siga siendo evidente que la app está recién
-/// estrenada.
+/// Cuántos perfiles pasan a ser compañeros (match hecho).
 const COMPANIONS: usize = 3;
+
+/// Cuántos, además, llegan con un "quiero jugar" ya dado — sin match todavía.
+///
+/// Son los que salen destacados en Descubrir con "Ya quiere jugar contigo", y
+/// hacen falta para poder enseñar esa pantalla: sin ellos, Descubrir es una
+/// lista de desconocidos y no se ve la parte que engancha, que es entrar y
+/// encontrarte con que alguien ya te ha elegido. Un toque tuyo y hay match,
+/// que es la demostración entera en un gesto.
+const INBOUND_LIKES: usize = 2;
 
 /// Lo lanza `me::service::update_profile` la primera vez que aparece un
 /// perfil. Nunca falla hacia fuera: si algo va mal se registra y ya está —
@@ -50,11 +59,12 @@ pub async fn seed_new_user(state: &AppState, user_id: &str) {
 async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
     let mut conn = state.db.get().await.map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    let my_sports = profiles::table
+    let (my_sports, my_lat, my_lng) = profiles::table
         .filter(profiles::user_id.eq(user_id))
-        .select(profiles::sports)
-        .first::<Vec<Sport>>(&mut conn)
+        .select((profiles::sports, profiles::latitude, profiles::longitude))
+        .first::<(Vec<Sport>, Option<f64>, Option<f64>)>(&mut conn)
         .await?;
+    let my_location = my_lat.zip(my_lng);
     // `.iter().next()` y no `.first()`: `RunQueryDsl` tiene un impl generico
     // para cualquier `T`, asi que con ese trait importado `Vec::first` se
     // resuelve al `first` de Diesel y el error que sale no se parece en nada
@@ -65,23 +75,77 @@ async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
     // reales: en una base de desarrollo compartida, engancharle a alguien un
     // match con la cuenta de otra persona sin que ninguna de las dos haya
     // hecho nada sería peor que la pantalla vacía.
-    let candidates = profiles::table
+    // **Ordenado por email**, y eso importa más de lo que parece: sin un
+    // `ORDER BY` explícito Postgres puede devolver las filas en cualquier
+    // orden, así que dos cuentas nuevas seguidas salían con compañeros
+    // distintos y con la conversación pegada a otra persona. Para enseñar la
+    // app a un club hace falta que la demostración sea **siempre la misma**:
+    // el mismo Diego escribiéndote, el mismo partido pendiente, el mismo
+    // resultado en el historial.
+    let rows = profiles::table
         .inner_join(users::table.on(users::id.eq(profiles::user_id)))
         .filter(users::email.like("%@example.com"))
         .filter(profiles::user_id.ne(user_id))
         .filter(profiles::sports.contains(vec![sport]))
         .filter(profiles::photos.ne(Vec::<String>::new()))
-        .select(profiles::user_id)
-        .limit(COMPANIONS as i64)
-        .load::<String>(&mut conn)
+        .order(users::email.asc())
+        .select((profiles::user_id, profiles::latitude, profiles::longitude))
+        .load::<(String, Option<f64>, Option<f64>)>(&mut conn)
         .await?;
 
+    // **Sólo los que esta persona va a poder ver.**
+    //
+    // Un like de alguien que cae fuera del radio existe en la base pero no
+    // aparece en ningún sitio: `/discover` lo filtra por distancia antes de
+    // llegar a marcar `likesYou`. Pasó de verdad — Elena, sembrada en
+    // Fuengirola, quedaba a 27 km de un perfil de Málaga con el radio por
+    // defecto de 25, así que su "quiero jugar" no se veía y la demostración
+    // salía coja sin que nada lo delatara.
+    //
+    // Se recorta aquí con la misma cuenta que hace el feed, y **antes** de
+    // repartir papeles, para que los compañeros y los admiradores salgan
+    // siempre de gente visible.
+    let radius_km = preferences::table
+        .filter(preferences::user_id.eq(user_id))
+        .select(preferences::distance_km)
+        .first::<i32>(&mut conn)
+        .await
+        .optional()?
+        .unwrap_or(25) as f64;
+
+    let candidates: Vec<String> = match my_location {
+        Some((my_lat, my_lng)) => rows
+            .into_iter()
+            .filter(|(_, lat, lng)| match lat.zip(*lng) {
+                Some((lat, lng)) => haversine_km(my_lat, my_lng, lat, lng) <= radius_km,
+                // Sin coordenadas no sale en el feed, así que tampoco aquí.
+                None => false,
+            })
+            .map(|(id, _, _)| id)
+            .collect(),
+        // Sin ubicación propia el feed no filtra por distancia: valen todos.
+        None => rows.into_iter().map(|(id, _, _)| id).collect(),
+    };
+    let candidates: Vec<String> = candidates
+        .into_iter()
+        .take(COMPANIONS + INBOUND_LIKES)
+        .collect();
+
     if candidates.is_empty() {
-        tracing::info!("demo: no hay perfiles sembrados con los que emparejar");
+        tracing::info!("demo: no hay perfiles sembrados cerca con los que emparejar");
         return Ok(());
     }
 
-    for (i, other) in candidates.iter().enumerate() {
+    // Los últimos de la lista sólo dan like: quedan sin match, así que siguen
+    // apareciendo en Descubrir — que es donde tienen que verse.
+    let companions = candidates.iter().take(COMPANIONS);
+    let admirers = candidates.iter().skip(COMPANIONS);
+
+    for other in admirers {
+        like(&mut conn, other, user_id, sport).await?;
+    }
+
+    for (i, other) in companions.enumerate() {
         let match_id = make_match(&mut conn, user_id, other, sport).await?;
 
         // El primero llega con conversación y con una propuesta esperando
@@ -113,6 +177,14 @@ async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
         // el historial es la prueba de que la app sirve para algo, y sin
         // ninguno hay que creérselo.
         if i == 2 {
+            say(
+                state,
+                &mut conn,
+                &match_id,
+                other,
+                "Buen partido el otro día. ¿Repetimos?",
+            )
+            .await?;
             played(
                 &mut conn,
                 &match_id,
@@ -159,9 +231,48 @@ async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
     }
 
     tracing::info!(
-        "demo: cuenta {user_id} sembrada con {} compañeros",
-        candidates.len()
+        "demo: cuenta {user_id} sembrada con {} compañeros y {} likes recibidos",
+        candidates.len().min(COMPANIONS),
+        candidates.len().saturating_sub(COMPANIONS),
     );
+    Ok(())
+}
+
+/// La misma cuenta que usa `/discover` para filtrar por distancia. Se repite
+/// aquí en vez de exportarla porque son seis líneas y sacarla a un módulo
+/// común sólo para esto ataría el sembrado de demo al feed.
+fn haversine_km(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
+    const EARTH_RADIUS_KM: f64 = 6371.0;
+    let d_lat = (lat2 - lat1).to_radians();
+    let d_lng = (lng2 - lng1).to_radians();
+    let a = (d_lat / 2.0).sin().powi(2)
+        + lat1.to_radians().cos() * lat2.to_radians().cos() * (d_lng / 2.0).sin().powi(2);
+    EARTH_RADIUS_KM * 2.0 * a.sqrt().asin()
+}
+
+/// Un "quiero jugar" de otra persona hacia ti, y nada más.
+///
+/// Sin el de vuelta no hay match, así que esa persona sigue saliendo en
+/// Descubrir — destacada, porque `/discover` marca `likesYou`. Es
+/// exactamente el mismo LIKE que crearía la app.
+async fn like(
+    conn: &mut AsyncPgConnection,
+    from: &str,
+    to: &str,
+    sport: Sport,
+) -> anyhow::Result<()> {
+    diesel::insert_into(swipes::table)
+        .values(NewSwipe {
+            id: uuid::Uuid::new_v4().to_string(),
+            from_user_id: from.to_string(),
+            to_user_id: to.to_string(),
+            sport,
+            swipe_type: SwipeType::Like,
+        })
+        .on_conflict((swipes::from_user_id, swipes::to_user_id, swipes::sport))
+        .do_nothing()
+        .execute(conn)
+        .await?;
     Ok(())
 }
 
