@@ -94,16 +94,12 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Qué día?', style: Theme.of(context).textTheme.titleMedium),
-            if (_usual != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                '${widget.otherName ?? 'Esta persona'} suele tener libre: '
-                '${_usual!.summary.toLowerCase()}.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: 12),
+            // Sin frase debajo. Decia "Lucia suele tener libre: tarde LMXJ,
+            // mañana SD", que es la misma informacion que ya esta pintada en
+            // los propios dias y ademas en un formato que hay que descifrar.
+            // Lo que se ve se entiende antes que lo que se lee.
+            Text('¿Qué día?', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -118,23 +114,32 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(children: [for (final day in days) _buildDayCell(day)]),
             if (_usual != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
+              // Leyenda con la misma marca que llevan los dias, en vez de una
+              // frase describiendo el horario: explica el codigo de color una
+              // vez y se calla.
               Row(
                 children: [
-                  Icon(
-                    Icons.remove_circle_outline,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.outline,
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                    ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Los días en gris no los suele tener libres. Puedes '
-                      'proponerlos igual.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      widget.otherName == null
+                          ? 'Días que suele tener libres'
+                          : '${widget.otherName} suele tener libres estos días',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -154,55 +159,73 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
     return (a == null || a.isEmpty) ? null : a;
   }
 
+  /// Un dia de la semana.
+  ///
+  /// Los numeros iban todos en el mismo gris y la disponibilidad era un punto
+  /// de cuatro pixeles debajo: habia que saber que ese punto significaba algo
+  /// para llegar a verlo. Ahora **el dia que la otra persona suele tener libre
+  /// se pinta entero** —fondo verde claro y numero en negrita— y el que no, se
+  /// queda plano. Se distingue de un vistazo y sin leer nada.
+  ///
+  /// Sigue sin bloquear ninguno: es lo que *suele* pasar, no su agenda, y un
+  /// sabado que normalmente trabaja puede tenerlo libre justo esta semana.
   Widget _buildDayCell(DateTime day) {
     final isPast = day.isBefore(_today);
     final isToday = day == _today;
     final scheme = Theme.of(context).colorScheme;
-    final unusual = _usual != null && !_usual!.hasAnyOn(day.weekday);
+    final t = Theme.of(context).textTheme;
+    final free = _usual != null && _usual!.hasAnyOn(day.weekday) && !isPast;
+
+    final Color background;
+    final Color numberColor;
+    if (isPast) {
+      background = Colors.transparent;
+      numberColor = scheme.outline;
+    } else if (free) {
+      background = scheme.primaryContainer;
+      numberColor = scheme.onPrimaryContainer;
+    } else {
+      background = Colors.transparent;
+      numberColor = scheme.onSurface;
+    }
 
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2),
         child: Material(
-          color: isToday ? scheme.primaryContainer : Colors.transparent,
+          color: background,
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: isPast ? null : () => Navigator.of(context).pop(day),
-            child: Padding(
+            child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                // Hoy se marca con un borde y no con relleno, para no chocar
+                // con el relleno que ya significa "suele tener libre".
+                border: isToday
+                    ? Border.all(color: scheme.primary, width: 2)
+                    : null,
+              ),
               child: Column(
                 children: [
                   Text(
                     _weekdaysShort[day.weekday - 1],
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: t.labelMedium?.copyWith(
                       color: isPast ? scheme.outline : scheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${day.day}',
-                    style: TextStyle(
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                      color: (isPast || unusual)
-                          ? scheme.outline
-                          : (isToday
-                                ? scheme.onPrimaryContainer
-                                : scheme.onSurface),
+                    style: t.titleMedium?.copyWith(
+                      fontWeight: free || isToday
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: numberColor,
                     ),
                   ),
-                  if (_usual != null && !isPast) ...[
-                    const SizedBox(height: 5),
-                    Container(
-                      height: 4,
-                      width: 4,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: unusual ? scheme.outlineVariant : scheme.primary,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

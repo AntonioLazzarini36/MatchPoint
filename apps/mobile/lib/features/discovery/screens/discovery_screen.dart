@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:match_point/core/analytics/analytics.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
 import 'package:match_point/core/utils/app_sports.dart';
@@ -17,7 +18,6 @@ import 'package:match_point/features/discovery/models/swipe_type.dart';
 import '../../../core/ui/widgets/discovery/discovery_intro_banner.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
 import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
-import '../../../core/ui/widgets/discovery/discovery_filter_bar.dart';
 import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
 import '../../../core/ui/widgets/discovery/player_list_tile.dart';
 
@@ -131,13 +131,31 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   /// guardaron, vuelve a montar el feed desde cero — cambian los candidatos,
   /// así que quedarse con la lista anterior mostraría gente ya filtrada.
   Future<void> _openPreferences() async {
-    final saved = await showDiscoveryPreferencesSheet(
+    final before = controller?.filters ?? DiscoverFilters.none;
+    final result = await showDiscoveryPreferencesSheet(
       context,
       current: _preferences,
       mySports: _mySports,
+      filters: before,
     );
-    if (!saved || !mounted) return;
-    await _init();
+    if (!mounted) return;
+
+    final filtersChanged =
+        result.filters.when.mask != before.when.mask ||
+        result.filters.level != before.level;
+    if (filtersChanged) {
+      Analytics.filterChanged(
+        byTime: result.filters.when.isNotEmpty,
+        byLevel: result.filters.level != null,
+      );
+    }
+    // Nada que hacer si se cerro sin tocar: recargar el feed por abrir y
+    // cerrar una hoja pierde el sitio en la lista sin motivo.
+    if (!result.saved && !filtersChanged) return;
+
+    // `_init` reconstruye el controller, asi que los filtros nuevos hay que
+    // pasarselos por aqui o se perderian al recargar.
+    await _init(keepFilters: result.filters);
   }
 
   @override
@@ -151,6 +169,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final res = await controller!.swipeUser(user: user, type: type);
 
       if (!mounted) return;
+
+      if (type == SwipeType.like) {
+        Analytics.playerLiked(instantMatch: res.matched);
+        if (res.matched) Analytics.matchCreated();
+      } else {
+        Analytics.playerPassed();
+      }
 
       if (type == SwipeType.like && res.matched) {
         await showDiscoveryMatchDialog(
@@ -183,41 +208,33 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           body: SafeArea(
             child: Column(
               children: [
+                // Titulo grande y solo. Aqui vivian ademas un subtitulo con
+                // el recuento ("7 personas juegan al tenis cerca de ti") y una
+                // barra con dos chips de filtro: entre las tres cosas, la
+                // pantalla empezaba con cuatro lineas de interfaz antes de la
+                // primera persona, y se leia como un panel de control. El
+                // recuento no cambiaba ninguna decision —la lista ya esta
+                // debajo, y se ve— y los filtros se han movido dentro de la
+                // hoja, a un toque del icono.
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 8, 12),
                   child: Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Con quién jugar',
-                              style: context.textStyles.headlineSmall,
-                            ),
-                            Text(
-                              _subtitle(controller),
-                              style: context.textStyles.bodySmall?.copyWith(
-                                color: context.colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          'Busca tu partido',
+                          style: context.textStyles.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: _openPreferences,
-                        tooltip: 'A quién quiero ver',
-                        icon: Icon(Icons.tune, color: context.colors.onSurface),
+                      _FilterButton(
+                        active: controller.filters.activeCount,
+                        onTap: _openPreferences,
                       ),
                     ],
                   ),
                 ),
-
-                DiscoveryFilterBar(
-                  filters: controller.filters,
-                  onChanged: (next) => controller.setFilters(next),
-                ),
-                const SizedBox(height: 4),
 
                 if (_showIntro) DiscoveryIntroBanner(onDismiss: _dismissIntro),
 
@@ -228,19 +245,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         );
       },
     );
-  }
-
-  /// Dice de qué va la pantalla con datos reales en vez de una frase
-  /// genérica: cuánta gente hay y, si hay filtro de horario puesto, que lo
-  /// que se está contando es "quien puede cuando tú".
-  String _subtitle(DiscoveryController controller) {
-    final count = controller.stack.length;
-    final filtered = controller.filters.when.isNotEmpty;
-    if (count == 0) {
-      return filtered ? 'Nadie libre en esas franjas' : 'Nadie por aquí todavía';
-    }
-    final gente = count == 1 ? '1 persona' : '$count personas';
-    return filtered ? '$gente pueden cuando tú' : '$gente cerca de ti';
   }
 
   Widget _buildBody(BuildContext context, DiscoveryController controller) {
@@ -256,6 +260,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
 
     if (controller.stack.isEmpty) {
+      Analytics.discoverEmpty(filtered: controller.filters.isNotEmpty);
       return _EmptyState(
         filters: controller.filters,
         onClearFilters: () => controller.setFilters(DiscoverFilters.none),
@@ -263,6 +268,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
     }
 
+    Analytics.discoverLoaded(
+      count: controller.stack.length,
+      filtered: controller.filters.isNotEmpty,
+    );
     return _buildList(context, controller);
   }
 
@@ -355,6 +364,56 @@ class _EmptyState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// El acceso a los filtros, con una chapa que dice cuantos hay puestos.
+///
+/// La chapa no es decorativa: al sacar los filtros de la pantalla principal,
+/// sin ella no habria forma de saber que la lista esta recortada, y una lista
+/// corta se leeria como "no hay nadie" en vez de "estas filtrando".
+class _FilterButton extends StatelessWidget {
+  final int active;
+  final VoidCallback onTap;
+
+  const _FilterButton({required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: onTap,
+          tooltip: 'Filtros',
+          icon: Icon(
+            Icons.tune,
+            color: active > 0 ? colors.primary : colors.onSurface,
+          ),
+        ),
+        if (active > 0)
+          Positioned(
+            right: 4,
+            top: 4,
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: colors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '$active',
+                style: context.textStyles.labelSmall?.copyWith(
+                  color: colors.onPrimary,
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

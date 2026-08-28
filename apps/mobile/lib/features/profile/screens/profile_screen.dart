@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +9,7 @@ import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/profile.dart' as onboarding_profile;
 import '../../onboarding/services/profile_service.dart';
+import '../../matches/services/matches_service.dart';
 import '../../../core/ui/profile/photo_manager_sheet.dart';
 import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
@@ -27,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   onboarding_profile.Profile? profile;
   Map<Sport, SkillLevel> _skillLevels = {};
   String? myUserId;
+  ProfileStats? _stats;
 
   @override
   void initState() {
@@ -49,6 +53,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       myUserId = me.id;
       _skillLevels = me.skillLevels;
+
+      // Las cifras salen de `/matches`, que ya trae `playedTogether` por
+      // pareja. Se piden aparte y sin bloquear: si fallan, la fila
+      // simplemente no aparece — un perfil sin estadisticas se lee bien, uno
+      // que no carga por culpa de dos numeros no.
+      unawaited(_loadStats());
 
       if (p == null) {
         // No hay perfil todavia: renderizamos algo “vacio”
@@ -90,6 +100,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         error = e;
         loading = false;
       });
+    }
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final matches = await MatchesService(Api.client).fetchMatches();
+      if (!mounted) return;
+      setState(() {
+        _stats = ProfileStats(
+          partners: matches.length,
+          played: matches.fold(0, (sum, m) => sum + m.playedTogether),
+        );
+      });
+    } catch (_) {
+      // sin cifras, sin fila
     }
   }
 
@@ -172,6 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         sportsTitle: 'Mis Deportes',
         bioTitle: 'Sobre mi',
         showStats: true,
+        stats: _stats,
         showBottomButton: true,
         bottomButtonText: 'Ver mi perfil público',
         onBottomButton: myUserId == null ? null : _viewPublicProfile,

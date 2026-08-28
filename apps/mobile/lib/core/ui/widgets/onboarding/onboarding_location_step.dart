@@ -15,7 +15,7 @@ import '../../location/location_search_screen.dart';
 
 /// Primer paso del registro, y a propósito.
 ///
-/// Antes era el cuarto: se preguntaba el nombre, el nivel, las credenciales y
+/// Antes era el cuarto: se preguntaba el nombre, el nivel, la experiencia y
 /// las preferencias, y sólo entonces dónde estabas. Eso deja la única
 /// pregunta que puede responder "¿hay alguien aquí?" para después de que la
 /// persona ya ha invertido cinco pantallas — y si la respuesta es "no", se

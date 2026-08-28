@@ -128,7 +128,7 @@ class ProfileService {
   /// (mismo upsert parcial que el resto de `PATCH /me/profile`); pasar
   /// una lista vacía sí borra los logros existentes, a propósito, para
   /// poder vaciarla desde Settings.
-  Future<void> updateCredentials({
+  Future<void> updateExperience({
     int? yearsPlaying,
     String? club,
     double? avgPaceMinPerKm,
@@ -154,7 +154,7 @@ class ProfileService {
 
   /// Nivel auto-declarado por deporte — vive en su propia tabla en el
   /// backend (no en `Profile`), así que va por `PATCH /me/skill-levels`
-  /// en vez de `updateProfile`/`updateCredentials`. Upsert por deporte:
+  /// en vez de `updateProfile`/`updateExperience`. Upsert por deporte:
   /// un deporte no incluido en `levels` no se toca.
   Future<Map<Sport, SkillLevel>> updateSkillLevels(
     Map<Sport, SkillLevel> levels,

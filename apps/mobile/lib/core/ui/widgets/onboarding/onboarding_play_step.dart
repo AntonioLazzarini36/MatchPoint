@@ -14,7 +14,7 @@ import 'package:match_point/features/onboarding/models/availability.dart';
 /// horario enterrado al final de un paso de "preferencias" junto al rango de
 /// edad y el filtro de género.
 ///
-/// Lo que se fue de aquí y por qué: **credenciales** (años, club, logros) son
+/// Lo que se fue de aquí y por qué: la **experiencia** (años, club, logros) es
 /// para lucirse, no para emparejar, y pedirlas antes de que alguien haya
 /// visto un solo perfil es pedir esfuerzo a cambio de nada — se rellenan
 /// desde Ajustes cuando ya hay motivo. **Rango de edad, radio y género** son

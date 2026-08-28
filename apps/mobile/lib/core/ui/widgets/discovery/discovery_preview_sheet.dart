@@ -62,11 +62,11 @@ class _PreviewBody extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(user.bio!, style: context.textStyles.bodyLarge),
                 ],
-                if (_hasCredentials) ...[
+                if (_hasExperience) ...[
                   const SizedBox(height: 18),
                   Text('Experiencia', style: context.textStyles.titleSmall),
                   const SizedBox(height: 8),
-                  ..._credentialRows(context),
+                  ..._experienceRows(context),
                 ],
                 // El resto de fotos, en vertical: antes sólo se veía la
                 // primera y las demás no tenían ningún sitio donde
@@ -276,7 +276,7 @@ class _PreviewBody extends StatelessWidget {
     );
   }
 
-  bool get _hasCredentials =>
+  bool get _hasExperience =>
       user.yearsPlaying != null ||
       (user.club ?? '').isNotEmpty ||
       user.avgPaceMinPerKm != null ||
@@ -287,7 +287,7 @@ class _PreviewBody extends StatelessWidget {
   /// conozco") — ver status.md, "Reposicionamiento de producto". Separado
   /// del bio libre a propósito, para que no dependa de que la persona se
   /// acuerde de escribirlo ahí.
-  List<Widget> _credentialRows(BuildContext context) {
+  List<Widget> _experienceRows(BuildContext context) {
     final rows = <(IconData, String)>[
       if (user.yearsPlaying != null)
         (Icons.timeline, '${user.yearsPlaying} años jugando'),

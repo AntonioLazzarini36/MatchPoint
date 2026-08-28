@@ -1,3 +1,4 @@
+import 'package:match_point/core/analytics/analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
@@ -97,6 +98,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       final updated = await ProposalService(
         Api.client,
       ).respond(proposalId: _proposal.id, action: action);
+      Analytics.proposalAnswered(action);
       if (!mounted) return;
       setState(() {
         _proposal = updated;

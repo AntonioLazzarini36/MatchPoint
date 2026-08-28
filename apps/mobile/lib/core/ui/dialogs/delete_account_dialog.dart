@@ -64,7 +64,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               'Tu perfil y tus fotos',
               'Tus compañeros y todas tus conversaciones',
               'Los partidos y salidas que tengas acordados',
-              'Tu nivel, tus credenciales y tus preferencias',
+              'Tu nivel, tu experiencia y tus preferencias',
             ])
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),

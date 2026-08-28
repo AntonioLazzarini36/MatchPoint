@@ -8,7 +8,6 @@ import '../../../core/network/api.dart';
 import '../../../core/push/push_service.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/ui/dialogs/confirm_changes_dialog.dart';
 import '../../../core/ui/dialogs/delete_account_dialog.dart';
 import '../../../core/ui/location/location_search_screen.dart';
 import '../../../core/utils/pace_format.dart';
@@ -20,11 +19,9 @@ import '../../discovery/models/sport.dart';
 import '../../../core/network/connection_error.dart';
 import '../../../core/ui/widgets/availability_picker.dart';
 import '../../onboarding/models/availability.dart';
-import '../../onboarding/models/gender.dart';
 import '../../../core/utils/app_sports.dart';
 import '../../onboarding/models/intention.dart';
 import '../../onboarding/models/profile.dart';
-import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
 import '../../onboarding/services/profile_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -54,8 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingAvailability = false;
   bool _savingBio = false;
   bool _savingSkillLevels = false;
-  bool _savingCredentials = false;
-  bool _savingPreferences = false;
+  bool _savingExperience = false;
 
   @override
   void initState() {
@@ -104,19 +100,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (result == null || !mounted) return;
 
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar ubicación',
-      changes: [
-        FieldChange(
-          label: 'Ubicación',
-          before: _profile?.city ?? '',
-          after: result.displayName,
-        ),
-      ],
-    );
-    if (!ok || !mounted) return;
-
     setState(() => _savingLocation = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -146,15 +129,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (sheetContext) => _RadiusSheet(initialKm: current),
     );
     if (chosen == null || !mounted) return;
-
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar radio de búsqueda',
-      changes: [
-        FieldChange(label: 'Radio', before: '$current km', after: '$chosen km'),
-      ],
-    );
-    if (!ok || !mounted) return;
 
     setState(() => _savingRadius = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -191,19 +165,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (chosen == null || !mounted) return;
 
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar tus deportes',
-      changes: [
-        FieldChange(
-          label: 'Deportes que juegas',
-          before: current.map((s) => s.label).join(', '),
-          after: chosen.map((s) => s.label).join(', '),
-        ),
-      ],
-    );
-    if (!ok || !mounted) return;
-
     setState(() => _savingSports = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -237,19 +198,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (chosen == null || !mounted) return;
 
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar tu disponibilidad',
-      changes: [
-        FieldChange(
-          label: 'Cuándo sueles tener libre',
-          before: current.summary,
-          after: chosen.summary,
-        ),
-      ],
-    );
-    if (!ok || !mounted) return;
-
     setState(() => _savingAvailability = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -271,19 +219,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => _IntentionSheet(initial: _profile?.intention),
     );
     if (chosen == null || !mounted) return;
-
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar a qué vienes',
-      changes: [
-        FieldChange(
-          label: 'A qué vienes',
-          before: _profile?.intention?.label ?? 'Sin definir',
-          after: chosen.value?.label ?? 'Sin definir',
-        ),
-      ],
-    );
-    if (!ok || !mounted) return;
 
     setState(() => _savingIntention = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -349,20 +284,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (chosen == null || !mounted) return;
 
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar tu nivel',
-      changes: [
-        for (final sport in sports)
-          FieldChange(
-            label: sport.label,
-            before: _skillLevels[sport]?.label ?? '',
-            after: chosen[sport]?.label ?? '',
-          ),
-      ],
-    );
-    if (!ok || !mounted) return;
-
     setState(() => _savingSkillLevels = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -384,10 +305,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Señales de confianza estructuradas (años jugando, club, logros) — ver
   /// status.md, "Reposicionamiento de producto".
-  Future<void> _changeCredentials() async {
-    final chosen = await showModalBottomSheet<_CredentialsResult>(
+  Future<void> _changeExperience() async {
+    final chosen = await showModalBottomSheet<_ExperienceResult>(
       context: context,
-      builder: (sheetContext) => _CredentialsSheet(
+      builder: (sheetContext) => _ExperienceSheet(
         sports: _profile?.sports ?? const [],
         initialYearsPlaying: _profile?.yearsPlaying,
         initialClub: _profile?.club ?? '',
@@ -398,48 +319,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (chosen == null || !mounted) return;
 
-    String pace(double? value) =>
-        value == null ? '' : '${formatPaceMinPerKm(value)} min/km';
-    String km(double? value) => value == null ? '' : '$value km';
-    String years(int? value) => value == null ? '' : '$value años';
-
-    final ok = await confirmChanges(
-      context,
-      title: 'Cambiar tus credenciales',
-      changes: [
-        FieldChange(
-          label: 'Años jugando',
-          before: years(_profile?.yearsPlaying),
-          after: years(chosen.yearsPlaying),
-        ),
-        FieldChange(
-          label: 'Club',
-          before: _profile?.club ?? '',
-          after: chosen.club ?? '',
-        ),
-        FieldChange(
-          label: 'Ritmo medio',
-          before: pace(_profile?.avgPaceMinPerKm),
-          after: pace(chosen.avgPaceMinPerKm),
-        ),
-        FieldChange(
-          label: 'Distancia media',
-          before: km(_profile?.avgDistanceKm),
-          after: km(chosen.avgDistanceKm),
-        ),
-        FieldChange(
-          label: 'Logros',
-          before: (_profile?.achievements ?? const []).join(', '),
-          after: chosen.achievements.join(', '),
-        ),
-      ],
-    );
-    if (!ok || !mounted) return;
-
-    setState(() => _savingCredentials = true);
+    setState(() => _savingExperience = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _profileService.updateCredentials(
+      await _profileService.updateExperience(
         yearsPlaying: chosen.yearsPlaying,
         club: chosen.club,
         avgPaceMinPerKm: chosen.avgPaceMinPerKm,
@@ -454,33 +337,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se han podido guardar tus credenciales.',
+              fallback: 'No se ha podido guardar tu experiencia.',
             ),
           ),
         ),
       );
     } finally {
-      if (mounted) setState(() => _savingCredentials = false);
-    }
-  }
-
-  /// A quién mostrar en Discovery (edad, deportes que quiere ver, género)
-  /// — independiente del radio (fila de arriba) y de los deportes que
-  /// juega. Misma hoja que abre el botón de filtros dentro de Discovery,
-  /// y se guarda sola, así que aquí solo hay que recargar.
-  Future<void> _changePreferences() async {
-    final saved = await showDiscoveryPreferencesSheet(
-      context,
-      current: _preferences,
-      mySports: _profile?.sports ?? const [],
-    );
-    if (!saved || !mounted) return;
-
-    setState(() => _savingPreferences = true);
-    try {
-      await _load();
-    } finally {
-      if (mounted) setState(() => _savingPreferences = false);
+      if (mounted) setState(() => _savingExperience = false);
     }
   }
 
@@ -564,7 +427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
   }
 
-  String get _credentialsSubtitle {
+  String get _experienceSubtitle {
     final parts = <String>[
       if (_profile?.yearsPlaying != null)
         '${_profile!.yearsPlaying} años jugando',
@@ -577,18 +440,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         '${_profile!.achievements.length} logro(s)',
     ];
     return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
-  }
-
-  String get _preferencesSubtitle {
-    final prefs = _preferences;
-    if (prefs == null) return 'Sin definir';
-    final parts = <String>[
-      '${prefs.ageMin}-${prefs.ageMax} años',
-      if (prefs.sportsWanted.isNotEmpty)
-        prefs.sportsWanted.map((s) => s.label).join(', '),
-      prefs.genderPreference?.pluralLabel ?? 'Cualquiera',
-    ];
-    return parts.join(' · ');
   }
 
   @override
@@ -717,10 +568,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.schedule,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Cuándo sueles tener libre',
-                      subtitle:
-                          (_profile?.availability ?? WeeklyAvailability.empty)
-                              .summary,
+                      title: 'Disponibilidad',
+                      // Sin resumen debajo: `summary` sale como "Tarde LMXJ ·
+                      // mañana SD", que hay que descifrar. La rejilla entera
+                      // está a un toque y se lee de un vistazo.
+                      subtitle: null,
                       trailing: _savingAvailability
                           ? const SizedBox(
                               width: 20,
@@ -793,9 +645,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.emoji_events_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Credenciales',
-                      subtitle: _credentialsSubtitle,
-                      trailing: _savingCredentials
+                      title: 'Experiencia',
+                      subtitle: _experienceSubtitle,
+                      trailing: _savingExperience
                           ? const SizedBox(
                               width: 20,
                               height: 20,
@@ -805,25 +657,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Icons.chevron_right,
                               color: context.colors.outline,
                             ),
-                      onTap: _savingCredentials ? null : _changeCredentials,
-                    ),
-                    _SettingsRow(
-                      icon: Icons.tune,
-                      iconBackground: context.colors.tertiaryContainer,
-                      iconColor: context.colors.onTertiaryContainer,
-                      title: 'Preferencias de Descubrir',
-                      subtitle: _preferencesSubtitle,
-                      trailing: _savingPreferences
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.chevron_right,
-                              color: context.colors.outline,
-                            ),
-                      onTap: _savingPreferences ? null : _changePreferences,
+                      onTap: _savingExperience ? null : _changeExperience,
                     ),
                   ],
                 ),
@@ -1207,17 +1041,15 @@ class _SkillLevelSheetState extends State<_SkillLevelSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Nivel', style: context.textStyles.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Para que quien vea tu perfil sepa si juega a tu nivel.',
-              style: context.textStyles.bodySmall?.copyWith(
-                color: context.colors.onSurfaceVariant,
-              ),
-            ),
             const SizedBox(height: 16),
             for (final sport in widget.sports) ...[
-              Text(sport.label, style: context.textStyles.titleSmall),
-              const SizedBox(height: 8),
+              // El nombre del deporte solo cuando hay mas de uno que
+              // distinguir: con la app en tenis, un encabezado "Tenis" encima
+              // de los cuatro niveles no separa nada de nada.
+              if (widget.sports.length > 1) ...[
+                Text(sport.label, style: context.textStyles.titleSmall),
+                const SizedBox(height: 8),
+              ],
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -1245,14 +1077,14 @@ class _SkillLevelSheetState extends State<_SkillLevelSheet> {
   }
 }
 
-class _CredentialsResult {
+class _ExperienceResult {
   final int? yearsPlaying;
   final String? club;
   final double? avgPaceMinPerKm;
   final double? avgDistanceKm;
   final List<String> achievements;
 
-  const _CredentialsResult({
+  const _ExperienceResult({
     required this.yearsPlaying,
     required this.club,
     required this.avgPaceMinPerKm,
@@ -1283,7 +1115,7 @@ Widget _sportHeaderRow(BuildContext context, Sport sport) {
   );
 }
 
-class _CredentialsSheet extends StatefulWidget {
+class _ExperienceSheet extends StatefulWidget {
   final List<Sport> sports;
   final int? initialYearsPlaying;
   final String initialClub;
@@ -1291,7 +1123,7 @@ class _CredentialsSheet extends StatefulWidget {
   final double? initialAvgDistanceKm;
   final List<String> initialAchievements;
 
-  const _CredentialsSheet({
+  const _ExperienceSheet({
     required this.sports,
     required this.initialYearsPlaying,
     required this.initialClub,
@@ -1301,10 +1133,10 @@ class _CredentialsSheet extends StatefulWidget {
   });
 
   @override
-  State<_CredentialsSheet> createState() => _CredentialsSheetState();
+  State<_ExperienceSheet> createState() => _ExperienceSheetState();
 }
 
-class _CredentialsSheetState extends State<_CredentialsSheet> {
+class _ExperienceSheetState extends State<_ExperienceSheet> {
   late final TextEditingController _yearsCtrl;
   late final TextEditingController _clubCtrl;
   late final TextEditingController _paceCtrl;
@@ -1378,7 +1210,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
       return;
     }
     Navigator.of(context).pop(
-      _CredentialsResult(
+      _ExperienceResult(
         yearsPlaying: int.tryParse(_yearsCtrl.text.trim()),
         club: club,
         avgPaceMinPerKm: parsePaceMinPerKm(_paceCtrl.text),
@@ -1409,14 +1241,7 @@ class _CredentialsSheetState extends State<_CredentialsSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Credenciales', style: context.textStyles.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                'Lo que quieras que se vea en tu perfil para dar confianza.',
-                style: context.textStyles.bodySmall?.copyWith(
-                  color: context.colors.onSurfaceVariant,
-                ),
-              ),
+              Text('Experiencia', style: context.textStyles.titleMedium),
               const SizedBox(height: 16),
               if (playsTennis) ...[
                 if (playsBoth) _sportHeaderRow(context, Sport.tennis),
@@ -1593,12 +1418,6 @@ class _IntentionSheetState extends State<_IntentionSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('A qué vienes', style: context.textStyles.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              'Aparece en tu perfil, para que quien te vea sepa si busca lo '
-              'mismo.',
-              style: context.textStyles.bodySmall,
-            ),
             const SizedBox(height: 16),
             for (final option in Intention.values)
               _choice(
@@ -1681,8 +1500,7 @@ class _BioSheetState extends State<_BioSheet> {
           Text('Sobre ti', style: context.textStyles.titleLarge),
           const SizedBox(height: 4),
           Text(
-            'Cuándo juegas, qué buscas en un compañero, lo que sea. Es lo que '
-            'hace que tu perfil no sea uno más.',
+            'Añade cualquier información que pueda interesarle a tu futuro compañero.',
             style: context.textStyles.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -1694,8 +1512,8 @@ class _BioSheetState extends State<_BioSheet> {
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
               hintText:
-                  'Juego los martes por la tarde cerca del centro. '
-                  'Busco a alguien constante más que competitivo.',
+                  'Soy una persona entusiasmada por el tenis. '
+                  'Busco a alguien para jugar a menudo.',
               errorText: _error,
               alignLabelWithHint: true,
             ),
@@ -1735,15 +1553,8 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Cuándo sueles tener libre',
+              'Disponibilidad',
               style: context.textStyles.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'No tiene que ser exacto. Lo verá quien quiera proponerte algo, '
-              'para no elegir un hueco en el que nunca puedes. Arrastra para '
-              'marcar varias casillas.',
-              style: context.textStyles.bodySmall,
             ),
             const SizedBox(height: 16),
             AvailabilityPicker(

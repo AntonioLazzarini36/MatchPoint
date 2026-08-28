@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 
@@ -57,14 +59,51 @@ class OverpassService {
   // 40 coincidencias reales), que es peor que un timeout honesto porque
   // diría "no hay clubes" habiéndolos.
   //
-  // Kumi Systems va primero: es el de más capacidad de los públicos y
-  // aguanta cuando la instancia principal está saturada, que es la queja
-  // concreta que motivó este orden.
+  // El orden importa mucho más de lo que parece: los espejos se prueban de
+  // uno en uno, así que uno caído al principio de la lista se paga en cada
+  // búsqueda antes de llegar al siguiente.
+  //
+  // Kumi Systems estaba primero y **está caído** (502, y a ratos se queda
+  // colgado hasta agotar el tiempo — medido el 2026-08-28). Con el tiempo de
+  // espera de 25 s que había, cada búsqueda tardaba medio minuto largo en
+  // llegar a un servidor sano: quien esperaba veía los clubes y quien se
+  // cansaba concluía que no funcionaban. De ahí el "a veces sí y a veces no".
+  //
+  // Ahora van primero los dos que responden (1-2 s, 194 sitios cerca de
+  // Benalmádena, comprobado), Kumi queda de último recurso, y `_preferred`
+  // se queda con el que haya funcionado para no volver a pagar la ronda.
   static const _endpoints = [
-    'https://overpass.kumi.systems/api/interpreter',
     'https://overpass-api.de/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
   ];
+
+  /// Cuánto se espera a un espejo antes de pasar al siguiente.
+  ///
+  /// 20 s, y el número tiene historia. Estaba en 25, lo bajé a 8 al ver que
+  /// el primer espejo de la lista estaba caído... y eso rompió el caso
+  /// contrario. Medido el 2026-08-28 contra `overpass-api.de`:
+  ///
+  ///   radio de 10 km, 1ª petición ....... 0,9 s
+  ///   la misma, 2ª seguida .............. 2,6 s
+  ///   la misma, 3ª seguida .............. 7,2 s
+  ///   radio de 30 km ("ampliar") ........ 6,0 s
+  ///
+  /// Overpass es gratuito y compartido: **encola por IP y va frenando a quien
+  /// insiste**. O sea que justo cuando alguien reintenta porque le ha
+  /// fallado, las respuestas tardan más — y con 8 s se cortaban solas. Eso
+  /// convertía un fallo puntual en una bola de nieve: fallo → reintento →
+  /// más lento → fallo.
+  ///
+  /// Un espejo muerto no necesita este plazo (contesta 502 en 4 s), así que
+  /// esperar más no cuesta nada en ese caso; lo que arregla el problema de
+  /// verdad es el orden de la lista, no recortar el tiempo.
+  static const _perEndpointTimeout = Duration(seconds: 20);
+
+  /// El último espejo que funcionó en esta sesión. Se prueba el primero: sin
+  /// esto, cada búsqueda nueva vuelve a empezar por el principio de la lista
+  /// y a pagar los que estén caídos.
+  static String? _preferred;
 
   /// Pistas más cerca que esto entre sí son del mismo sitio.
   static const _clusterRadiusMeters = 150.0;
@@ -83,6 +122,58 @@ class OverpassService {
   /// pistas de una zona no cambian en lo que dura una sesión.
   static final Map<String, List<TennisClub>> _cache = {};
 
+  /// La misma caché, pero en disco y sobreviviendo al cierre de la app.
+  ///
+  /// Es la pieza que más reduce los fallos, porque el problema de fondo no es
+  /// la velocidad de Overpass sino **cuántas veces se le pregunta**: encola
+  /// por IP, así que cada consulta que se ahorra hace más rápida la
+  /// siguiente. Con la caché sólo en memoria, cerrar la app la vaciaba y la
+  /// primera búsqueda del día volvía a pagar la cola entera.
+  ///
+  /// Las pistas de tenis de una zona no cambian de un día para otro: se
+  /// guardan 7 días. Se reutiliza `flutter_secure_storage`, que ya está en el
+  /// proyecto para tokens y flags, en vez de añadir un paquete nuevo sólo
+  /// para esto (mismo criterio que `LocalFlags`).
+  static const _storage = FlutterSecureStorage();
+  static const _diskPrefix = 'overpass_clubs_';
+  static const _diskTtl = Duration(days: 7);
+
+  static Future<List<TennisClub>?> _readDisk(String key) async {
+    try {
+      final raw = await _storage.read(key: '$_diskPrefix$key');
+      if (raw == null) return null;
+
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final savedAt = DateTime.fromMillisecondsSinceEpoch(
+        decoded['at'] as int? ?? 0,
+      );
+      if (DateTime.now().difference(savedAt) > _diskTtl) return null;
+
+      final clubs = (decoded['clubs'] as List<dynamic>)
+          .map((e) => TennisClub.fromCache(e as Map<String, dynamic>))
+          .toList();
+      return clubs.isEmpty ? null : clubs;
+    } catch (_) {
+      // Un formato viejo o corrupto no puede tumbar la busqueda: se ignora y
+      // se pregunta a la red, que es lo que se haria de todas formas.
+      return null;
+    }
+  }
+
+  static Future<void> _writeDisk(String key, List<TennisClub> clubs) async {
+    try {
+      await _storage.write(
+        key: '$_diskPrefix$key',
+        value: jsonEncode({
+          'at': DateTime.now().millisecondsSinceEpoch,
+          'clubs': clubs.map((c) => c.toCache()).toList(),
+        }),
+      );
+    } catch (_) {
+      // Sin caché en disco se sigue funcionando, solo que más lento.
+    }
+  }
+
   static String _cacheKey(double latitude, double longitude, int radiusMeters) {
     // ~11 m de resolución: mover el mapa un pelo no invalida la caché.
     final lat = latitude.toStringAsFixed(4);
@@ -98,6 +189,13 @@ class OverpassService {
     final key = _cacheKey(latitude, longitude, radiusMeters);
     final cached = _cache[key];
     if (cached != null) return cached;
+
+    // Antes de molestar a Overpass, lo que se guardó en sesiones anteriores.
+    final fromDisk = await _readDisk(key);
+    if (fromDisk != null) {
+      _cache[key] = fromDisk;
+      return fromDisk;
+    }
 
     // Nada de filtrar las instalaciones por `sport`: es justo la etiqueta
     // que les falta (ver el comentario de la clase). Se filtra después, ya
@@ -116,12 +214,18 @@ class OverpassService {
         ');'
         'out center tags 400;';
 
+    // El que funcionó la última vez, primero; el resto detrás, sin repetirlo.
+    final ordered = <String>[
+      ?_preferred,
+      ..._endpoints.where((e) => e != _preferred),
+    ];
+
     Object? lastError;
-    for (final endpoint in _endpoints) {
+    for (final endpoint in ordered) {
       try {
         final res = await http
             .post(Uri.parse(endpoint), body: {'data': query})
-            .timeout(const Duration(seconds: 25));
+            .timeout(_perEndpointTimeout);
 
         if (res.statusCode < 200 || res.statusCode >= 300) {
           lastError = Exception('$endpoint failed: ${res.statusCode}');
@@ -129,10 +233,27 @@ class OverpassService {
         }
 
         final clubs = _buildClubs(_parse(res.body));
-        _cache[key] = clubs;
+
+        // **Una respuesta vacía no se guarda en caché.** Un espejo con
+        // problemas puede contestar 200 con cero elementos, y como la caché
+        // no caduca en toda la sesión, ese vacío se quedaba pegado: a partir
+        // de ahí el selector de clubes salía vacío al instante y no había
+        // forma de recuperarlo sin cerrar la app. Es la otra mitad del "a
+        // veces no funciona" — la mitad que además no se arreglaba sola.
+        //
+        // Que una zona no tenga pistas es posible, claro; pero volver a
+        // preguntarlo cuesta una consulta y equivocarse cuesta la función
+        // entera.
+        if (clubs.isNotEmpty) {
+          _cache[key] = clubs;
+          _preferred = endpoint;
+          await _writeDisk(key, clubs);
+        }
         return clubs;
       } catch (e) {
         lastError = e;
+        // Si el que venía marcado como bueno falla, deja de serlo.
+        if (endpoint == _preferred) _preferred = null;
         continue;
       }
     }

@@ -10,7 +10,7 @@ import 'package:match_point/features/discovery/models/sport.dart';
 
 /// Última página del wizard, antes de mandar nada al backend — pedido
 /// del usuario (2026-08-03): quiere ver cómo va a quedar el perfil
-/// (foto, nombre, deportes+nivel, bio, credenciales) y confirmar antes
+/// (foto, nombre, deportes+nivel, bio, experiencia) y confirmar antes
 /// de que se cree de verdad, en vez de que "Comenzar" en el paso de
 /// fotos lo mande todo directo. Construida con los mismos bloques
 /// visuales que `discovery_preview_sheet.dart` (lo que ve otra persona
@@ -53,7 +53,7 @@ class OnboardingPreviewStep extends StatelessWidget {
     this.achievements = const [],
   });
 
-  bool get _hasCredentials =>
+  bool get _hasExperience =>
       yearsPlaying != null ||
       (club ?? '').isNotEmpty ||
       avgPaceMinPerKm != null ||
@@ -145,10 +145,10 @@ class OnboardingPreviewStep extends StatelessWidget {
               padding: const EdgeInsets.only(top: 16),
               child: Text(bio!, style: t.bodyLarge),
             ),
-          if (_hasCredentials)
+          if (_hasExperience)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: _CredentialsPreview(
+              child: _ExperiencePreview(
                 yearsPlaying: yearsPlaying,
                 club: club,
                 avgPaceMinPerKm: avgPaceMinPerKm,
@@ -162,14 +162,14 @@ class OnboardingPreviewStep extends StatelessWidget {
   }
 }
 
-class _CredentialsPreview extends StatelessWidget {
+class _ExperiencePreview extends StatelessWidget {
   final int? yearsPlaying;
   final String? club;
   final double? avgPaceMinPerKm;
   final double? avgDistanceKm;
   final List<String> achievements;
 
-  const _CredentialsPreview({
+  const _ExperiencePreview({
     this.yearsPlaying,
     this.club,
     this.avgPaceMinPerKm,

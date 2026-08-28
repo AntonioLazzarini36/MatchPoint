@@ -1,3 +1,4 @@
+import 'package:match_point/core/analytics/analytics.dart';
 import 'package:flutter/material.dart';
 
 import 'package:match_point/core/network/api.dart';
@@ -5,6 +6,9 @@ import 'package:match_point/core/network/notification_counts.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/utils/date_format_es.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
+import 'package:match_point/core/ui/widgets/screen_header.dart';
+import 'package:match_point/core/ui/profile/network_photo.dart';
+import 'package:match_point/core/utils/app_sports.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 
 import '../../discovery/models/sport.dart';
@@ -39,6 +43,10 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   /// todo: es lo unico de esta pantalla que se pierde si no se contesta
   /// pronto — nadie recuerda un partido de hace tres semanas.
   List<UpcomingSession> _toConfirm = const [];
+
+  /// Lo ya jugado. Va abajo del todo: primero lo que hay que hacer, después
+  /// lo que ya pasó.
+  List<PlayedSession> _history = const [];
   bool _loading = true;
   Object? _error;
 
@@ -56,14 +64,23 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     try {
       // En paralelo: son dos endpoints independientes y encadenarlos solo
       // haria esperar el doble.
-      final results = await Future.wait([
-        _service.listUpcoming(),
-        _service.listAwaitingFeedback(),
-      ]);
+      // En paralelo: son endpoints independientes y encadenarlos sólo haría
+      // esperar el triple.
+      final upcoming = _service.listUpcoming();
+      final toConfirm = _service.listAwaitingFeedback();
+      // El historial no puede tumbar la pantalla: si falla, se ve la agenda
+      // igual y simplemente no hay sección de jugados.
+      final history = _service.listHistory().catchError(
+        (_) => <PlayedSession>[],
+      );
+
+      final results = await Future.wait([upcoming, toConfirm]);
+      final past = await history;
       if (!mounted) return;
       setState(() {
         _sessions = results[0];
         _toConfirm = results[1];
+        _history = past;
         _loading = false;
       });
     } catch (e) {
@@ -94,8 +111,22 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Partidos')),
-      body: RefreshIndicator(onRefresh: _load, child: _buildBody(context)),
+      // Misma cabecera que Descubrir y Compañeros (ver `ScreenHeader`): las
+      // tres pantallas de la barra se leían como de apps distintas porque
+      // ésta y Compañeros usaban un `AppBar` de Material y Descubrir no.
+      body: SafeArea(
+        child: Column(
+          children: [
+            const ScreenHeader(title: 'Tus partidos'),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _buildBody(context),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -166,22 +197,32 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
           ..._section(context, 'Confirmadas', confirmed),
         if (waiting.isNotEmpty)
           ..._section(context, 'Esperando respuesta', waiting),
+        if (_history.isNotEmpty) ..._historySection(context),
       ],
     );
+  }
+
+  /// Lo ya jugado, del más reciente al más antiguo.
+  ///
+  /// Va al final a propósito: arriba está lo que pide una acción tuya y lo
+  /// que tienes por delante; esto es para mirar, no para hacer. Pero tiene
+  /// que estar — sin ello, la app tira todo lo que has jugado en cuanto pasa,
+  /// que es justamente la prueba de que sirve para algo.
+  List<Widget> _historySection(BuildContext context) {
+    return [
+      _SectionTitle('Terminados (${_history.length})'),
+      for (final s in _history)
+        _PlayedRow(
+          key: ValueKey(s.proposal.id),
+          session: s,
+        ),
+    ];
   }
 
   /// Seccion de "cuenta que paso". Va primero en la lista.
   List<Widget> _confirmSection(BuildContext context) {
     return [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-        child: Text(
-          '¿Qué tal fue? (${_toConfirm.length})',
-          style: context.textStyles.titleSmall?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
-        ),
-      ),
+      _SectionTitle('¿Qué tal fue? (${_toConfirm.length})'),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Text(
@@ -204,6 +245,9 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                 outcome: outcome,
                 wouldRepeat: wouldRepeat,
               );
+              // La metrica que de verdad mide si esta app sirve: no
+              // registros ni matches, partidos jugados.
+              Analytics.sessionPlayed(played: played);
               // Recargar y no quitar la tarjeta a mano: el badge de la barra
               // sale del servidor, y dejarlos calculando por separado es
               // como se desincronizan.
@@ -227,15 +271,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     List<UpcomingSession> sessions,
   ) {
     return [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-        child: Text(
-          '$title (${sessions.length})',
-          style: context.textStyles.titleSmall?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
-        ),
-      ),
+      _SectionTitle('$title (${sessions.length})'),
       for (final session in sessions) _sessionTile(context, session),
     ];
   }
@@ -247,16 +283,17 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     final needsAnswer = proposal.isPending && !proposal.mine;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      // Un borde de acento sólo en lo que espera respuesta tuya: si todas
-      // las tarjetas destacan, no destaca ninguna.
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: needsAnswer ? colors.primary : colors.surfaceContainerHighest,
-          width: needsAnswer ? 1.5 : 1,
-        ),
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      // Sin borde salvo cuando espera respuesta tuya: el tema ya le pone
+      // sombra a las tarjetas, y borde más sombra a la vez es ruido — mismo
+      // criterio que las filas de Descubrir. Si todas destacan, no destaca
+      // ninguna.
+      shape: needsAnswer
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(color: colors.primary, width: 2),
+            )
+          : null,
       child: InkWell(
         onTap: () => _openDetail(session),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -264,10 +301,24 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundImage: photo != null ? NetworkImage(photo) : null,
-                child: photo == null ? const Icon(Icons.person) : null,
+              // Cuadrado redondeado y no círculo, igual que en Compañeros:
+              // el círculo es la convención de las apps de citas, y esto se
+              // lee como ficha. Era lo que más desentonaba de la pantalla.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: photo == null
+                      ? Container(
+                          color: colors.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.person_outline,
+                            color: colors.outline,
+                          ),
+                        )
+                      : NetworkPhoto(url: photo, fit: BoxFit.cover),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -276,16 +327,23 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          sportIcon(proposal.sport),
-                          size: 16,
-                          color: colors.primary,
-                        ),
-                        const SizedBox(width: 6),
+                        // El icono del deporte sólo si hay más de uno: una
+                        // raqueta en cada fila de una app de tenis no
+                        // distingue nada (ver `app_sports.dart`).
+                        if (!isSingleSportApp) ...[
+                          Icon(
+                            sportIcon(proposal.sport),
+                            size: 16,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                         Expanded(
                           child: Text(
                             session.otherDisplayName,
-                            style: context.textStyles.titleMedium,
+                            style: context.textStyles.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -490,5 +548,126 @@ class _ConfirmCardState extends State<_ConfirmCard> {
     if (days <= 0) return 'Hoy';
     if (days == 1) return 'Ayer';
     return 'Hace $days días';
+  }
+}
+
+/// Una fila del historial: contra quién, cuándo y cómo acabó.
+class _PlayedRow extends StatelessWidget {
+  final PlayedSession session;
+
+  const _PlayedRow({super.key, required this.session});
+
+  /// Verde ganado, rojo perdido, neutro el resto. El color hace el trabajo
+  /// de un vistazo; la palabra está al lado para quien no lo distinga.
+  (Color, Color) _colors(BuildContext context) {
+    final c = context.colors;
+    return switch (session.outcome) {
+      'WON' => (c.primaryContainer, c.onPrimaryContainer),
+      'LOST' => (c.errorContainer, c.onErrorContainer),
+      _ => (c.surfaceContainerHighest, c.onSurfaceVariant),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.textStyles;
+    final colors = context.colors;
+    final photo = session.otherPhoto;
+    final label = session.outcomeLabel;
+    final (badgeBg, badgeFg) = _colors(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: photo == null
+                  ? Container(
+                      color: colors.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.person_outline,
+                        color: colors.outline,
+                        size: 20,
+                      ),
+                    )
+                  : NetworkPhoto(url: photo, fit: BoxFit.cover, iconSize: 20),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.otherDisplayName,
+                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  formatPastDate(session.proposal.scheduledAt),
+                  style: t.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          if (label != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: Text(
+                label,
+                style: t.labelMedium?.copyWith(
+                  color: badgeFg,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          else if (session.played == false)
+            Text(
+              'No se jugó',
+              style: t.labelMedium?.copyWith(color: colors.onSurfaceVariant),
+            )
+          else
+            // Ni contestado ni sabido: se dice, en vez de dejar el hueco.
+            Text(
+              'Sin contestar',
+              style: t.labelMedium?.copyWith(color: colors.outline),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// El título de cada sección de la pantalla.
+///
+/// Existe porque había tres formatos distintos conviviendo — dos tamaños, dos
+/// colores y dos sangrados — y era justo lo que hacía que Partidos se leyera
+/// como de otra app comparada con Descubrir y Compañeros.
+class _SectionTitle extends StatelessWidget {
+  final String text;
+
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+      child: Text(
+        text,
+        style: context.textStyles.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 }

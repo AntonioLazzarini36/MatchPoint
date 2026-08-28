@@ -103,6 +103,24 @@ class ProposalService {
         .toList();
   }
 
+  /// El historial: partidos ya jugados, del más reciente al más antiguo.
+  ///
+  /// Hasta ahora, en cuanto un partido pasaba desaparecía de la app — y con
+  /// él la única prueba de que esto sirve para algo. El resultado ya se
+  /// guardaba desde hace tiempo (`SessionFeedback`), sólo que no había forma
+  /// de volver a verlo.
+  Future<List<PlayedSession>> listHistory() async {
+    final res = await api.get('/me/proposals/history', auth: true);
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw apiError(res, fallback: 'No se ha podido cargar el historial');
+    }
+
+    return (jsonDecode(res.body) as List<dynamic>)
+        .map((e) => PlayedSession.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Guarda que paso. Contestar de nuevo corrige la respuesta anterior.
   ///
   /// `outcome` solo en tenis y solo si se jugo; el backend rechaza lo demas

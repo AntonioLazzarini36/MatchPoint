@@ -25,7 +25,11 @@ class GeocodingService {
       queryParameters: {
         'q': trimmed,
         'format': 'jsonv2',
-        'addressdetails': '0',
+        // Hace falta para poder componer un nombre corto: sin esto sólo llega
+        // `display_name`, que para Benalmádena viene como "29630,
+        // Benalmádena, Costa del Sol Occidental, Málaga, Andalucía, España" —
+        // seis niveles administrativos donde hacen falta dos.
+        'addressdetails': '1',
         'limit': '8',
         'accept-language': 'es',
       },
@@ -51,7 +55,7 @@ class GeocodingService {
           final lon = double.tryParse(m['lon']?.toString() ?? '');
           if (lat == null || lon == null) return null;
           return LocationResult(
-            displayName: (m['display_name'] ?? '').toString(),
+            displayName: _placeName(m),
             latitude: lat,
             longitude: lon,
           );
@@ -119,14 +123,23 @@ class GeocodingService {
         .toList();
   }
 
-  /// "Municipio, Provincia" a partir de `addressdetails`.
+  /// El nombre que se enseña y se guarda: **código postal y municipio**, y
+  /// nada más.
+  ///
+  /// `display_name` de Nominatim trae la jerarquía administrativa entera
+  /// ("29630, Benalmádena, Costa del Sol Occidental, Málaga, Andalucía,
+  /// España"), que no cabe en una fila, no ayuda a reconocer el sitio y
+  /// acababa guardada tal cual como la ciudad del perfil. Con el código
+  /// delante queda "29630 · Benalmádena", que es como la gente identifica su
+  /// zona.
   ///
   /// `village` antes que `town` por el mismo motivo que en `reverse`: en la
-  /// Costa del Sol `town` devuelve nombres compuestos larguísimos donde
-  /// `village` da el municipio a secas.
+  /// Costa del Sol `town` devuelve nombres compuestos larguísimos
+  /// ("Arroyo de la Miel-Benalmádena Costa") donde `village` da el municipio
+  /// a secas.
   static String _placeName(Map<String, dynamic> m) {
     final address = m['address'] as Map<String, dynamic>?;
-    if (address == null) return (m['display_name'] ?? '').toString();
+    if (address == null) return _shortFallback(m);
 
     String? pick(List<String> keys) {
       for (final key in keys) {
@@ -144,15 +157,19 @@ class GeocodingService {
       'suburb',
       'neighbourhood',
     ]);
-    // `state_district` es donde Nominatim mete la **provincia** en España
-    // (comprobado con el 29639: `state` trae "Andalucía" y `county` la
-    // comarca, "Costa del Sol Occidental"). La provincia es lo que la gente
-    // reconoce al leerlo, así que va delante de las dos.
-    final province = pick(['province', 'state_district', 'state', 'county']);
+    final postcode = pick(['postcode']);
 
-    if (town == null) return province ?? (m['display_name'] ?? '').toString();
-    if (province == null || province == town) return town;
-    return '$town, $province';
+    if (town == null) return _shortFallback(m);
+    return postcode == null ? town : '$postcode · $town';
+  }
+
+  /// Cuando no hay `addressdetails` utilizable: las dos primeras partes de
+  /// `display_name`, que suelen ser el sitio y su municipio. Mejor que la
+  /// cadena entera y mejor que quedarse sin nombre.
+  static String _shortFallback(Map<String, dynamic> m) {
+    final full = (m['display_name'] ?? '').toString();
+    final parts = full.split(',').map((p) => p.trim()).toList();
+    return parts.length <= 2 ? full : parts.take(2).join(', ');
   }
 
   /// De coordenadas a una direccion legible ("Calle Rio Guadalhorce,

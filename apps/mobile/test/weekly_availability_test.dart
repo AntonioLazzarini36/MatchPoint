@@ -40,12 +40,15 @@ void main() {
     test('el corte de horas coincide con las franjas de la rejilla', () {
       // Si esto se desalinea, el selector de horas atenúa horas que la otra
       // persona sí tiene marcadas.
+      // Mañana 6-12, tarde 13-18, noche 19+. Los bordes son lo que importa:
+      // si esto se desalinea de lo que pinta el selector de hora, se marcan
+      // como buenas horas que la otra persona no tiene, o al reves.
       expect(WeeklyAvailability.bandOfHour(9), 0);
-      expect(WeeklyAvailability.bandOfHour(13), 0);
-      expect(WeeklyAvailability.bandOfHour(14), 1);
-      expect(WeeklyAvailability.bandOfHour(19), 1);
-      expect(WeeklyAvailability.bandOfHour(20), 2);
-      expect(WeeklyAvailability.bandOfHour(22), 2);
+      expect(WeeklyAvailability.bandOfHour(12), 0);
+      expect(WeeklyAvailability.bandOfHour(13), 1);
+      expect(WeeklyAvailability.bandOfHour(18), 1);
+      expect(WeeklyAvailability.bandOfHour(19), 2);
+      expect(WeeklyAvailability.bandOfHour(23), 2);
     });
 
     test('marcar y desmarcar una casilla es reversible', () {

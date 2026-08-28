@@ -66,12 +66,13 @@ class _ChatScreenState extends State<ChatScreen> {
   /// El horario semanal habitual de la otra persona, para enseñarlo al
   /// proponer. Llega con el perfil; hasta entonces se propone sin el.
   WeeklyAvailability? _theirAvailability;
+  WeeklyAvailability? _myAvailability;
   Timer? _pollTimer;
 
   /// La propuesta más reciente del match, fijada arriba del chat. null
   /// mientras no haya ninguna. Se refresca junto con los mensajes: la otra
   /// persona puede aceptarla desde su móvil mientras miras la pantalla.
-  Proposal? _proposal;
+  List<Proposal> _proposals = const [];
   bool _proposalBusy = false;
   late final ProposalService proposalService;
 
@@ -106,20 +107,40 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Silenciosa a propósito: si falla (red intermitente), el chat sigue
   /// siendo perfectamente usable, y el siguiente tick lo reintenta. No
   /// merece un banner de error encima de la conversación.
+  /// Sólo las propuestas que siguen **vivas**: pendientes de respuesta o ya
+  /// confirmadas y aún por jugar.
+  ///
+  /// Antes se fijaba arriba la última fuera cual fuera su estado, así que una
+  /// rechazada o cancelada se quedaba ahí ocupando media pantalla con un
+  /// bloque que no se puede hacer nada con él — ni cancelar ni revivir. Eso
+  /// no es una acción pendiente, es historia, y su sitio es la conversación.
+  ///
+  /// Y ahora son varias: desde que una propuesta nueva ya no cancela la
+  /// anterior, se puede tener el martes y el jueves abiertos con la misma
+  /// persona, y enseñar sólo la más reciente escondía la otra.
   Future<void> _loadProposal() async {
     try {
       final all = await proposalService.listForMatch(widget.matchId);
       if (!mounted) return;
-      setState(() => _proposal = all.isEmpty ? null : all.first);
+      // Un poco de margen para que una quedada no desaparezca en el
+      // momento exacto de empezar.
+      final cutoff = DateTime.now().subtract(const Duration(hours: 3));
+      final live =
+          all
+              .where(
+                (p) =>
+                    (p.isPending || p.status == ProposalStatus.accepted) &&
+                    p.scheduledAt.isAfter(cutoff),
+              )
+              .toList()
+            ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      setState(() => _proposals = live);
     } catch (_) {
       // se reintenta en el siguiente poll
     }
   }
 
-  Future<void> _respondToProposal(String action) async {
-    final proposal = _proposal;
-    if (proposal == null) return;
-
+  Future<void> _respondToProposal(Proposal proposal, String action) async {
     setState(() => _proposalBusy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -128,7 +149,10 @@ class _ChatScreenState extends State<ChatScreen> {
         action: action,
       );
       if (!mounted) return;
-      setState(() => _proposal = updated);
+      // Se recarga la lista entera en vez de sustituir la fila: la respuesta
+      // puede sacar la propuesta de las vivas (rechazada, cancelada).
+      await _loadProposal();
+      if (!mounted) return;
       if (updated.status == ProposalStatus.accepted) {
         messenger.showSnackBar(
           const SnackBar(content: Text('¡Confirmado! Ya está en tus quedadas')),
@@ -150,6 +174,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // Puede ser null si el perfil aun no ha llegado: entonces los pasos de
       // dia y hora salen como siempre, sin referencia de horario.
       otherAvailability: _theirAvailability,
+      myAvailability: _myAvailability,
       otherName: widget.otherName,
     );
     if (created && mounted) await _loadProposal();
@@ -188,6 +213,9 @@ class _ChatScreenState extends State<ChatScreen> {
         _mySports = me.profile?.sports ?? const [];
         _theirSports = other.sports;
         _theirAvailability = other.availability;
+        // El mio hace falta para cruzar los dos horarios y sugerir huecos
+        // concretos al proponer (ver `suggestSlots`).
+        _myAvailability = me.profile?.availability;
       });
     } catch (_) {
       // Se queda con el deporte del match, que es lo que había antes.
@@ -354,16 +382,34 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           body: Column(
             children: [
-              // Fijada arriba, no como una burbuja más: el problema que
+              // Fijadas arriba, no como una burbuja más: el problema que
               // resuelve es justo que antes la propuesta se perdía
-              // scrolleando entre los mensajes.
-              if (_proposal != null)
-                ProposalCard(
-                  proposal: _proposal!,
-                  busy: _proposalBusy,
-                  onAccept: () => _respondToProposal('ACCEPT'),
-                  onDecline: () => _respondToProposal('DECLINE'),
-                  onCancel: () => _respondToProposal('CANCEL'),
+              // scrolleando entre los mensajes. Sólo las vivas — ver
+              // `_loadProposal`.
+              //
+              // Con más de dos, la lista propia con scroll: tres partidos
+              // abiertos con la misma persona no pueden comerse la
+              // conversación entera.
+              if (_proposals.isNotEmpty)
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.38,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        for (final p in _proposals)
+                          ProposalCard(
+                            key: ValueKey(p.id),
+                            proposal: p,
+                            busy: _proposalBusy,
+                            onAccept: () => _respondToProposal(p, 'ACCEPT'),
+                            onDecline: () => _respondToProposal(p, 'DECLINE'),
+                            onCancel: () => _respondToProposal(p, 'CANCEL'),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               Expanded(child: _buildMessages(context)),
               ChatInputBar(

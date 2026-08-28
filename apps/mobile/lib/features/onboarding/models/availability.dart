@@ -134,10 +134,29 @@ class WeeklyAvailability {
   /// El corte vive aquí y en ningún otro sitio: la rejilla dice "tarde" y el
   /// selector de horas tiene que estar de acuerdo con ella, o marcaría como
   /// imposible una hora que la otra persona sí tiene marcada.
+  ///
+  /// Mañana 6-12, tarde 13-18, noche 19 en adelante. Antes el corte estaba en
+  /// 14 y 20, que metía las 13:00 en "mañana" y las 19:00 en "tarde": para
+  /// jugar al tenis, la una del mediodía no es por la mañana y las siete es de
+  /// noche media temporada del año. Las horas por debajo de 6 no se pueden
+  /// proponer (ver `time_slot_picker.dart`), así que dan igual.
   static int bandOfHour(int hour) {
-    if (hour < 14) return 0; // mañana
-    if (hour < 20) return 1; // tarde
+    if (hour < 13) return 0; // mañana
+    if (hour < 19) return 1; // tarde
     return 2; // noche
+  }
+
+  /// Las horas del reloj que esta persona suele tener libres ese día, ya
+  /// resueltas: lo que necesita el selector de hora para pintarlas.
+  ///
+  /// Se devuelven horas enteras y no minutos a propósito — la rejilla habla
+  /// de franjas de media tarde, fingir precisión de cuartos sería inventar.
+  Set<int> freeHoursOn(int weekday, {int fromHour = 0, int toHour = 24}) {
+    final bands = bandsOn(weekday);
+    return {
+      for (var h = fromHour; h <= toHour; h++)
+        if (bands.contains(bandOfHour(h))) h,
+    };
   }
 
   static WeeklyAvailability fromJson(dynamic json) =>

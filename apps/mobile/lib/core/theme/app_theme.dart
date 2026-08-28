@@ -71,15 +71,30 @@ class LightModeColors {
 
   static const tertiary = Color(0xFFB9D63F); // Lima pelota de tenis
   static const onTertiary = Color(0xFF1F2600);
+  // El lima solo vale como **fondo**: sobre blanco da ~1,7:1 de contraste, o
+  // sea que como color de texto es ilegible. Estos dos son el par que hay que
+  // usar para destacar algo en lima (fondo palido + texto oscuro encima), y
+  // existen ademas porque sin definirlos `ColorScheme` los rellenaba con el
+  // morado por defecto de Material.
+  static const tertiaryContainer = Color(0xFFEDF7C9);
+  static const onTertiaryContainer = Color(0xFF313D00);
 
   static const error = Color(0xFFBA1A1A);
   static const onError = Color(0xFFFFFFFF);
 
-  static const surface = Color(0xFFF6F9F7);
+  // El fondo baja de #F6F9F7 (practicamente blanco) a un verde-gris con algo
+  // de cuerpo. Las tarjetas de la lista son blancas, y sobre el gris de antes
+  // no se despegaban: la pantalla se veia como un unico bloque blanco con
+  // lineas finas, sin jerarquia. Con esto, cada persona se lee como una
+  // tarjeta que flota sobre la pista.
+  static const surface = Color(0xFFEDF2EF);
   static const onSurface = Color(0xFF1A2320);
-  static const background = Color(0xFFFFFFFF);
-  static const outline = Color(0xFF8FA39B);
-  static const surfaceVariant = Color(0xFFE1E9E4);
+  static const background = Color(0xFFEDF2EF);
+  static const outline = Color(0xFF7C8F88);
+  static const surfaceVariant = Color(0xFFDCE6E1);
+  /// El blanco de las tarjetas. No es `surface`, a proposito: lo que hace que
+  /// una tarjeta se vea como tarjeta es el contraste con el fondo.
+  static const card = Color(0xFFFFFFFF);
 }
 
 class DarkModeColors {
@@ -95,6 +110,8 @@ class DarkModeColors {
 
   static const tertiary = Color(0xFFC7E356);
   static const onTertiary = Color(0xFF2A3300);
+  static const tertiaryContainer = Color(0xFF3C4A00);
+  static const onTertiaryContainer = Color(0xFFDCEE93);
 
   static const error = Color(0xFFFFB4AB);
   static const onError = Color(0xFF690005);
@@ -102,26 +119,38 @@ class DarkModeColors {
   static const surface = Color(0xFF101614);
   static const onSurface = Color(0xFFE0E6E2);
   static const background = Color(0xFF080C0B);
-  static const outline = Color(0xFF677B73);
+  static const outline = Color(0xFF7A8F87);
   static const surfaceVariant = Color(0xFF2A3531);
+  /// En oscuro la jerarquia se invierte: la tarjeta es mas **clara** que el
+  /// fondo, no mas blanca.
+  static const card = Color(0xFF1B2320);
 }
 
+/// La escala era la de Material por defecto, y el problema no estaba en los
+/// titulares sino **abajo**: casi todo lo que hay que leer de verdad en esta
+/// app —las etiquetas de una fila de Descubrir, las franjas en comun, los
+/// textos de apoyo del registro— cae en `bodySmall` (12) y `labelMedium`
+/// (12), que en un movil con la pantalla a un brazo de distancia se lee mal.
+///
+/// Se sube la mitad inferior entre 1 y 1,5 puntos y se dejan los titulares
+/// casi igual: agrandarlos tambien no ayuda a leer y sí empieza a desbordar
+/// layouts que ya estaban ajustados.
 class FontSizes {
   static const double displayLarge = 48.0;
   static const double displayMedium = 40.0;
   static const double displaySmall = 32.0;
   static const double headlineLarge = 28.0;
   static const double headlineMedium = 24.0;
-  static const double headlineSmall = 20.0;
-  static const double titleLarge = 20.0;
-  static const double titleMedium = 18.0;
-  static const double titleSmall = 16.0;
-  static const double bodyLarge = 16.0;
-  static const double bodyMedium = 14.0;
-  static const double bodySmall = 12.0;
-  static const double labelLarge = 14.0;
-  static const double labelMedium = 12.0;
-  static const double labelSmall = 11.0;
+  static const double headlineSmall = 21.0;
+  static const double titleLarge = 21.0;
+  static const double titleMedium = 19.0;
+  static const double titleSmall = 17.0;
+  static const double bodyLarge = 17.0;
+  static const double bodyMedium = 15.5;
+  static const double bodySmall = 13.5;
+  static const double labelLarge = 15.0;
+  static const double labelMedium = 13.0;
+  static const double labelSmall = 12.0;
 }
 
 /// Extraidos a constantes para que los temas de componentes de abajo
@@ -137,6 +166,8 @@ const _lightScheme = ColorScheme.light(
   onSecondaryContainer: LightModeColors.onSecondaryContainer,
   tertiary: LightModeColors.tertiary,
   onTertiary: LightModeColors.onTertiary,
+  tertiaryContainer: LightModeColors.tertiaryContainer,
+  onTertiaryContainer: LightModeColors.onTertiaryContainer,
   error: LightModeColors.error,
   onError: LightModeColors.onError,
   surface: LightModeColors.surface,
@@ -157,6 +188,8 @@ const _darkScheme = ColorScheme.dark(
   onSecondaryContainer: DarkModeColors.onSecondaryContainer,
   tertiary: DarkModeColors.tertiary,
   onTertiary: DarkModeColors.onTertiary,
+  tertiaryContainer: DarkModeColors.tertiaryContainer,
+  onTertiaryContainer: DarkModeColors.onTertiaryContainer,
   error: DarkModeColors.error,
   onError: DarkModeColors.onError,
   surface: DarkModeColors.surface,
@@ -171,13 +204,18 @@ ThemeData get lightTheme => ThemeData(
   colorScheme: _lightScheme,
   scaffoldBackgroundColor: LightModeColors.background,
   appBarTheme: _appBarTheme(_lightScheme),
+  // Sombra suave en vez de borde: con el fondo ya teñido, un filete gris
+  // alrededor de cada tarjeta anadia una linea mas que leer sin separar
+  // nada. La sombra hace el mismo trabajo —decir "esto es una pieza"— sin
+  // dibujar nada.
   cardTheme: CardThemeData(
-    elevation: 0,
+    elevation: 1.5,
+    shadowColor: const Color(0x1A1A2320),
+    surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
-      side: BorderSide(color: LightModeColors.surfaceVariant, width: 1),
     ),
-    color: Colors.white,
+    color: LightModeColors.card,
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
@@ -259,11 +297,12 @@ ThemeData get darkTheme => ThemeData(
   appBarTheme: _appBarTheme(_darkScheme),
   cardTheme: CardThemeData(
     elevation: 0,
+    surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
       side: BorderSide(color: DarkModeColors.surfaceVariant, width: 1),
     ),
-    color: DarkModeColors.surface,
+    color: DarkModeColors.card,
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(

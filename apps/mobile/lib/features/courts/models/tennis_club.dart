@@ -42,4 +42,31 @@ class TennisClub {
     this.street,
     this.website,
   });
+
+  /// Para la cache en disco de `OverpassService`.
+  ///
+  /// Formato propio y no el JSON crudo de Overpass: lo que se guarda es el
+  /// resultado ya agrupado y con nombre resuelto, que es una fraccion del
+  /// tamaño y ahorra repetir todo el trabajo de agrupacion al leerlo.
+  Map<String, dynamic> toCache() => {
+    'id': id,
+    'name': name,
+    'real': hasRealName,
+    'street': street,
+    'courts': courtCount,
+    'lat': latitude,
+    'lng': longitude,
+    'web': website,
+  };
+
+  factory TennisClub.fromCache(Map<String, dynamic> json) => TennisClub(
+    id: json['id'].toString(),
+    name: (json['name'] ?? '').toString(),
+    hasRealName: json['real'] == true,
+    street: json['street']?.toString(),
+    courtCount: (json['courts'] as num?)?.toInt() ?? 0,
+    latitude: (json['lat'] as num).toDouble(),
+    longitude: (json['lng'] as num).toDouble(),
+    website: json['web']?.toString(),
+  );
 }

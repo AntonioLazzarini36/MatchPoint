@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../utils/app_sports.dart';
 import '../../../utils/date_format_es.dart';
 import '../../../utils/sport_words.dart';
 import '../../../../features/discovery/models/skill_level.dart';
@@ -63,8 +64,8 @@ class PartnerRow extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
-                width: 56,
-                height: 56,
+                width: 64,
+                height: 64,
                 child: photo == null
                     ? Container(
                         color: context.colors.surfaceContainerHighest,
@@ -90,8 +91,8 @@ class PartnerRow extends StatelessWidget {
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: context.textStyles.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
+                          style: context.textStyles.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -99,7 +100,7 @@ class PartnerRow extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           '${profile!.age}',
-                          style: context.textStyles.bodySmall?.copyWith(
+                          style: context.textStyles.bodyMedium?.copyWith(
                             color: context.colors.onSurfaceVariant,
                           ),
                         ),
@@ -113,11 +114,17 @@ class PartnerRow extends StatelessWidget {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
-                      _chip(
-                        context,
-                        match.sport.label,
-                        sportAccent(match.sport),
-                      ),
+                      // Sin chip de deporte: en una app de tenis, un
+                      // "Tenis" en cada fila no distingue una de otra. El
+                      // nivel sí, que es lo que decide si el partido va a
+                      // estar igualado. Vuelve solo si se enciende un
+                      // segundo deporte (ver `app_sports.dart`).
+                      if (!isSingleSportApp)
+                        _chip(
+                          context,
+                          match.sport.label,
+                          sportAccent(match.sport),
+                        ),
                       if (skillLevel != null)
                         _chip(
                           context,
@@ -160,7 +167,7 @@ class PartnerRow extends StatelessWidget {
       }
       return Text(
         'Aún no habéis quedado',
-        style: context.textStyles.bodySmall?.copyWith(
+        style: context.textStyles.bodyMedium?.copyWith(
           color: context.colors.onSurfaceVariant,
         ),
       );
@@ -232,7 +239,7 @@ class PartnerRow extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: context.textStyles.labelSmall?.copyWith(
+        style: context.textStyles.labelMedium?.copyWith(
           color: color,
           fontWeight: FontWeight.w600,
         ),
@@ -252,7 +259,7 @@ class PartnerRow extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         '${match.unreadCount}',
-        style: context.textStyles.labelSmall?.copyWith(
+        style: context.textStyles.labelMedium?.copyWith(
           color: context.colors.onPrimary,
           fontWeight: FontWeight.w700,
         ),

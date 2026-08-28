@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../location/geocoding_service.dart';
 import '../../../location/location_result.dart';
 import '../../../theme/app_theme.dart';
-import 'name_place_dialog.dart';
 import '../../../../features/courts/models/tennis_club.dart';
 import '../../../../features/courts/services/overpass_service.dart';
 
@@ -36,7 +34,6 @@ class TennisClubPicker extends StatefulWidget {
 
 class _TennisClubPickerState extends State<TennisClubPicker> {
   final _service = OverpassService();
-  final _geocoding = GeocodingService();
   final _searchCtrl = TextEditingController();
 
   List<TennisClub> _clubs = const [];
@@ -46,11 +43,9 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
   /// Direcciones resueltas por geocodificacion inversa para las pistas que
   /// OSM no tiene nombradas, por id de grupo. Se rellenan poco a poco (ver
   /// [_labelNearbyUnnamed]) y se pintan en cuanto llegan.
-  final Map<String, String> _resolved = {};
 
   /// Cambia en cada carga para que un etiquetado en curso se pare solo si
   /// se recarga o se amplia el radio.
-  int _loadToken = 0;
 
   /// Se empieza con 10 km y se puede ampliar: en un pueblo puede no haber
   /// nada a 10 km, y pedir siempre 30 km hace la consulta mucho más lenta
@@ -70,11 +65,9 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
   }
 
   Future<void> _load() async {
-    final token = ++_loadToken;
     setState(() {
       _loading = true;
       _failed = false;
-      _resolved.clear();
     });
     try {
       final clubs = await _service.nearbyClubs(
@@ -82,21 +75,26 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
         longitude: widget.center.longitude,
         radiusMeters: _radiusMeters,
       );
-      // Los que tienen nombre real primero (son los clubes que la
-      // otra persona va a reconocer al recibir la propuesta) y,
-      // dentro de cada grupo, por cercanía. Ordenar sólo por
-      // distancia dejaba arriba pistas sueltas de urbanización y
-      // enterraba el club de 8 pistas de al lado.
-      clubs.sort((a, b) {
-        if (a.hasRealName != b.hasRealName) return a.hasRealName ? -1 : 1;
-        return _distanceKm(a).compareTo(_distanceKm(b));
-      });
+      // **Sólo las que tienen nombre en OpenStreetMap.**
+      //
+      // El resto eran pistas sueltas que aparecían como "Pistas de tenis" a
+      // secas, y no aportan nada: quien recibe la propuesta necesita saber a
+      // dónde ir, y un sitio sin nombre no se lo dice. Había toda una
+      // maquinaria para taparlo —geocodificación inversa de las 12 más
+      // cercanas, de una en una cada 1,1 s por la política de Nominatim, y un
+      // diálogo para que quien elegía le pusiera nombre a mano— que resolvía
+      // a medias un problema que se arregla mejor no enseñándolas. De paso se
+      // ahorran doce peticiones de red en cada carga.
+      //
+      // Quien quiera quedar en un sitio sin nombre tiene el botón de marcar
+      // en el mapa, que es exactamente para eso.
+      final named = clubs.where((c) => c.hasRealName).toList()
+        ..sort((a, b) => _distanceKm(a).compareTo(_distanceKm(b)));
       if (!mounted) return;
       setState(() {
-        _clubs = clubs;
+        _clubs = named;
         _loading = false;
       });
-      _labelNearbyUnnamed(token);
     } catch (e) {
       // El detalle técnico ("TimeoutException after 0:00:20...") no le
       // dice nada a nadie y ocupa media pantalla; queda en la consola,
@@ -108,47 +106,6 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
         _loading = false;
       });
     }
-  }
-
-  /// Le pone direccion real a las pistas sin nombre **mas cercanas**, de
-  /// una en una y espaciadas en el tiempo.
-  ///
-  /// Hace falta porque en la practica casi ninguna pista de OSM tiene
-  /// etiqueta `name` (3 de 106 cerca de Benalmadena, comprobado), asi que
-  /// sin esto la lista entera dice "Pistas de tenis" y no hay forma de
-  /// distinguir una de otra.
-  ///
-  /// Solo las [_maxToLabel] mas cercanas, y con [_labelInterval] entre
-  /// peticiones: la politica de uso de Nominatim pide como maximo ~1
-  /// peticion por segundo, y de todas formas nadie queda para jugar en la
-  /// pista numero 40 por distancia. Las demas se resuelven igualmente al
-  /// elegirlas, con una sola peticion.
-  static const _maxToLabel = 12;
-  static const _labelInterval = Duration(milliseconds: 1100);
-
-  Future<void> _labelNearbyUnnamed(int token) async {
-    final pending = _clubs
-        .where((c) => !c.hasRealName && c.street == null)
-        .take(_maxToLabel)
-        .toList();
-
-    for (final club in pending) {
-      if (!mounted || token != _loadToken) return;
-      final address = await _geocoding.reverse(club.latitude, club.longitude);
-      if (!mounted || token != _loadToken) return;
-      if (address != null) {
-        setState(() => _resolved[club.id] = address);
-      }
-      await Future<void>.delayed(_labelInterval);
-    }
-  }
-
-  /// Lo que se enseña y lo que se propone como nombre: la direccion ya
-  /// resuelta si la hay, si no la calle de OSM, si no el generico.
-  String _label(TennisClub club) {
-    if (club.hasRealName) return club.name;
-    final address = _resolved[club.id] ?? club.street;
-    return address == null ? 'Pistas de tenis' : 'Pistas de tenis · $address';
   }
 
   void _widenSearch() {
@@ -174,50 +131,18 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
     final query = _searchCtrl.text.trim().toLowerCase();
     if (query.isEmpty) return _clubs;
     return _clubs
-        .where((c) => _label(c).toLowerCase().contains(query))
+        .where((c) => c.name.toLowerCase().contains(query))
         .toList();
   }
 
-  /// Con nombre real de OSM se devuelve tal cual. Sin él, se pide una
-  /// confirmación con el nombre editable: quien recibe la propuesta tiene
-  /// que poder leer dónde queda, y "Pistas de tenis" repetido diez veces
-  /// no vale para eso.
-  Future<void> _select(TennisClub club) async {
-    if (club.hasRealName) {
-      Navigator.of(context).pop(
-        LocationResult(
-          displayName: club.name,
-          latitude: club.latitude,
-          longitude: club.longitude,
-        ),
-      );
-      return;
-    }
-
-    // Puede que el etiquetado de fondo ya lo haya resuelto; si no (estaba
-    // mas abajo en la lista), se pide ahora, que es una sola peticion.
-    var suggestion = _resolved[club.id] ?? club.street;
-    if (suggestion == null) {
-      suggestion = await _geocoding.reverse(club.latitude, club.longitude);
-      if (!mounted) return;
-      if (suggestion != null) {
-        setState(() => _resolved[club.id] = suggestion!);
-      }
-    }
-    if (!mounted) return;
-
-    final name = await askPlaceName(
-      context,
-      suggestion: suggestion == null
-          ? 'Pistas de tenis'
-          : 'Pistas de tenis · $suggestion',
-      courtCount: club.courtCount,
-    );
-    if (name == null || !mounted) return;
-
+  /// Todos los de la lista tienen nombre de OSM (ver `_load`), así que
+  /// elegir uno es devolverlo y ya. Antes, para los que no lo tenían, había
+  /// que resolver una dirección por geocodificación inversa y abrir un
+  /// diálogo pidiéndole a quien elegía que le pusiera nombre a mano.
+  void _select(TennisClub club) {
     Navigator.of(context).pop(
       LocationResult(
-        displayName: name,
+        displayName: club.name,
         latitude: club.latitude,
         longitude: club.longitude,
       ),
@@ -314,7 +239,7 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
               : context.colors.onSurfaceVariant,
         ),
       ),
-      title: Text(_label(club)),
+      title: Text(club.name),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

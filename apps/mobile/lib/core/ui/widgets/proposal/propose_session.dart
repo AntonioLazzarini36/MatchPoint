@@ -1,3 +1,4 @@
+import 'package:match_point/core/analytics/analytics.dart';
 import 'package:flutter/material.dart';
 
 import '../../../location/location_result.dart';
@@ -12,6 +13,7 @@ import '../../../../features/matches/services/proposal_service.dart';
 import 'week_calendar_picker.dart';
 import 'time_slot_picker.dart';
 import '../../../../features/onboarding/models/availability.dart';
+import '../../../utils/slot_suggestions.dart';
 
 /// Flujo unico para proponer una sesion, sea tenis o correr.
 ///
@@ -46,6 +48,7 @@ Future<bool> proposeSession(
   double? presetPlaceLat,
   double? presetPlaceLng,
   WeeklyAvailability? otherAvailability,
+  WeeklyAvailability? myAvailability,
   String? otherName,
 }) async {
   String? placeName = presetPlaceName;
@@ -65,18 +68,56 @@ Future<bool> proposeSession(
     placeLng = choice.location?.longitude;
   }
 
-  final day = await showModalBottomSheet<DateTime>(
-    context: context,
-    builder: (_) => WeekCalendarPicker(
-      otherAvailability: otherAvailability,
-      otherName: otherName,
-    ),
+  // Cruzar los dos horarios y ofrecer huecos concretos, antes de abrir un
+  // calendario en blanco. Es el paso que convierte "creo que los sábados le
+  // venian bien" en "sábado 30 a las 10:00" — y el dato ya estaba en los dos
+  // perfiles, sólo que nadie lo cruzaba en el único momento en que decide
+  // algo. Si no hay coincidencias (o alguno no ha rellenado su horario) esta
+  // hoja no aparece y se va directo al calendario de siempre.
+  final suggestions = suggestSlots(
+    mine: myAvailability ?? WeeklyAvailability.empty,
+    theirs: otherAvailability ?? WeeklyAvailability.empty,
   );
-  if (day == null || !context.mounted) return false;
 
-  final time = await pickTimeSlot(
+  DateTime? day;
+  TimeOfDay? time;
+
+  if (suggestions.isNotEmpty) {
+    final picked = await showModalBottomSheet<SlotSuggestion>(
+      context: context,
+      builder: (_) => _SuggestionSheet(
+        suggestions: suggestions,
+        otherName: otherName,
+      ),
+    );
+    if (!context.mounted) return false;
+    if (picked != null) {
+      day = picked.day;
+      time = TimeOfDay(hour: picked.hour, minute: 0);
+    }
+    // `picked == null` no es cancelar: la hoja tiene su propio "elegir otro
+    // día", que cierra sin elegir para caer en el calendario de abajo.
+  }
+
+  if (day == null) {
+    day = await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (_) => WeekCalendarPicker(
+        otherAvailability: otherAvailability,
+        otherName: otherName,
+      ),
+    );
+    if (day == null || !context.mounted) return false;
+  }
+
+  // La hora se pregunta igual aunque venga sugerida: la sugerencia acierta el
+  // día y la franja, pero "por la mañana" son seis horas y a alguien le puede
+  // venir mejor a las 11 que a las 10. Llega ya puesta, así que confirmarla
+  // es un toque.
+  time = await pickTimeSlot(
     context,
     day: day,
+    initial: time,
     otherAvailability: otherAvailability,
     otherName: otherName,
   );
@@ -92,6 +133,7 @@ Future<bool> proposeSession(
 
   final messenger = ScaffoldMessenger.of(context);
   try {
+    Analytics.proposalCreated();
     await ProposalService(Api.client).create(
       matchId: matchId,
       sport: sport,
@@ -282,6 +324,93 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                 onPressed: () =>
                     Navigator.of(context).pop(const _PlaceChoice(null)),
                 child: const Text('Proponer sin sitio'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Los huecos en los que coincidís, como primera opción al proponer.
+class _SuggestionSheet extends StatelessWidget {
+  final List<SlotSuggestion> suggestions;
+  final String? otherName;
+
+  const _SuggestionSheet({required this.suggestions, this.otherName});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Cuándo quedáis?', style: t.headlineSmall),
+            const SizedBox(height: 6),
+            Text(
+              otherName == null
+                  ? 'Estos huecos os vienen bien a los dos.'
+                  : 'Estos huecos os vienen bien a ti y a $otherName.',
+              style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+
+            for (final s in suggestions)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.of(context).pop(s),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.event_available,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              s.label,
+                              style: t.titleMedium?.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                // Cierra sin elegir, y el flujo sigue por el calendario. No
+                // es cancelar: cancelar es el gesto de cerrar la hoja.
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Elegir otro día'),
               ),
             ),
           ],

@@ -56,16 +56,24 @@ class PlayerListTile extends StatelessWidget {
     final photo = user.mainPhoto;
     final shared = user.sharedAvailability;
 
+    // Quien ya te ha dado like tiene la tarjeta **entera** tenida, no un
+    // borde de color. Antes era un filete lima con el aviso escrito tambien
+    // en lima, y ese lima sobre blanco no se leia (ver `tertiaryContainer` en
+    // el tema): el estado mas importante del feed —un toque tuyo y hay
+    // partido— era justo el peor de ver.
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: user.likesYou ? colors.tertiary : colors.outlineVariant,
-          width: user.likesYou ? 2 : 1,
-        ),
-      ),
+      color: user.likesYou ? colors.tertiaryContainer : null,
+      // Sin borde cuando la fila es normal: el tema ya le pone sombra, y
+      // borde mas sombra a la vez es ruido. El borde queda reservado para
+      // "ya quiere jugar contigo", que es cuando de verdad hay que mirar.
+      shape: user.likesYou
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(color: colors.onTertiaryContainer, width: 2),
+            )
+          : null,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -150,8 +158,13 @@ class PlayerListTile extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
+                  // Sobre una tarjeta ya tenida de lima, el gris de "no
+                  // coincidis" desaparece: se usa la superficie normal para
+                  // que el bloque siga leyendose como un bloque aparte.
                   color: shared.isEmpty
-                      ? colors.surfaceContainerHighest
+                      ? (user.likesYou
+                            ? colors.surface
+                            : colors.surfaceContainerHighest)
                       : colors.primaryContainer,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
@@ -187,18 +200,23 @@ class PlayerListTile extends StatelessWidget {
               ),
 
               if (user.likesYou) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Icon(
-                      Icons.favorite,
-                      size: 15,
-                      color: colors.tertiary,
+                      Icons.sports_tennis,
+                      size: 17,
+                      color: colors.onTertiaryContainer,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Ya quiere jugar contigo — acepta y podéis hablar',
-                      style: t.labelMedium?.copyWith(color: colors.tertiary),
+                    Expanded(
+                      child: Text(
+                        'Ya quiere jugar contigo — acepta y tenéis partido',
+                        style: t.labelLarge?.copyWith(
+                          color: colors.onTertiaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -233,13 +251,19 @@ class PlayerListTile extends StatelessWidget {
   static String _distanceLabel(double km) =>
       km < 1 ? 'menos de 1 km' : '${km.toStringAsFixed(km < 10 ? 1 : 0)} km';
 
-  /// Con más de tres franjas en común la frase se vuelve ilegible y el
-  /// número dice lo mismo mejor.
+  /// Siempre el número, nunca la lista de franjas.
+  ///
+  /// Antes, con tres o menos, se enumeraban ("Coincidís: mar noche · vie
+  /// noche"), con la idea de que saber *cuáles* ayudaba más que saber
+  /// cuántas. En la práctica se lee como un jeroglífico: tres abreviaturas
+  /// pegadas que hay que descifrar una a una en una fila que se recorre de
+  /// un vistazo. Y el detalle está a un toque, en el perfil, donde la
+  /// rejilla lo enseña entero y bien.
   static String _sharedLabel(List<String> slots) {
     if (slots.isEmpty) {
-      return 'No coincidís en ninguna franja de las que soléis tener libres';
+      return 'No coincidís en ninguna franja horaria';
     }
-    if (slots.length <= 3) return 'Coincidís: ${slots.join(' · ')}';
+    if (slots.length == 1) return 'Coincidís en 1 franja horaria';
     return 'Coincidís en ${slots.length} franjas horarias';
   }
 }

@@ -25,10 +25,43 @@ Future<WeeklyAvailability?> showWhenFilterSheet(
 /// Atajos para lo que la gente pide de verdad. Sin ellos, filtrar por
 /// "el finde" son seis toques en la rejilla, y ese es exactamente el tipo de
 /// fricción que hace que un filtro no se use nunca.
+///
+/// **Son interruptores, no botones**: se marcan y se desmarcan. Antes sólo
+/// sumaban, así que tocar "Este finde" sin querer no había forma de deshacerlo
+/// salvo repasando la rejilla casilla por casilla.
 class _Preset {
   final String label;
   final int mask;
   const _Preset(this.label, this.mask);
+}
+
+/// Un atajo está marcado cuando **todos** sus huecos están puestos.
+///
+/// Se deduce de la máscara en vez de guardarse aparte: así la rejilla y los
+/// atajos no pueden contradecirse. Si alguien marca a mano las seis casillas
+/// del finde, "Este finde" se enciende solo, que es lo que uno espera al
+/// mirarlo.
+bool _isPresetOn(int mask, _Preset preset) =>
+    mask & preset.mask == preset.mask;
+
+/// Quitar un atajo, respetando lo que aporten los demás.
+///
+/// La resta no puede ser un `& ~preset`: con "Este finde" y "Por las noches"
+/// marcados a la vez, quitar "noches" borraría también las noches del finde,
+/// que las sostiene el otro atajo. Lo correcto es reconstruir la unión de los
+/// que siguen marcados y sumarle lo que quede fuera del que se quita — o sea,
+/// tratar los atajos como un OR de conjuntos, que es como se leen.
+///
+/// El último término conserva además lo pintado a mano en la rejilla: sin él,
+/// desmarcar un atajo se llevaría por delante casillas que nadie había pedido
+/// borrar.
+int _withoutPreset(int mask, _Preset preset, List<_Preset> all) {
+  var kept = 0;
+  for (final other in all) {
+    if (other == preset) continue;
+    if (_isPresetOn(mask, other)) kept |= other.mask;
+  }
+  return kept | (mask & ~preset.mask);
 }
 
 int _slot(int day, int band) => 1 << (day * 3 + band);
@@ -105,16 +138,19 @@ class _WhenFilterSheetState extends State<_WhenFilterSheet> {
               runSpacing: 8,
               children: [
                 for (final preset in _presets)
-                  ActionChip(
+                  FilterChip(
                     label: Text(preset.label),
-                    onPressed: () => setState(
-                      // Suma, no reemplaza: encadenar "este finde" y "por las
-                      // noches" es una petición razonable y perder lo anterior
-                      // en cada toque haría los atajos inútiles juntos.
-                      () => _value = WeeklyAvailability(
-                        _value.mask | preset.mask,
-                      ),
-                    ),
+                    selected: _isPresetOn(_value.mask, preset),
+                    showCheckmark: false,
+                    onSelected: (on) => setState(() {
+                      // Suma o resta según esté, y la resta respeta lo que
+                      // sostengan los otros atajos (ver `_withoutPreset`).
+                      _value = WeeklyAvailability(
+                        on
+                            ? _value.mask | preset.mask
+                            : _withoutPreset(_value.mask, preset, _presets),
+                      );
+                    }),
                   ),
               ],
             ),

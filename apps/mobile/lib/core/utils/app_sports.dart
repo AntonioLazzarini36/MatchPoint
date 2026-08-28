@@ -4,7 +4,7 @@ import '../../features/discovery/models/sport.dart';
 ///
 /// MatchPoint nació con tenis y running a la vez, y eso salía caro en todas
 /// las pantallas: un paso de registro para elegir deporte, un vocabulario
-/// neutro ("quedada") que no es como habla nadie, credenciales condicionales
+/// neutro ("quedada") que no es como habla nadie, campos de experiencia condicionales
 /// (años/club contra ritmo/distancia), filtros por deporte, y un icono de
 /// deporte en cada tarjeta para desambiguar. Todo eso es trabajo que sólo
 /// tiene sentido cuando de verdad hay dos públicos — y con la app vacía no

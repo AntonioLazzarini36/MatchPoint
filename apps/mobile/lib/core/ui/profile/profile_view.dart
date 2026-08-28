@@ -17,6 +17,11 @@ class ProfileView extends StatelessWidget {
   final String bioTitle;
 
   final bool showStats;
+
+  /// Las cifras del perfil propio. `null` mientras se cargan o si no se han
+  /// pedido: la fila entera desaparece en vez de enseñar ceros o guiones, que
+  /// es lo que hacia antes y no informaba de nada.
+  final ProfileStats? stats;
   final bool showBottomButton;
 
   final VoidCallback? onSettings;
@@ -35,6 +40,7 @@ class ProfileView extends StatelessWidget {
     this.sportsTitle = 'Deportes',
     this.bioTitle = 'Sobre',
     this.showStats = true,
+    this.stats,
     this.showBottomButton = false,
     this.bottomButtonText = 'Ver perfil',
     this.onBottomButton,
@@ -61,14 +67,11 @@ class ProfileView extends StatelessWidget {
                 ? _emptyHeader(context)
                 : NetworkPhoto(url: data.photos.first, iconSize: 56),
           ),
-          actions: [
-            if (onSettings != null)
-              IconButton(
-                icon: const Icon(Icons.settings),
-                onPressed: onSettings,
-              ),
-            ...?extraActions,
-          ],
+          // Ajustes ya no va aqui: encima de la foto, un icono blanco sobre
+          // una imagen clara desaparece, y era el unico acceso a media app
+          // (ubicacion, horario, nivel, borrar cuenta). Ha bajado a la fila
+          // del nombre, sobre fondo solido, junto al lapiz — ver abajo.
+          actions: [...?extraActions],
         ),
         SliverToBoxAdapter(
           child: Padding(
@@ -101,13 +104,29 @@ class ProfileView extends StatelessWidget {
                       ),
                     ),
                     if (onEdit != null) ...[
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       IconButton(
                         onPressed: onEdit,
+                        tooltip: 'Cambiar fotos',
                         icon: const Icon(Icons.edit_outlined),
                         style: IconButton.styleFrom(
                           backgroundColor:
                               context.colors.surfaceContainerHighest,
+                        ),
+                      ),
+                    ],
+                    if (onSettings != null) ...[
+                      const SizedBox(width: 8),
+                      // Relleno en color, no gris como el lapiz: es la puerta
+                      // a la mitad de la app (ubicacion, horario, nivel,
+                      // cerrar sesion) y tiene que encontrarse sin buscarla.
+                      IconButton(
+                        onPressed: onSettings,
+                        tooltip: 'Ajustes',
+                        icon: const Icon(Icons.settings),
+                        style: IconButton.styleFrom(
+                          backgroundColor: context.colors.primary,
+                          foregroundColor: context.colors.onPrimary,
                         ),
                       ),
                     ],
@@ -123,13 +142,12 @@ class ProfileView extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                if (!data.availability.isEmpty) ...[
+                // Sin titulo encima: la rejilla ya trae escritos los dias
+                // (L M X J V S D) y las franjas (Mañana/Tarde/Noche), asi que
+                // "Cuándo suele tener libre" era repetir con palabras lo que
+                // el dibujo dice mejor.
+                if (data.availability.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  Text(
-                    'Cuándo suele tener libre',
-                    style: context.textStyles.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
                   AvailabilityView(value: data.availability),
                 ],
 
@@ -151,12 +169,12 @@ class ProfileView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   (data.bio == null || data.bio!.trim().isEmpty)
-                      ? 'Todavía no ha escrito nada.'
+                      ? 'Todavía no has escrito nada.'
                       : data.bio!,
                   style: context.textStyles.bodyMedium,
                 ),
 
-                if (_hasCredentials) ...[
+                if (_hasExperience) ...[
                   const SizedBox(height: 24),
                   Text('Experiencia', style: context.textStyles.titleMedium),
                   const SizedBox(height: 8),
@@ -207,17 +225,32 @@ class ProfileView extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Stats (optional)
-                if (showStats) ...[
+                // Dos cifras reales, calculadas de los datos que ya tiene la
+                // pantalla. Antes eran tres tarjetas —"Compañeros", "Likes" y
+                // "Karma"— con un guion fijo dentro: no habia nada detras de
+                // ninguna. "Karma" ademas no existe en ningun sitio del
+                // producto, y "Likes" es vocabulario de app de citas, que es
+                // justo de donde esta app viene huyendo. Se quedan las dos que
+                // se pueden calcular y significan algo aqui: con cuanta gente
+                // has conectado y cuantos partidos has jugado de verdad.
+                if (showStats && stats != null) ...[
                   Row(
                     children: [
                       Expanded(
-                        child: _buildStatCard(context, 'Compañeros', '—'),
+                        child: _buildStatCard(
+                          context,
+                          'Compañeros',
+                          '${stats!.partners}',
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildStatCard(context, 'Likes', '—')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildStatCard(context, 'Karma', '—')),
+                      Expanded(
+                        child: _buildStatCard(
+                          context,
+                          stats!.played == 1 ? 'Partido' : 'Partidos',
+                          '${stats!.played}',
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -284,7 +317,7 @@ class ProfileView extends StatelessWidget {
     );
   }
 
-  bool get _hasCredentials =>
+  bool get _hasExperience =>
       data.yearsPlaying != null ||
       (data.club ?? '').isNotEmpty ||
       data.avgPaceMinPerKm != null ||
@@ -353,4 +386,16 @@ class ProfileView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Las cifras que se enseñan en el perfil propio.
+class ProfileStats {
+  /// Con cuanta gente has conectado (matches).
+  final int partners;
+
+  /// Partidos jugados de verdad: los que alguna de las dos partes confirmo
+  /// que ocurrieron. No propuestos ni aceptados — jugados.
+  final int played;
+
+  const ProfileStats({required this.partners, required this.played});
 }

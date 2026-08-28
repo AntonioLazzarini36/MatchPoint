@@ -7,9 +7,14 @@ import '../../location/location_result.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/network/connection_error.dart';
 
-/// Full-screen "type a place, pick from suggestions" flow, Hinge-style —
-/// pushed via `Navigator.push`, pops with the chosen [LocationResult] (or
-/// null if the user backs out without picking one).
+/// Buscador de sitio a pantalla completa — se abre con `Navigator.push` y
+/// devuelve el [LocationResult] elegido (o null si se sale sin elegir).
+///
+/// **Entiende códigos postales.** Si lo que se escribe son cinco dígitos, se
+/// busca por código postal en vez de por nombre; cualquier otra cosa va al
+/// buscador de siempre. Así Ajustes funciona igual que el registro, donde el
+/// código postal es la vía principal, sin tener dos pantallas distintas para
+/// lo mismo — y sin obligar a nadie a saber por cuál de las dos ha entrado.
 class LocationSearchScreen extends StatefulWidget {
   const LocationSearchScreen({super.key});
 
@@ -49,6 +54,10 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     _debounce = Timer(const Duration(milliseconds: 500), () => _search(query));
   }
 
+  /// Cinco dígitos seguidos y nada más: un código postal español.
+  static bool _looksLikePostalCode(String query) =>
+      RegExp(r'^\d{5}$').hasMatch(query.trim());
+
   Future<void> _search(String query) async {
     setState(() {
       _loading = true;
@@ -56,7 +65,9 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     });
 
     try {
-      final results = await _geocoding.search(query);
+      final results = _looksLikePostalCode(query)
+          ? await _geocoding.searchPostalCode(query)
+          : await _geocoding.search(query);
       if (!mounted) return;
       setState(() {
         _results = results;
@@ -80,7 +91,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
           autofocus: true,
           onChanged: _onQueryChanged,
           decoration: const InputDecoration(
-            hintText: 'Ciudad, barrio, parque...',
+            hintText: 'Código postal o ciudad',
             border: InputBorder.none,
           ),
         ),
@@ -115,13 +126,16 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
           padding: const EdgeInsets.all(24),
           child: Text(
             _controller.text.trim().isEmpty
-                ? 'Escribe para buscar un sitio (ciudad, barrio, parque, '
-                      'una dirección...)'
+                ? 'Escribe tu código postal (29630) o el nombre de tu '
+                      'ciudad.'
                 // Nominatim es un geocodificador: encuentra sitios con
                 // nombre y direcciones, pero no sirve para "búscame un
                 // club de tenis" — para eso está el selector de clubes
                 // del flujo de propuestas, que consulta OpenStreetMap por
                 // etiqueta.
+                : _looksLikePostalCode(_controller.text)
+                ? 'No encontramos ese código postal. Revísalo o busca tu '
+                      'ciudad por el nombre.'
                 : 'Sin resultados. Prueba con el nombre exacto del sitio o '
                       'con el municipio.',
             textAlign: TextAlign.center,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/ui/widgets/screen_header.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
 import 'package:go_router/go_router.dart';
 
@@ -105,31 +106,37 @@ class _MatchesScreenState extends State<MatchesScreen> {
       animation: controller,
       builder: (_, _) {
         return Scaffold(
-          appBar: AppBar(
-            title: _searching
-                ? TextField(
-                    controller: _searchCtrl,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar por nombre...',
-                      border: InputBorder.none,
+          // Sin `AppBar`: la misma cabecera que Descubrir y Partidos (ver
+          // `ScreenHeader`). El acceso al mapa de clubes vivia aqui arriba,
+          // pero se solapaba con el boton de proponer del chat (que ademas
+          // lleva el club ya elegido); sigue accesible desde el chat.
+          body: SafeArea(
+            child: Column(
+              children: [
+                ScreenHeader(
+                  title: 'Tus compañeros',
+                  replacement: _searching
+                      ? TextField(
+                          controller: _searchCtrl,
+                          autofocus: true,
+                          style: context.textStyles.titleLarge,
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar por nombre...',
+                            border: InputBorder.none,
+                          ),
+                        )
+                      : null,
+                  actions: [
+                    IconButton(
+                      icon: Icon(_searching ? Icons.close : Icons.search),
+                      onPressed: _toggleSearch,
                     ),
-                  )
-                : const Text('Tus compañeros'),
-            actions: [
-              // El acceso al mapa de clubes vivia aqui arriba, pero se
-              // solapaba con el boton de proponer del chat (que ademas
-              // lleva el club ya elegido) y en un perfil de los dos
-              // deportes ensuciaba la pantalla con una raqueta que no
-              // tenia nada que ver con la conversacion que estabas
-              // mirando. Sigue accesible desde el propio chat de tenis.
-              IconButton(
-                icon: Icon(_searching ? Icons.close : Icons.search),
-                onPressed: _toggleSearch,
-              ),
-            ],
+                  ],
+                ),
+                Expanded(child: _buildBody(context)),
+              ],
+            ),
           ),
-          body: _buildBody(context),
         );
       },
     );
