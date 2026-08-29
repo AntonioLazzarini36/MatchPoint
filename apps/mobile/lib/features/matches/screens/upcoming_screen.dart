@@ -8,6 +8,7 @@ import 'package:match_point/core/utils/date_format_es.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
 import 'package:match_point/core/ui/widgets/screen_header.dart';
 import 'package:match_point/core/ui/profile/network_photo.dart';
+import 'package:match_point/core/ui/widgets/proposal/proposal_state_style.dart';
 import 'package:match_point/core/utils/app_sports.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 
@@ -280,20 +281,18 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     final proposal = session.proposal;
     final photo = session.otherPhoto;
     final colors = context.colors;
-    final needsAnswer = proposal.isPending && !proposal.mine;
+    // El mismo `proposalStateStyle` que usa la burbuja del chat. Antes esta
+    // pantalla señalaba "espera tu respuesta" con un borde verde y el chat
+    // con fondo lima: el mismo estado, dos idiomas.
+    final style = proposalStateStyle(context, proposal, short: true);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      // Sin borde salvo cuando espera respuesta tuya: el tema ya le pone
-      // sombra a las tarjetas, y borde más sombra a la vez es ruido — mismo
-      // criterio que las filas de Descubrir. Si todas destacan, no destaca
-      // ninguna.
-      shape: needsAnswer
-          ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: colors.primary, width: 2),
-            )
-          : null,
+      // Sólo se tiñe lo que **te pide algo**. Aquí las secciones ya agrupan
+      // por estado, así que pintar también las que esperan a la otra persona
+      // sería repetir con color lo que ya dice el título — y de paso gastar
+      // el color más llamativo de la app en algo que no requiere nada.
+      color: style.wantsAttention ? style.background : null,
       child: InkWell(
         onTap: () => _openDetail(session),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -364,13 +363,24 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                    if (needsAnswer) ...[
+                    if (style.wantsAttention) ...[
                       const SizedBox(height: 6),
-                      Text(
-                        'Acepta o rechaza',
-                        style: context.textStyles.labelMedium?.copyWith(
-                          color: colors.primary,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            style.icon,
+                            size: 15,
+                            color: style.foreground,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            style.headline,
+                            style: context.textStyles.labelMedium?.copyWith(
+                              color: style.foreground,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],

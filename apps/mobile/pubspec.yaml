@@ -22,7 +22,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # **4009**. Al volver a una build universal, cualquier numero por debajo de eso
 # se rechaza con INSTALL_FAILED_VERSION_DOWNGRADE sin explicar de donde sale
 # la cifra. Se sube por encima del mayor ya instalado y se deja de mezclar.
-version: 1.0.0+5011
+version: 1.0.0+5019
 
 environment:
   sdk: ^3.11.0

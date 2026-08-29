@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:match_point/app/routes.dart';
 import 'package:match_point/core/network/api.dart';
+import 'package:match_point/core/network/notification_counts.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/utils/app_sports.dart';
 import 'package:match_point/core/utils/sport_words.dart';
@@ -18,9 +19,11 @@ import '../../../core/ui/dialogs/report_reason_dialog.dart';
 import '../../../core/ui/widgets/chat/chat_message_bubble.dart';
 import '../../../core/ui/widgets/chat/chat_input_bar.dart';
 import '../../../core/ui/widgets/proposal/propose_session.dart';
-import '../../../core/ui/widgets/proposal/proposal_card.dart';
+import '../../../core/ui/widgets/proposal/proposal_bubble.dart';
+import '../models/chat_message.dart';
 import '../models/proposal.dart';
 import '../services/proposal_service.dart';
+import 'session_detail_screen.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/availability.dart';
 import '../../../core/network/connection_error.dart';
@@ -73,7 +76,6 @@ class _ChatScreenState extends State<ChatScreen> {
   /// mientras no haya ninguna. Se refresca junto con los mensajes: la otra
   /// persona puede aceptarla desde su móvil mientras miras la pantalla.
   List<Proposal> _proposals = const [];
-  bool _proposalBusy = false;
   late final ProposalService proposalService;
 
   @override
@@ -107,63 +109,50 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Silenciosa a propósito: si falla (red intermitente), el chat sigue
   /// siendo perfectamente usable, y el siguiente tick lo reintenta. No
   /// merece un banner de error encima de la conversación.
-  /// Sólo las propuestas que siguen **vivas**: pendientes de respuesta o ya
-  /// confirmadas y aún por jugar.
+  /// **Todas** las propuestas del match, vivas y resueltas.
   ///
-  /// Antes se fijaba arriba la última fuera cual fuera su estado, así que una
-  /// rechazada o cancelada se quedaba ahí ocupando media pantalla con un
-  /// bloque que no se puede hacer nada con él — ni cancelar ni revivir. Eso
-  /// no es una acción pendiente, es historia, y su sitio es la conversación.
-  ///
-  /// Y ahora son varias: desde que una propuesta nueva ya no cancela la
-  /// anterior, se puede tener el martes y el jueves abiertos con la misma
-  /// persona, y enseñar sólo la más reciente escondía la otra.
+  /// Van dentro de la conversación como un mensaje más (ver
+  /// `_buildMessages`), así que una cancelada no se descarta: se queda donde
+  /// ocurrió, tachada, igual que quedaría "quedamos el jueves — al final no
+  /// puedo" si se hubiera hablado por texto.
   Future<void> _loadProposal() async {
     try {
       final all = await proposalService.listForMatch(widget.matchId);
       if (!mounted) return;
-      // Un poco de margen para que una quedada no desaparezca en el
-      // momento exacto de empezar.
-      final cutoff = DateTime.now().subtract(const Duration(hours: 3));
-      final live =
-          all
-              .where(
-                (p) =>
-                    (p.isPending || p.status == ProposalStatus.accepted) &&
-                    p.scheduledAt.isAfter(cutoff),
-              )
-              .toList()
-            ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-      setState(() => _proposals = live);
+      setState(() => _proposals = all);
     } catch (_) {
       // se reintenta en el siguiente poll
     }
   }
 
-  Future<void> _respondToProposal(Proposal proposal, String action) async {
-    setState(() => _proposalBusy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final updated = await proposalService.respond(
-        proposalId: proposal.id,
-        action: action,
-      );
-      if (!mounted) return;
-      // Se recarga la lista entera en vez de sustituir la fila: la respuesta
-      // puede sacar la propuesta de las vivas (rechazada, cancelada).
-      await _loadProposal();
-      if (!mounted) return;
-      if (updated.status == ProposalStatus.accepted) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('¡Confirmado! Ya está en tus quedadas')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
-    } finally {
-      if (mounted) setState(() => _proposalBusy = false);
-    }
+  /// Abre **la misma pantalla** que la pestaña de Partidos.
+  ///
+  /// Llegué a escribir una ficha aparte para esto, y era un error: enseñaba
+  /// lo mismo que `SessionDetailScreen` —cuándo, cuánto falta, dónde con el
+  /// mini-mapa, y aceptar/rechazar/retirar— pero con otra forma. Dos
+  /// pantallas distintas para el mismo contenido significan mantener las dos
+  /// y que se separen a la primera de cambio, que es exactamente lo que ya
+  /// había pasado con los colores de estado.
+  ///
+  /// La única diferencia real era que una salía como hoja y la otra a
+  /// pantalla completa, y eso no justifica duplicar nada.
+  Future<void> _openProposal(Proposal proposal) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => SessionDetailScreen(
+          session: UpcomingSession(
+            proposal: proposal,
+            otherUserId: widget.otherUserId,
+            otherDisplayName: widget.otherName,
+            otherPhoto: widget.otherPhotoUrl,
+          ),
+        ),
+      ),
+    );
+    // Puede haberse aceptado, rechazado o retirado ahí dentro.
+    if (!mounted) return;
+    await _loadProposal();
+    NotificationCounts.instance.refresh();
   }
 
   Future<void> _propose(Sport sport) async {
@@ -382,35 +371,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           body: Column(
             children: [
-              // Fijadas arriba, no como una burbuja más: el problema que
-              // resuelve es justo que antes la propuesta se perdía
-              // scrolleando entre los mensajes. Sólo las vivas — ver
-              // `_loadProposal`.
-              //
-              // Con más de dos, la lista propia con scroll: tres partidos
-              // abiertos con la misma persona no pueden comerse la
-              // conversación entera.
-              if (_proposals.isNotEmpty)
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(context).height * 0.38,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        for (final p in _proposals)
-                          ProposalCard(
-                            key: ValueKey(p.id),
-                            proposal: p,
-                            busy: _proposalBusy,
-                            onAccept: () => _respondToProposal(p, 'ACCEPT'),
-                            onDecline: () => _respondToProposal(p, 'DECLINE'),
-                            onCancel: () => _respondToProposal(p, 'CANCEL'),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
               Expanded(child: _buildMessages(context)),
               ChatInputBar(
                 controller: input,
@@ -486,7 +446,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     final msgs = controller.messages;
-    if (msgs.isEmpty) {
+    if (msgs.isEmpty && _proposals.isEmpty) {
       return Center(
         child: Text(
           'Todavía no hay mensajes',
@@ -497,13 +457,32 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
+    // Mensajes y propuestas en la misma línea de tiempo, ordenados por
+    // cuándo ocurrieron. Una propuesta **es** un mensaje: pasó en un momento
+    // de la conversación y ahí es donde tiene sentido leerla. Mezclarlas por
+    // fecha es además lo que hace que varias seguidas se apilen solas.
+    final items = <_TimelineItem>[
+      for (final m in msgs) _TimelineItem.message(m),
+      for (final p in _proposals) _TimelineItem.proposal(p),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+
     return ListView.builder(
       controller: scroll,
       padding: const EdgeInsets.all(16),
-      itemCount: msgs.length,
+      itemCount: items.length,
       itemBuilder: (context, i) {
-        final m = msgs[i];
+        final item = items[i];
 
+        final proposal = item.proposalOrNull;
+        if (proposal != null) {
+          return ProposalBubble(
+            key: ValueKey(proposal.id),
+            proposal: proposal,
+            onTap: () => _openProposal(proposal),
+          );
+        }
+
+        final m = item.messageOrNull!;
         return ChatMessageBubble(
           text: m.text,
           time: _formatTime(m.createdAt),
@@ -530,4 +509,31 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     });
   }
+}
+
+/// Una entrada de la conversación: o un mensaje, o una propuesta.
+///
+/// Existe sólo para poder ordenar las dos cosas juntas por fecha sin
+/// inventarse una clase base común entre dos modelos que no la necesitan
+/// para nada más.
+class _TimelineItem {
+  final DateTime at;
+  final ChatMessage? _message;
+  final Proposal? _proposal;
+
+  _TimelineItem.message(ChatMessage m)
+    : at = m.createdAt,
+      _message = m,
+      _proposal = null;
+
+  /// Por `createdAt`, no por `scheduledAt`: lo que ordena la conversación es
+  /// cuándo se propuso, no para cuándo era. Una propuesta hecha hoy para
+  /// dentro de un mes va al final del chat, que es donde se escribió.
+  _TimelineItem.proposal(Proposal p)
+    : at = p.createdAt,
+      _message = null,
+      _proposal = p;
+
+  ChatMessage? get messageOrNull => _message;
+  Proposal? get proposalOrNull => _proposal;
 }

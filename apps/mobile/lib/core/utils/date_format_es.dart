@@ -47,3 +47,19 @@ String formatPastDate(DateTime dt) {
   final year = dt.year == now.year ? '' : " '${dt.year % 100}";
   return '${dt.day} $month$year';
 }
+
+/// "02/09/2026 a las 12:00".
+///
+/// El formato largo ("miércoles 2 de septiembre a las 12:00") se lee bien en
+/// una ficha, donde hay sitio y se mira una vez. En una burbuja de chat, que
+/// es estrecha y se recorre de un vistazo entre otros mensajes, ocupaba dos
+/// líneas para decir lo mismo. El día de la semana es lo primero que sobra:
+/// con la fecha delante, quien la lee ya sabe cuándo es.
+String formatShortDateTime(DateTime dt) {
+  final d = dt.toLocal();
+  final dd = d.day.toString().padLeft(2, '0');
+  final mo = d.month.toString().padLeft(2, '0');
+  final hh = d.hour.toString().padLeft(2, '0');
+  final mm = d.minute.toString().padLeft(2, '0');
+  return '$dd/$mo/${d.year} a las $hh:$mm';
+}
