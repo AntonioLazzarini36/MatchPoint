@@ -64,16 +64,10 @@ class PlayerListTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       clipBehavior: Clip.antiAlias,
+      // Mismo rectángulo que las demás: sólo cambia el color de fondo. Llevó
+      // además un borde oscuro, y sobraba — teñir el fondo ya separa la
+      // tarjeta del resto, y el borde encima la sacaba de la cuadrícula.
       color: user.likesYou ? colors.tertiaryContainer : null,
-      // Sin borde cuando la fila es normal: el tema ya le pone sombra, y
-      // borde mas sombra a la vez es ruido. El borde queda reservado para
-      // "ya quiere jugar contigo", que es cuando de verdad hay que mirar.
-      shape: user.likesYou
-          ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: colors.onTertiaryContainer, width: 2),
-            )
-          : null,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -84,15 +78,50 @@ class PlayerListTile extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: SizedBox(
-                      width: 84,
-                      height: 63, // 16:9, como se guardan todas las fotos
-                      child: photo == null
-                          ? Container(color: colors.surfaceContainerHighest)
-                          : NetworkPhoto(url: photo, iconSize: 24),
-                    ),
+                  // El corazón dice lo que antes ocupaba una frase entera
+                  // ("Ya quiere jugar contigo — acepta y tenéis partido").
+                  // Va **sobre la foto** y no suelto en la fila: pegado a la
+                  // cara se entiende de quién habla sin leer nada, y no
+                  // empuja al resto de datos.
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: SizedBox(
+                          width: 84,
+                          height: 63, // 16:9, como se guardan las fotos
+                          child: photo == null
+                              ? Container(color: colors.surfaceContainerHighest)
+                              : NetworkPhoto(url: photo, iconSize: 24),
+                        ),
+                      ),
+                      if (user.likesYou)
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: colors.tertiary,
+                              shape: BoxShape.circle,
+                              // Un aro del color de la tarjeta, para que el
+                              // círculo se despegue de la foto sea cual sea
+                              // la foto — sin él, sobre una imagen clara
+                              // desaparece.
+                              border: Border.all(
+                                color: colors.tertiaryContainer,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.favorite,
+                              size: 13,
+                              color: colors.onTertiary,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -115,9 +144,13 @@ class PlayerListTile extends StatelessWidget {
                             if (_level != null)
                               _Tag(
                                 icon: Icons.workspace_premium_outlined,
-                                label: _level == myLevel
-                                    ? 'Tu mismo nivel'
-                                    : _level!.label,
+                                // **Siempre el nivel, nunca "Tu mismo
+                                // nivel".** Esa frase gastaba la etiqueta
+                                // entera en decir algo que el color ya dice,
+                                // y a cambio escondía el dato: justo con la
+                                // gente que mejor encaja contigo era
+                                // imposible saber a qué nivel juega.
+                                label: _level!.label,
                                 // Con nivel igual deja de ser una etiqueta
                                 // más y pasa a ser una chapa con fondo: en
                                 // una fila con tres datos grises, poner el
@@ -199,28 +232,6 @@ class PlayerListTile extends StatelessWidget {
                 ),
               ),
 
-              if (user.likesYou) ...[
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.sports_tennis,
-                      size: 17,
-                      color: colors.onTertiaryContainer,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Ya quiere jugar contigo — acepta y tenéis partido',
-                        style: t.labelLarge?.copyWith(
-                          color: colors.onTertiaryContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
 
               const SizedBox(height: 8),
               Row(

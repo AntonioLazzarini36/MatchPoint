@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:match_point/core/analytics/analytics.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
+import 'package:match_point/core/ui/widgets/screen_header.dart';
 import 'package:match_point/core/utils/app_sports.dart';
 
 import '../../../core/network/api.dart';
@@ -216,24 +217,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 // recuento no cambiaba ninguna decision —la lista ya esta
                 // debajo, y se ve— y los filtros se han movido dentro de la
                 // hoja, a un toque del icono.
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 8, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Busca tu partido',
-                          style: context.textStyles.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      _FilterButton(
-                        active: controller.filters.activeCount,
-                        onTap: _openPreferences,
-                      ),
-                    ],
-                  ),
+                // El mismo `ScreenHeader` que Compañeros y Partidos. Esta
+                // pantalla tenía su propia copia —de aquí salió el widget—
+                // y dejarla suelta era garantizar que las tres se volvieran
+                // a separar en cuanto alguna cambiara.
+                ScreenHeader(
+                  title: 'Busca tu partido',
+                  actions: [
+                    _FilterButton(
+                      active: controller.filters.activeCount,
+                      onTap: _openPreferences,
+                    ),
+                  ],
                 ),
 
                 if (_showIntro) DiscoveryIntroBanner(onDismiss: _dismissIntro),
