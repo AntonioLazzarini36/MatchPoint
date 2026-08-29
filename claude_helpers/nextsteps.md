@@ -9,6 +9,11 @@
 > Al final está la lista de **lo que necesita algo tuyo** (dominio, cuentas,
 > decisiones irreversibles) separada de lo que se puede hacer sin esperar a
 > nadie. Empezar por ahí ahorra bloqueos a media tarea.
+>
+> **Actualizado el 2026-08-29.** Los dos bloqueos de la ficha (#4 y #5) ya
+> están escritos y sólo falta publicarlos. Y hay dos cosas nuevas y urgentes
+> que antes no existían: **pagar Railway** (el plan gratuito caduca y se lleva
+> por delante la app instalada) y **apagar la demo** antes de publicar.
 
 ---
 
@@ -44,14 +49,28 @@ Pendiente sólo si se quiere: un logotipo con **la palabra "MatchPoint"** y
 tipografía propia, para la ficha de Play y la cabecera de la web. El icono
 actual es sólo el símbolo.
 
-### 4. Política de privacidad
-Obligatoria, con URL pública y accesible. Se recogen email, fotos y
-ubicación, así que no hay excepción posible.
+### 4. Política de privacidad — ✅ escrita, falta publicarla (2026-08-29)
+`docs/privacidad.html` y `docs/terminos.html`, con tus datos ya puestos y
+listos para GitHub Pages (**Settings → Pages → carpeta `/docs`**). Hasta que
+no se publiquen no hay URL, y sin URL no hay ficha.
 
-### 5. Formulario de Data Safety
-Hay que declarar en la ficha de Play qué datos se recogen, para qué, si se
-comparten y si se pueden borrar. El borrado ya existe (`DELETE /me`), que es
-uno de los puntos que Play comprueba.
+### 5. Formulario de Data Safety — ✅ respondido (2026-08-29)
+`claude_helpers/data_safety.md` lo lleva campo a campo, sacado de lo que la
+app **hace**. Play lo compara con la política publicada y rechaza si no
+cuadran, así que si algo cambia hay que tocar los dos.
+
+Ojo con el punto de "contenido generado por usuarios": Play pide denunciar,
+moderar y **bloquear**. Los dos primeros existen; Bloquear se quitó a
+propósito (unmatch + report), probablemente cumple, pero es por donde más
+fácil pregunten.
+
+### 5-bis. 🔴 Apagar la demo antes de publicar
+Producción está sembrada con 10 perfiles inventados y `DEMO_SEED_NEW_USERS`
+encendido, que engancha compañeros y partidos falsos a cada cuenta nueva.
+Correcto para un prototipo que se enseña a mano; **comportamiento engañoso**
+para Play, y una faena para quien se instale la app de verdad. Antes de
+publicar: variable a `false`, borrar los sembrados, y comprobar que una cuenta
+nueva no recibe nada.
 
 ### 6. Política de contenido generado por usuarios
 Play exige tres cosas para apps con contenido de usuarios:
@@ -175,6 +194,8 @@ la app está rota. Si hace falta repetirlo:
 | ~~Decidir el applicationId~~ ✅ | Hecho: `com.matchpoint.app` | — |
 | **Copia del keystore** ⚠️ | Existe en **un solo disco** (`~/keys/matchpoint-release.p12`). Perderlo = no poder actualizar nunca la app publicada | Gratis, 5 min |
 | **Rotar la clave de Firebase** ⚠️ | Se envió por chat a petición tuya (2026-08-22) para configurarla desde el móvil | Gratis, 5 min |
+| **🔴 Plan de pago en Railway** | Está en el gratuito y **caduca**. Si se cae, la APK que tenga cualquiera deja de funcionar de golpe — la tuya y la de a quien se la hayas pasado. Es lo más barato de la lista y todo lo demás depende de ello | ~5 $/mes |
+| **Publicar GitHub Pages** | La URL de la política de privacidad, que es bloqueo duro de Play. Los ficheros ya están en `docs/` | Gratis, 2 min |
 | **Comprar un dominio** | Resuelve de golpe: política de privacidad alojada, verificación de email (#9) y una URL decente para la API | ~10 €/año |
 | **Proyecto de Firebase** | Push de verdad (#8) | Gratis |
 | **Cuenta de Google Play** | Publicar | 25 $, pago único |
@@ -190,13 +211,22 @@ Los puntos 1, 2, 4 y 5 del orden original ya están hechos (identidad y
 firma, nombre e icono, Firebase y push, rate limiting y cola de moderación).
 Lo que queda, en orden:
 
-1. **Copia del keystore y rotar la clave de Firebase.** Dos tareas tuyas de
-   cinco minutos, y la primera es la única de toda la lista que, si sale mal,
-   no tiene arreglo.
-2. **Política de privacidad (#4) y Data Safety (#5).** Son los dos bloqueos
-   duros que quedan para publicar. La política se puede redactar y alojar
-   gratis en GitHub Pages sin esperar al dominio.
-3. **Dominio.** Desbloquea correo verificado (#18) y una URL decente.
-4. **Tests** de auth y del ciclo de fotos, antes de que haya usuarios.
-5. **El chat sondea cada 4 s (#15).** Con push funcionando ya no se
+1. **Pagar Railway.** Es lo único que puede tumbar todo lo demás de un día
+   para otro, y cuesta menos que un café al mes.
+2. **Publicar GitHub Pages** (`/docs`) — dos minutos, y cierra el bloqueo #4.
+3. **Copia del keystore y rotar la clave de Firebase.** Cinco minutos cada
+   una, y la del keystore es la única de toda la lista que, si sale mal, no
+   tiene arreglo.
+4. **Cuenta de Google Play (25 $)** y arrancar la prueba cerrada. Si la cuenta
+   es personal y reciente, Google exige **12 testers durante 14 días
+   seguidos** antes de dejar publicar: es tiempo de calendario, no trabajo, y
+   cuanto antes empiece antes acaba.
+5. **Login con Google.** Es lo que más quitaría del registro, y sólo necesita
+   de ti un proyecto en Google Cloud Console con su Client ID de Android — la
+   huella SHA-1 del keystore la saco yo.
+6. **Un club.** Todo lo de buscar inversión se apoya en tener gente jugando.
+   Tres clubes a fondo valen más que treinta pueblos por encima, y la métrica
+   que importa es qué porcentaje de registrados llega a jugar un partido.
+7. **Tests** de auth y del ciclo de fotos, antes de que haya usuarios.
+8. **El chat sondea cada 4 s (#15).** Con push funcionando ya no se
    justifica.

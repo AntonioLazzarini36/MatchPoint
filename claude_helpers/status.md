@@ -2,7 +2,7 @@
 
 > Documento vivo. Edítalo cuando quieras cambiar prioridades, tachar cosas o
 > añadir contexto — lo uso como referencia al arrancar en otros chats.
-> Última actualización: 2026-08-04.
+> Última actualización: 2026-08-29.
 
 ## Contexto de branches
 
@@ -1070,6 +1070,68 @@ app instalada en el móvil del usuario es la build `2003`.
   decidir *qué*, porque "franjas en común" era justo la lectura de "fuente de
   verdad" que el cambio quería quitar.
 
+
+### 2026-08-27 / 29 — la app se vuelve de tenis y el "cuándo" pasa a mandar
+
+Todo esto está en `feature/rust-backend`, **desplegado en Railway** y probado
+en el móvil. La APK instalada es la build `5019`, apuntando a producción.
+
+**El cambio de producto.** Descubrir dejó de ser un mazo de caras y pasó a ser
+una búsqueda que empieza por *cuándo puedes jugar*. El dato ya estaba en los
+perfiles y no lo cruzaba nadie en el único momento en que decide algo.
+
+- `/discover` acepta `availability` (máscara de 21 bits) y `level`, devuelve
+  `sharedAvailability`/`sharedSlots`, y ordena por
+  `(likesYou, franjas en común, goal_fit, distancia)`. Esto **invierte** la
+  decisión del 23/08 que sacó la disponibilidad del orden, y a propósito: el
+  argumento de entonces era que el dato era un enum grueso que no se veía en
+  ninguna pantalla. Ahora es una rejilla editable, visible, y —lo que cambia
+  todo— es lo que la persona acaba de pedir en el filtro. Lo que sobrevive de
+  aquella cautela es agrupar en 0/1/2/3+ en vez de usar el número crudo: así
+  marcar la semana entera no gana.
+- **El PASS caduca a los 30 días.** Era permanente, y con decenas de personas
+  por ciudad eso vacía el feed para siempre en dos tardes. El LIKE sigue
+  escondiendo de por vida.
+- **Deshacer un match ya no entierra a los dos.** Borraba el match y dejaba
+  los dos LIKE en pie, dejando a las dos personas mutuamente invisibles para
+  siempre — incluida la que no deshizo nada. Ahora pasan a PASS y caducan.
+- `GET /discover/density`: cuánta gente hay cerca de un punto. Sin token
+  porque lo llama el registro antes de que exista la cuenta.
+
+**Sólo tenis, apagado y no borrado.** `core/utils/app_sports.dart` es el único
+interruptor. El enum `Sport`, la columna, el filtro `?sport=` y las quedadas de
+correr siguen enteros: volver a encenderlo es una línea. El icono y el logo son
+ahora la raqueta sola sobre naranja, derivada del logo original por código
+(nada redibujado a mano).
+
+**Registro de 6 pasos a 5, empezando por la ubicación**, que es lo único que
+contesta "¿hay alguien aquí?" — y lo contesta *mientras* eliges, con el
+contador de densidad. Se entra por código postal. Fuera del registro:
+credenciales (ahora "experiencia"), rango de edad, género e intención, que
+siguen en Ajustes.
+
+**Partidos.** Se pueden tener varios abiertos con la misma persona (una
+propuesta nueva ya no cancela la pendiente), hay historial de los jugados con
+resultado, y las propuestas viven dentro del chat como fichas con estado.
+
+**Para poder enseñarla.** `src/demo.rs`: una cuenta nueva nace con 3
+compañeros (dos con conversación), 2 perfiles que ya le dieron like, 1
+propuesta pendiente, 1 partido confirmado y 2 terminados con resultado.
+Determinista —ordenado por email— y recortado al radio del usuario, porque un
+like de alguien fuera del radio existe en la base y no se ve en ninguna parte.
+Sólo con `DEMO_SEED_NEW_USERS`, encendido en producción **mientras esto sea un
+prototipo**.
+
+**Analítica** (`core/analytics/analytics.dart`) midiendo el embudo entero, sin
+mandar quién es nadie. Y **política de privacidad y términos** en `docs/`, con
+la chuleta del formulario de Data Safety en `claude_helpers/data_safety.md`.
+
+⚠️ **Dos avisos que no se pueden perder:**
+1. **Railway está en plan gratuito y caduca.** Si se cae, la APK que tenga
+   cualquiera deja de funcionar de golpe.
+2. **Antes de publicar en Play** hay que apagar `DEMO_SEED_NEW_USERS` y borrar
+   los perfiles sembrados: prometerle a una persona real gente que no existe
+   es comportamiento engañoso para Google.
 
 ## Pendiente / próximos pasos
 
