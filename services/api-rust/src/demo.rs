@@ -192,7 +192,7 @@ async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
                 user_id,
                 sport,
                 Duration::days(6),
-                SessionOutcome::Won,
+                Some(SessionOutcome::Won),
             )
             .await?;
             played(
@@ -202,7 +202,22 @@ async fn try_seed(state: &AppState, user_id: &str) -> anyhow::Result<()> {
                 user_id,
                 sport,
                 Duration::days(20),
-                SessionOutcome::Lost,
+                Some(SessionOutcome::Lost),
+            )
+            .await?;
+            // Y uno **sin contar**, de anteayer: es lo que hace que al abrir
+            // la app recién registrada aparezca "¿qué tal fue?" con un partido
+            // esperando respuesta. Sin esto, esa pantalla —la que sostiene que
+            // los niveles del resto signifiquen algo— sólo se puede enseñar
+            // esperando a que alguien juegue de verdad.
+            played(
+                &mut conn,
+                &match_id,
+                other,
+                user_id,
+                sport,
+                Duration::days(2),
+                None,
             )
             .await?;
         }
@@ -355,6 +370,13 @@ async fn say(
 /// El resultado se guarda **sólo del lado del usuario nuevo**: es lo único
 /// que `/me/proposals/history` devuelve, y rellenar también la fila de la
 /// otra persona sería inventarle una opinión a un perfil sembrado.
+///
+/// Con `outcome: None` el partido queda **sin contar**: pasó, está aceptado, y
+/// sale en "¿qué tal fue?" esperando respuesta. Es la única forma de que quien
+/// abre la app recién registrada vea funcionar esa parte — es la pantalla que
+/// sostiene todo lo demás (el nivel de la gente sólo significa algo porque
+/// alguien lo corrige después de jugar) y sin un partido pendiente no hay
+/// manera de enseñarla.
 #[allow(clippy::too_many_arguments)]
 async fn played(
     conn: &mut AsyncPgConnection,
@@ -363,7 +385,7 @@ async fn played(
     user_id: &str,
     sport: Sport,
     ago: Duration,
-    outcome: SessionOutcome,
+    outcome: Option<SessionOutcome>,
 ) -> anyhow::Result<()> {
     let when = (Utc::now() - ago)
         .date_naive()
@@ -388,17 +410,26 @@ async fn played(
         .execute(conn)
         .await?;
 
-    diesel::insert_into(session_feedback::table)
-        .values(NewSessionFeedback {
-            id: uuid::Uuid::new_v4().to_string(),
-            proposal_id,
-            user_id: user_id.to_string(),
-            played: true,
-            outcome: Some(outcome),
-            would_repeat: Some(true),
-        })
-        .execute(conn)
-        .await?;
+    // Sin resultado no se escribe fila: la ausencia de `SessionFeedback` es
+    // justo lo que hace que la quedada aparezca en "¿qué tal fue?".
+    if let Some(outcome) = outcome {
+        diesel::insert_into(session_feedback::table)
+            .values(NewSessionFeedback {
+                id: uuid::Uuid::new_v4().to_string(),
+                proposal_id,
+                user_id: user_id.to_string(),
+                played: true,
+                outcome: Some(outcome),
+                would_repeat: Some(true),
+                // El nivel de un perfil sembrado no lo valora nadie: sería
+                // inventarle una opinión a alguien que no existe, y encima
+                // acabaría contando en el veredicto público de esa persona.
+                assessed_level: None,
+                skipped: false,
+            })
+            .execute(conn)
+            .await?;
+    }
 
     Ok(())
 }

@@ -12,8 +12,10 @@ import 'package:match_point/core/ui/widgets/proposal/proposal_state_style.dart';
 import 'package:match_point/core/utils/app_sports.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 
+import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 import '../models/proposal.dart';
+import '../services/matches_service.dart';
 import '../services/proposal_service.dart';
 import 'session_detail_screen.dart';
 
@@ -48,6 +50,13 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   /// Lo ya jugado. Va abajo del todo: primero lo que hay que hacer, después
   /// lo que ya pasó.
   List<PlayedSession> _history = const [];
+
+  /// El nivel declarado de cada compañero, por su id. Hace falta para poder
+  /// preguntar "¿juega a nivel intermedio?" en vez de soltar una lista de
+  /// cuatro niveles sin contexto. Sale de `/matches`, que ya lo trae — un
+  /// endpoint nuevo para esto sería una llamada por cada tarjeta.
+  Map<String, SkillLevel> _levels = const {};
+
   bool _loading = true;
   Object? _error;
 
@@ -75,13 +84,28 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
         (_) => <PlayedSession>[],
       );
 
+      // Los niveles tampoco pueden tumbar la pantalla: sin ellos la reseña
+      // simplemente no pregunta por el nivel.
+      final levels = MatchesService(Api.client)
+          .fetchMatches()
+          .then(
+            (ms) => {
+              for (final m in ms)
+                if (m.otherUser.skillLevels[Sport.tennis] != null)
+                  m.otherUser.userId: m.otherUser.skillLevels[Sport.tennis]!,
+            },
+          )
+          .catchError((_) => <String, SkillLevel>{});
+
       final results = await Future.wait([upcoming, toConfirm]);
       final past = await history;
+      final byUser = await levels;
       if (!mounted) return;
       setState(() {
         _sessions = results[0];
         _toConfirm = results[1];
         _history = past;
+        _levels = byUser;
         _loading = false;
       });
     } catch (e) {
@@ -237,31 +261,44 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
         _ConfirmCard(
           key: ValueKey(session.proposal.id),
           session: session,
-          onAnswer: ({required played, outcome, wouldRepeat}) async {
-            final messenger = ScaffoldMessenger.of(context);
-            try {
-              await _service.saveFeedback(
-                proposalId: session.proposal.id,
-                played: played,
-                outcome: outcome,
-                wouldRepeat: wouldRepeat,
-              );
-              // La metrica que de verdad mide si esta app sirve: no
-              // registros ni matches, partidos jugados.
-              Analytics.sessionPlayed(played: played);
-              // Recargar y no quitar la tarjeta a mano: el badge de la barra
-              // sale del servidor, y dejarlos calculando por separado es
-              // como se desincronizan.
-              await _load();
-              NotificationCounts.instance.refresh();
-            } catch (e) {
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(e.toString().replaceFirst('Exception: ', '')),
-                ),
-              );
-            }
-          },
+          theirLevel: _levels[session.otherUserId],
+          onAnswer:
+              ({
+                required played,
+                outcome,
+                wouldRepeat,
+                assessedLevel,
+                skipped = false,
+              }) async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await _service.saveFeedback(
+                    proposalId: session.proposal.id,
+                    played: played,
+                    outcome: outcome,
+                    wouldRepeat: wouldRepeat,
+                    assessedLevel: assessedLevel,
+                    skipped: skipped,
+                  );
+                  // La metrica que de verdad mide si esta app sirve: no
+                  // registros ni matches, partidos jugados. Una reseña
+                  // saltada no cuenta como nada: no dice que se jugara.
+                  if (!skipped) Analytics.sessionPlayed(played: played);
+                  // Recargar y no quitar la tarjeta a mano: el badge de la
+                  // barra sale del servidor, y dejarlos calculando por
+                  // separado es como se desincronizan.
+                  await _load();
+                  NotificationCounts.instance.refresh();
+                } catch (e) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        e.toString().replaceFirst('Exception: ', ''),
+                      ),
+                    ),
+                  );
+                }
+              },
         ),
     ];
   }
@@ -529,10 +566,18 @@ class _MiniAvatar extends StatelessWidget {
 /// nada.
 class _ConfirmCard extends StatefulWidget {
   final UpcomingSession session;
+
+  /// El nivel que la otra persona declara hoy en este deporte. Es contra lo
+  /// que se le pregunta a quien valora ("¿era intermedio?"), así que sin él
+  /// esa pregunta no se puede hacer y se esconde.
+  final SkillLevel? theirLevel;
+
   final Future<void> Function({
     required bool played,
     String? outcome,
     bool? wouldRepeat,
+    SkillLevel? assessedLevel,
+    bool skipped,
   })
   onAnswer;
 
@@ -540,6 +585,7 @@ class _ConfirmCard extends StatefulWidget {
     super.key,
     required this.session,
     required this.onAnswer,
+    this.theirLevel,
   });
 
   @override
@@ -555,6 +601,11 @@ class _ConfirmCardState extends State<_ConfirmCard> {
   bool? _played;
   String? _outcome;
 
+  /// Lo que ha contestado a "¿tenía ese nivel?". `null` mientras no diga
+  /// nada, y contestar que no abre la lista para que elija el de verdad.
+  SkillLevel? _assessedLevel;
+  bool _levelDisagrees = false;
+
   bool get _isTennis => widget.session.proposal.sport == Sport.tennis;
 
   Future<void> _send({required bool played, bool? wouldRepeat}) async {
@@ -564,7 +615,25 @@ class _ConfirmCardState extends State<_ConfirmCard> {
         played: played,
         outcome: played ? _outcome : null,
         wouldRepeat: played ? wouldRepeat : null,
+        assessedLevel: played ? _assessedLevel : null,
+        skipped: false,
       );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Saltarse la reseña.
+  ///
+  /// Tiene que existir. Sin salida, quien no quiere contestar tiene dos
+  /// opciones —mentir o dejar la tarjeta ahí para siempre— y las dos son
+  /// peores que un "ahora no": la primera envenena el dato que sostiene los
+  /// niveles de todo el mundo, y la segunda convierte la pestaña en una lista
+  /// de deberes que no baja nunca.
+  Future<void> _skip() async {
+    setState(() => _busy = true);
+    try {
+      await widget.onAnswer(played: false, skipped: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -628,17 +697,28 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                   ),
                 ],
               ),
+              const SizedBox(height: 4),
+              // La salida. Discreta y en texto, no compitiendo con las dos de
+              // arriba: está para quien la necesita, no para invitar a usarla.
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _skip,
+                  child: const Text('Saltar'),
+                ),
+              ),
             ] else ...[
               if (_isTennis) ...[
                 Text('¿Cómo acabó?', style: context.textStyles.bodyLarge),
                 const SizedBox(height: 8),
+                // Sin "Empate": en tenis no existe. Estaba ahí de cuando esta
+                // pantalla servía también para correr.
                 Wrap(
                   spacing: 8,
                   children: [
                     for (final option in const [
                       ('WON', 'Gané'),
                       ('LOST', 'Perdí'),
-                      ('TIED', 'Empate'),
                     ])
                       ChoiceChip(
                         label: Text(option.$2),
@@ -649,6 +729,9 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                 ),
                 const SizedBox(height: 16),
               ],
+
+              ..._levelQuestion(context, s.otherDisplayName),
+
               Text(
                 '¿Repetirías con ${s.otherDisplayName}?',
                 style: context.textStyles.bodyLarge,
@@ -676,6 +759,90 @@ class _ConfirmCardState extends State<_ConfirmCard> {
         ),
       ),
     );
+  }
+
+  /// "¿Era de verdad intermedio?"
+  ///
+  /// Es la única pregunta de la app cuya respuesta **no la escribe el dueño
+  /// del perfil**. Todo lo demás que se enseña de alguien —su nivel, sus
+  /// años jugando, su club— lo ha puesto esa misma persona; esto lo dice
+  /// quien acaba de jugar contra ella, que es la única fuente que puede
+  /// corregirlo.
+  ///
+  /// Se pregunta en dos pasos y no con una lista de cuatro niveles a pelo:
+  /// la respuesta normal es "sí", y con la lista abierta hay que leer y
+  /// elegir siempre. Un sí/no se contesta sin pensar, y sólo quien discrepa
+  /// paga el segundo paso.
+  List<Widget> _levelQuestion(BuildContext context, String name) {
+    final theirs = widget.theirLevel;
+    // Sin nivel declarado no hay nada que confirmar ni que corregir.
+    if (theirs == null) return const [];
+
+    return [
+      Text(
+        '¿Dirías que $name juega a nivel ${theirs.label.toLowerCase()}?',
+        style: context.textStyles.bodyLarge,
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              // Decir que sí es guardar **su** nivel: "correcto" no es otra
+              // cosa que estar de acuerdo con lo que pone.
+              onPressed: () => setState(() {
+                _assessedLevel = theirs;
+                _levelDisagrees = false;
+              }),
+              style: _assessedLevel == theirs && !_levelDisagrees
+                  ? OutlinedButton.styleFrom(
+                      backgroundColor: context.colors.primaryContainer,
+                    )
+                  : null,
+              child: const Text('Sí, es ese'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => setState(() {
+                _levelDisagrees = true;
+                _assessedLevel = null;
+              }),
+              style: _levelDisagrees
+                  ? OutlinedButton.styleFrom(
+                      backgroundColor: context.colors.tertiaryContainer,
+                    )
+                  : null,
+              child: const Text('No exactamente'),
+            ),
+          ),
+        ],
+      ),
+      if (_levelDisagrees) ...[
+        const SizedBox(height: 10),
+        Text(
+          '¿Cuál dirías que es?',
+          style: context.textStyles.bodyMedium?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final level in SkillLevel.values)
+              if (level != theirs)
+                ChoiceChip(
+                  label: Text(level.label),
+                  selected: _assessedLevel == level,
+                  onSelected: (_) => setState(() => _assessedLevel = level),
+                ),
+          ],
+        ),
+      ],
+      const SizedBox(height: 16),
+    ];
   }
 
   String _whenLabel(DateTime when) {

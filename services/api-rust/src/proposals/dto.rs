@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use crate::models::{SessionOutcome, Sport};
+use crate::models::{SessionOutcome, SkillLevel, Sport};
 
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -49,4 +49,20 @@ pub struct SessionFeedbackDto {
     pub outcome: Option<SessionOutcome>,
     /// La senal que de verdad sirve para reencontrarse. Solo si se jugo.
     pub would_repeat: Option<bool>,
+    /// Qué nivel te pareció que tenía la otra persona.
+    ///
+    /// Se manda **el nivel**, no un "correcto/mejor/peor": responder que sí
+    /// era el correcto significa mandar el nivel que esa persona declara, que
+    /// es lo mismo dicho de otra forma. Así el veredicto se calcula al leer,
+    /// contra lo que declare en ese momento, y no se queda congelado contra
+    /// un nivel que a lo mejor ya cambió.
+    pub assessed_level: Option<SkillLevel>,
+    /// La reseña se salta. Deja constancia sin afirmar nada, para que esa
+    /// quedada deje de pedir respuesta.
+    ///
+    /// Existe porque obligar a contestar es la forma más rápida de que la
+    /// gente conteste cualquier cosa por quitárselo de encima — y este dato
+    /// sostiene el nivel de todos los demás.
+    #[serde(default)]
+    pub skipped: bool,
 }

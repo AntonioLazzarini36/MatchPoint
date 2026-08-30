@@ -89,6 +89,8 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
       setState(() {
         data = ProfileHeaderData(
           sharedAvailability: shared,
+          levelVerdict: p.levelVerdict,
+          levelVotes: p.levelVotes,
           displayName: p.displayName,
           age: p.age,
           city: p.city,

@@ -250,6 +250,14 @@ pub struct SessionFeedback {
     pub played: bool,
     pub outcome: Option<SessionOutcome>,
     pub would_repeat: Option<bool>,
+    /// Qué nivel le pareció que tenía la otra persona. Se guarda el nivel en
+    /// sí y no un "correcto/mejor/peor": el veredicto se deriva al leerlo
+    /// contra el nivel que esa persona declara **ahora**, así que cambiar tu
+    /// nivel recoloca solas las valoraciones viejas.
+    pub assessed_level: Option<SkillLevel>,
+    /// La reseña se saltó. La fila existe para que la quedada no vuelva a
+    /// salir en "¿qué tal fue?" eternamente, pero no afirma nada.
+    pub skipped: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -262,6 +270,8 @@ pub struct NewSessionFeedback {
     pub played: bool,
     pub outcome: Option<SessionOutcome>,
     pub would_repeat: Option<bool>,
+    pub assessed_level: Option<SkillLevel>,
+    pub skipped: bool,
 }
 
 #[derive(Debug, Insertable)]

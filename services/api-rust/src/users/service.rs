@@ -8,9 +8,12 @@ use diesel::prelude::*;
 use diesel::result::OptionalExtension;
 use diesel_async::RunQueryDsl;
 
+use serde::Serialize;
+use utoipa::ToSchema;
+
 use crate::discover::service::{age_from_birth_date, fetch_skill_levels, DiscoverProfile};
-use crate::models::NewReport;
-use crate::schema::{profiles, reports};
+use crate::models::{NewReport, SkillLevel};
+use crate::schema::{profiles, reports, skill_levels};
 use crate::state::AppState;
 
 #[derive(thiserror::Error, Debug)]
@@ -125,13 +128,57 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         // campo en `discover/service.rs`.
         played_count: Some(record.played),
         won_count: Some(record.won),
+        level_verdict: record.level_verdict,
+        level_votes: record.level_votes,
     })
 }
 
-/// Cuántos partidos ha jugado alguien y cuántos dice haber ganado.
+/// Qué opina de tu nivel la gente que ha jugado contigo.
+///
+/// Tres respuestas y no más: o el nivel que dices está bien, o te quedas
+/// corto, o te sobra. Deliberadamente grueso — con cuatro niveles y partidos
+/// contados con los dedos, cualquier cosa más fina sería precisión inventada.
+#[derive(Debug, Serialize, ToSchema, PartialEq, Eq, Clone, Copy)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LevelVerdict {
+    /// La mayoría cree que juegas al nivel que dices.
+    Accurate,
+    /// La mayoría te pone por encima de lo que declaras.
+    Higher,
+    /// La mayoría te pone por debajo.
+    Lower,
+}
+
+/// Cuántos partidos ha jugado alguien, cuántos dice haber ganado, y qué
+/// opinan los demás de su nivel.
 pub struct PlayerRecord {
     pub played: i64,
     pub won: i64,
+    /// `None` si nadie ha valorado su nivel todavía. La app no enseña la
+    /// fila entera en ese caso, en vez de decir "0 valoraciones", que suena
+    /// a que alguien lo miró y no opinó.
+    pub level_verdict: Option<LevelVerdict>,
+    pub level_votes: i64,
+}
+
+/// Cuenta los votos y se queda con el que más tenga.
+///
+/// **Los empates los gana `Accurate`**, siempre. No es indecisión: en la
+/// duda, lo que la persona dice de sí misma es lo que vale — corregir a
+/// alguien hace falta que esté claro, y "tres dicen que sí y tres que no" no
+/// lo está. Vale igual para el empate entre `Higher` y `Lower`, donde además
+/// las dos mitades se están contradiciendo entre ellas.
+fn winning_verdict(accurate: i64, higher: i64, lower: i64) -> Option<LevelVerdict> {
+    if accurate + higher + lower == 0 {
+        return None;
+    }
+    if higher > accurate && higher > lower {
+        return Some(LevelVerdict::Higher);
+    }
+    if lower > accurate && lower > higher {
+        return Some(LevelVerdict::Lower);
+    }
+    Some(LevelVerdict::Accurate)
 }
 
 /// Se calcula en Rust y no en SQL a propósito: son dos filas por partido como
@@ -170,7 +217,12 @@ pub async fn player_record(
         .await?;
 
     if proposal_ids.is_empty() {
-        return Ok(PlayerRecord { played: 0, won: 0 });
+        return Ok(PlayerRecord {
+            played: 0,
+            won: 0,
+            level_verdict: None,
+            level_votes: 0,
+        });
     }
 
     let rows = session_feedback::table
@@ -180,9 +232,46 @@ pub async fn player_record(
             session_feedback::user_id,
             session_feedback::played,
             session_feedback::outcome,
+            session_feedback::assessed_level,
         ))
-        .load::<(String, String, bool, Option<SessionOutcome>)>(conn)
+        .load::<(
+            String,
+            String,
+            bool,
+            Option<SessionOutcome>,
+            Option<SkillLevel>,
+        )>(conn)
         .await?;
+
+    // El nivel que declara **hoy** en tenis, que es contra lo que se comparan
+    // las valoraciones. Se resuelve el veredicto aquí y no al guardar por eso
+    // mismo: si mañana cambia su nivel, las opiniones viejas se recolocan
+    // solas en vez de quedarse juzgando algo que ya no dice.
+    let declared = skill_levels::table
+        .filter(skill_levels::user_id.eq(user_id))
+        .filter(skill_levels::sport.eq(crate::models::Sport::Tennis))
+        .select(skill_levels::level)
+        .first::<SkillLevel>(conn)
+        .await
+        .optional()?;
+
+    let (mut accurate, mut higher, mut lower) = (0i64, 0i64, 0i64);
+    for (_, reviewer, _, _, assessed) in &rows {
+        // Sólo lo que opinan **los demás**: lo que uno diga de su propio
+        // nivel ya está en el nivel que declara, contarlo otra vez sería
+        // dejarle votarse a sí mismo.
+        if reviewer == user_id {
+            continue;
+        }
+        let (Some(assessed), Some(declared)) = (assessed, declared) else {
+            continue;
+        };
+        match assessed.cmp(&declared) {
+            std::cmp::Ordering::Equal => accurate += 1,
+            std::cmp::Ordering::Greater => higher += 1,
+            std::cmp::Ordering::Less => lower += 1,
+        }
+    }
 
     let mut played = 0i64;
     let mut won = 0i64;
@@ -209,7 +298,12 @@ pub async fn player_record(
         }
     }
 
-    Ok(PlayerRecord { played, won })
+    Ok(PlayerRecord {
+        played,
+        won,
+        level_verdict: winning_verdict(accurate, higher, lower),
+        level_votes: accurate + higher + lower,
+    })
 }
 
 /// A propósito NO borra el match — reportar es solo dejar constancia para
@@ -256,4 +350,44 @@ pub async fn report_user(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sin_valoraciones_no_hay_veredicto() {
+        // Y no "Accurate por defecto": nadie ha dicho que tu nivel esté bien,
+        // simplemente no ha jugado nadie contigo todavía.
+        assert_eq!(winning_verdict(0, 0, 0), None);
+    }
+
+    #[test]
+    fn gana_la_mayoria() {
+        assert_eq!(winning_verdict(5, 1, 1), Some(LevelVerdict::Accurate));
+        assert_eq!(winning_verdict(1, 5, 1), Some(LevelVerdict::Higher));
+        assert_eq!(winning_verdict(1, 1, 5), Some(LevelVerdict::Lower));
+    }
+
+    /// La regla que hay que respetar al tocar esto: **el empate lo gana
+    /// siempre "correcto"**. Corregir a alguien tiene que estar claro, y un
+    /// empate no lo está.
+    #[test]
+    fn los_empates_los_gana_el_nivel_declarado() {
+        // Empate a tres bandas.
+        assert_eq!(winning_verdict(2, 2, 2), Some(LevelVerdict::Accurate));
+        // Empate entre "correcto" y "más alto".
+        assert_eq!(winning_verdict(4, 4, 0), Some(LevelVerdict::Accurate));
+        // Empate entre "más alto" y "más bajo", que además se contradicen
+        // entre ellos: con más razón manda lo que dice la persona.
+        assert_eq!(winning_verdict(0, 3, 3), Some(LevelVerdict::Accurate));
+        // El caso de 8 valoraciones del ejemplo: 3/3/2 gana "correcto".
+        assert_eq!(winning_verdict(3, 3, 2), Some(LevelVerdict::Accurate));
+    }
+
+    #[test]
+    fn una_sola_voz_discrepante_basta_si_esta_sola() {
+        assert_eq!(winning_verdict(0, 1, 0), Some(LevelVerdict::Higher));
+    }
 }

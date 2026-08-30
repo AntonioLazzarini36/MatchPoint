@@ -3,6 +3,7 @@ import 'package:match_point/core/theme/app_theme.dart';
 
 import '../../utils/landscape_crop.dart';
 import '../../utils/pace_format.dart';
+import '../../../features/discovery/models/level_verdict.dart';
 import '../../../features/discovery/models/skill_level.dart';
 import '../../../features/discovery/models/sport.dart';
 import '../widgets/availability_picker.dart';
@@ -155,6 +156,14 @@ class ProfileView extends StatelessWidget {
                         : data.sharedAvailability,
                     personName: data.displayName,
                   ),
+                ],
+
+                // Justo debajo del horario y encima de todo lo demás que
+                // esta persona ha escrito de sí misma: es el único dato de la
+                // ficha que no lo pone su dueño, y ahí está su valor.
+                if (data.levelVerdict != null) ...[
+                  const SizedBox(height: 20),
+                  _levelVerdictRow(context),
                 ],
 
                 if (data.intention != null) ...[
@@ -350,6 +359,47 @@ class ProfileView extends StatelessWidget {
       data.avgPaceMinPerKm != null ||
       data.avgDistanceKm != null ||
       data.achievements.isNotEmpty;
+
+  /// Lo que opinan los demás de su nivel.
+  ///
+  /// Se enseña con el color según lo que digan: verde si confirman, ámbar si
+  /// discrepan hacia cualquier lado. Y **sin porcentajes** — con estas cifras
+  /// un "60%" suena a estadística y son tres partidos; se habla de personas.
+  Widget _levelVerdictRow(BuildContext context) {
+    final verdict = data.levelVerdict!;
+    final colors = context.colors;
+    final agrees = verdict == LevelVerdict.accurate;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: agrees ? colors.primaryContainer : colors.tertiaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            agrees ? Icons.verified_outlined : Icons.swap_vert,
+            size: 20,
+            color: agrees
+                ? colors.onPrimaryContainer
+                : colors.onTertiaryContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              verdict.label(data.levelVotes, mine: data.isMine),
+              style: context.textStyles.bodyMedium?.copyWith(
+                color: agrees
+                    ? colors.onPrimaryContainer
+                    : colors.onTertiaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _infoRow(BuildContext context, IconData icon, String text) {
     return Padding(

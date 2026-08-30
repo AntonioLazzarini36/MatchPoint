@@ -1,5 +1,6 @@
 import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/onboarding/models/intention.dart';
+import 'level_verdict.dart';
 import 'skill_level.dart';
 import 'sport.dart';
 
@@ -61,6 +62,15 @@ class DiscoverProfile {
   final int? playedCount;
   final int? wonCount;
 
+  /// Qué opina de su nivel la gente que ha jugado con esta persona, y cuántos
+  /// lo han dicho. Sólo llega en `/users/:userId/profile`.
+  ///
+  /// **Es lo único del perfil que no escribe su dueño.** El nivel lo elige
+  /// uno mismo; esto lo dicen los demás después de jugar, así que es lo único
+  /// que puede corregirlo.
+  final LevelVerdict? levelVerdict;
+  final int levelVotes;
+
   DiscoverProfile({
     required this.userId,
     required this.displayName,
@@ -84,6 +94,8 @@ class DiscoverProfile {
     this.sharedSlots = 0,
     this.playedCount,
     this.wonCount,
+    this.levelVerdict,
+    this.levelVotes = 0,
   });
 
   String? get mainPhoto => photos.isNotEmpty ? photos.first : null;
@@ -125,6 +137,8 @@ class DiscoverProfile {
       sharedSlots: (p['sharedSlots'] as num?)?.toInt() ?? 0,
       playedCount: (p['playedCount'] as num?)?.toInt(),
       wonCount: (p['wonCount'] as num?)?.toInt(),
+      levelVerdict: LevelVerdictApi.fromApi(p['levelVerdict']),
+      levelVotes: (p['levelVotes'] as num?)?.toInt() ?? 0,
     );
   }
 }

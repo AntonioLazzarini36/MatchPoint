@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/network/api.dart';
+import '../../discovery/models/level_verdict.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/profile.dart' as onboarding_profile;
@@ -39,6 +40,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _load();
   }
 
+  LevelVerdict? _levelVerdict;
+  int _levelVotes = 0;
+
   Future<void> _load() async {
     setState(() {
       loading = true;
@@ -59,6 +63,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // simplemente no aparece — un perfil sin estadisticas se lee bien, uno
       // que no carga por culpa de dos numeros no.
       unawaited(_loadStats());
+      // Y lo que opinan de tu nivel, que sale de tu propia ficha pública: es
+      // el mismo cálculo, y `/me` no lo trae. Aparte y sin bloquear, igual
+      // que las cifras — verlo es útil, no poder abrir el perfil no.
+      unawaited(_loadLevelVerdict(me.id));
 
       if (p == null) {
         // No hay perfil todavia: renderizamos algo “vacio”
@@ -91,6 +99,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           achievements: p.achievements,
           avgPaceMinPerKm: p.avgPaceMinPerKm,
           avgDistanceKm: p.avgDistanceKm,
+          levelVerdict: _levelVerdict,
+          levelVotes: _levelVotes,
+          isMine: true,
         );
         loading = false;
       });
@@ -100,6 +111,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         error = e;
         loading = false;
       });
+    }
+  }
+
+  /// Lo que opinan los demás de tu nivel. Se enseña **también en tu propio
+  /// perfil** a propósito: es un aviso, no una medalla — si cinco personas
+  /// dicen que te sobra nivel, lo que quieres es enterarte y corregirlo, no
+  /// que sólo lo vean los demás.
+  Future<void> _loadLevelVerdict(String userId) async {
+    try {
+      final mine = await service.getUserProfile(userId);
+      if (!mounted) return;
+      setState(() {
+        _levelVerdict = mine.levelVerdict;
+        _levelVotes = mine.levelVotes;
+        final d = data;
+        if (d != null) {
+          data = d.copyWithVerdict(mine.levelVerdict, mine.levelVotes);
+        }
+      });
+    } catch (_) {
+      // sin veredicto, sin fila
     }
   }
 

@@ -78,6 +78,7 @@ pub struct OkResponse {
         ErrorResponse,
         OkResponse,
         crate::app::controller::PublicConfig,
+        crate::users::service::LevelVerdict,
         crate::auth::controller::VerifyEmailDto,
         crate::auth::controller::ForgotPasswordDto,
         crate::auth::controller::ResetPasswordDto,

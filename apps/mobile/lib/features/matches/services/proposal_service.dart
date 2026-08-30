@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../../../core/network/api_error.dart';
 
 import 'package:match_point/core/network/api_client.dart';
+import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 import '../models/proposal.dart';
 
@@ -130,6 +131,8 @@ class ProposalService {
     required bool played,
     String? outcome,
     bool? wouldRepeat,
+    SkillLevel? assessedLevel,
+    bool skipped = false,
   }) async {
     final res = await api.post(
       '/proposals/$proposalId/feedback',
@@ -138,6 +141,8 @@ class ProposalService {
         'played': played,
         'outcome': ?outcome,
         'wouldRepeat': ?wouldRepeat,
+        'assessedLevel': ?assessedLevel?.apiValue,
+        if (skipped) 'skipped': true,
       },
     );
 

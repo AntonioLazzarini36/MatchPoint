@@ -736,9 +736,21 @@ pub async fn save_feedback(
         return Err(bad("Esta quedada todavia no ha ocurrido"));
     }
 
+    // Saltarla es no decir nada: guardar además un resultado sería una
+    // contradicción en la misma fila.
+    if dto.skipped
+        && (dto.played
+            || dto.outcome.is_some()
+            || dto.would_repeat.is_some()
+            || dto.assessed_level.is_some())
+    {
+        return Err(bad("Una resena saltada no puede traer respuestas dentro"));
+    }
     // Coherencia de la respuesta. Un resultado de un partido que no se jugo
     // seria justo el dato que envenenaria un rating mas adelante.
-    if !dto.played && (dto.outcome.is_some() || dto.would_repeat.is_some()) {
+    if !dto.played
+        && (dto.outcome.is_some() || dto.would_repeat.is_some() || dto.assessed_level.is_some())
+    {
         return Err(bad(
             "Si la quedada no se jugo no hay resultado ni valoracion que guardar",
         ));
@@ -757,6 +769,8 @@ pub async fn save_feedback(
             played: dto.played,
             outcome: dto.outcome,
             would_repeat: dto.would_repeat,
+            assessed_level: dto.assessed_level,
+            skipped: dto.skipped,
         })
         .on_conflict((session_feedback::proposal_id, session_feedback::user_id))
         .do_update()
@@ -764,6 +778,8 @@ pub async fn save_feedback(
             session_feedback::played.eq(dto.played),
             session_feedback::outcome.eq(dto.outcome),
             session_feedback::would_repeat.eq(dto.would_repeat),
+            session_feedback::assessed_level.eq(dto.assessed_level),
+            session_feedback::skipped.eq(dto.skipped),
         ))
         .get_result::<SessionFeedback>(&mut conn)
         .await?;

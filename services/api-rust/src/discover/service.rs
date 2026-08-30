@@ -174,6 +174,17 @@ pub struct DiscoverProfile {
     /// no un resultado arbitrado. La UI debe presentarlo como tal.
     pub played_count: Option<i64>,
     pub won_count: Option<i64>,
+
+    /// Qué opina de su nivel la gente que ha jugado con esta persona, y
+    /// cuántos lo han dicho. Misma regla que los dos de arriba: sólo se
+    /// rellenan en `/users/:userId/profile`.
+    ///
+    /// **Es lo único de este perfil que no lo escribe su dueño**, y por eso
+    /// vale: el nivel declarado se elige uno mismo, esto lo dicen los demás
+    /// después de jugar. `None` mientras nadie haya valorado — enseñar "0
+    /// valoraciones" sugiere que alguien miró y no opinó.
+    pub level_verdict: Option<crate::users::service::LevelVerdict>,
+    pub level_votes: i64,
 }
 
 impl From<crate::models::Profile> for DiscoverProfile {
@@ -202,6 +213,8 @@ impl From<crate::models::Profile> for DiscoverProfile {
             shared_slots: 0,
             played_count: None,
             won_count: None,
+            level_verdict: None,
+            level_votes: 0,
         }
     }
 }
@@ -575,6 +588,8 @@ pub async fn discover(
                     // devuelve hasta 50. Se rellenan sólo en la ficha.
                     played_count: None,
                     won_count: None,
+                    level_verdict: None,
+                    level_votes: 0,
                 })
             },
         )

@@ -298,6 +298,7 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::SessionOutcome;
+    use super::sql_types::SkillLevelValue;
 
     #[sql_name = "SessionFeedback"]
     session_feedback (id) {
@@ -310,6 +311,9 @@ diesel::table! {
         outcome -> Nullable<SessionOutcome>,
         #[sql_name = "wouldRepeat"]
         would_repeat -> Nullable<Bool>,
+        #[sql_name = "assessedLevel"]
+        assessed_level -> Nullable<SkillLevelValue>,
+        skipped -> Bool,
         #[sql_name = "createdAt"]
         created_at -> Timestamptz,
     }
