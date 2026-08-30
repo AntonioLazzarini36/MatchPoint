@@ -20,7 +20,23 @@
 ## 🔴 Bloqueos duros — Google Play la rechaza automáticamente
 
 ### 1. ~~El applicationId es `com.example.match_point`~~ ✅ hecho (2026-08-21)
-Ahora es **`com.matchpoint.app`** (Android y iOS). Detalle en `status.md`.
+Ahora es **`es.matchpoint.tenis`** (Android y iOS). Detalle en `status.md`.
+
+🔁 **Cambiado el 2026-08-29**, y el motivo importa: fue `com.matchpoint.app`
+entre el 21 y el 29 de agosto, hasta que se descubrió que **ese id ya está
+ocupado en Google Play** por otra app (mismo nombre, propósito parecido, no
+disponible en España). Los application ID son únicos en toda la tienda, así
+que con él la app no se podía publicar, punto. Salió a la luz de casualidad,
+al pulsar el botón de invitar: el enlace se había construido como
+`play.google.com/…?id=<applicationId>` dando por hecho que la ficha sería la
+nuestra, y mandaba a la gente a instalar la app de otro.
+
+**Falta un paso que sólo puede dar el usuario**: dar de alta
+`es.matchpoint.tenis` en la consola de Firebase (proyecto `matchpoint-7112f`)
+y sustituir `android/app/google-services.json` por el que descargue. Hasta
+entonces el build de Android falla a propósito con `No matching client found
+for package name`. No arreglarlo editando el JSON a mano: compilaría y las
+notificaciones morirían en silencio.
 
 ⚠️ Sigue siendo **la decisión más irreversible de toda la lista**, sólo que
 ya está tomada: a partir de la primera publicación no se puede cambiar. Si
@@ -191,7 +207,7 @@ la app está rota. Si hace falta repetirlo:
 
 | Qué | Para qué sirve | Coste |
 |---|---|---|
-| ~~Decidir el applicationId~~ ✅ | Hecho: `com.matchpoint.app` | — |
+| ~~Decidir el applicationId~~ ✅ | Hecho: `es.matchpoint.tenis` (el 2026-08-29; `com.matchpoint.app` estaba ocupado en Play) | Falta rehacer `google-services.json` en Firebase |
 | **Copia del keystore** ⚠️ | Existe en **un solo disco** (`~/keys/matchpoint-release.p12`). Perderlo = no poder actualizar nunca la app publicada | Gratis, 5 min |
 | **Rotar la clave de Firebase** ⚠️ | Se envió por chat a petición tuya (2026-08-22) para configurarla desde el móvil | Gratis, 5 min |
 | **🔴 Plan de pago en Railway** | Está en el gratuito y **caduca**. Si se cae, la APK que tenga cualquiera deja de funcionar de golpe — la tuya y la de a quien se la hayas pasado. Es lo más barato de la lista y todo lo demás depende de ello | ~5 $/mes |
