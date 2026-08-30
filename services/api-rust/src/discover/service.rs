@@ -156,6 +156,24 @@ pub struct DiscoverProfile {
     /// manda hecho porque es lo que la lista enseña ("coincidís en 3
     /// huecos") y ordena.
     pub shared_slots: i32,
+
+    /// Partidos que esta persona ha jugado de verdad, y cuántos dice haber
+    /// ganado. **`None` en todas partes menos en `/users/:userId/profile`.**
+    ///
+    /// No es un dato relativo a quien mira (como los cuatro de arriba), es
+    /// una propiedad pública de esa persona; se queda en `None` fuera de la
+    /// ficha por coste: son dos consultas más por perfil y `/discover`
+    /// devuelve hasta 50 de golpe, donde además nadie las leería.
+    ///
+    /// **Los dos números no valen lo mismo y no hay que tratarlos igual.**
+    /// `played` sale de que *alguno de los dos* confirmara que se jugó, así
+    /// que hace falta otra persona para inflarlo — es la señal de confianza
+    /// más fuerte que tiene la app. `won` lo cuenta cada uno de sí mismo:
+    /// se descuentan los partidos en los que el rival también dice haber
+    /// ganado (ver `player_record`), pero aun así es lo que alguien declara,
+    /// no un resultado arbitrado. La UI debe presentarlo como tal.
+    pub played_count: Option<i64>,
+    pub won_count: Option<i64>,
 }
 
 impl From<crate::models::Profile> for DiscoverProfile {
@@ -182,6 +200,8 @@ impl From<crate::models::Profile> for DiscoverProfile {
             likes_you: false,
             shared_availability: 0,
             shared_slots: 0,
+            played_count: None,
+            won_count: None,
         }
     }
 }
@@ -551,6 +571,10 @@ pub async fn discover(
                     likes_you: false,
                     shared_availability,
                     shared_slots: slot_count(shared_availability),
+                    // Aquí no: son dos consultas por candidato y esta lista
+                    // devuelve hasta 50. Se rellenan sólo en la ficha.
+                    played_count: None,
+                    won_count: None,
                 })
             },
         )

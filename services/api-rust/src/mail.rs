@@ -55,9 +55,36 @@ impl Mailer {
     }
 
     pub async fn send_verification_code(&self, to: &str, code: &str) -> Result<(), MailError> {
-        let subject = "Tu código de MatchPoint";
-        let html = verification_html(code);
+        self.send(
+            to,
+            "Tu código de MatchPoint",
+            &verification_html(code),
+            code,
+        )
+        .await
+    }
 
+    /// El código para volver a entrar cuando alguien ha perdido la contraseña.
+    ///
+    /// Mismo transporte y mismas garantías que el de verificación: sin
+    /// credenciales se escribe en el log, que es lo que permite probar el
+    /// flujo entero en desarrollo sin dominio de correo.
+    pub async fn send_password_reset_code(&self, to: &str, code: &str) -> Result<(), MailError> {
+        self.send(
+            to,
+            "Recupera tu contraseña de MatchPoint",
+            &reset_html(code),
+            code,
+        )
+        .await
+    }
+
+    /// El envío en sí, común a los dos correos.
+    ///
+    /// `code` se pasa aparte del cuerpo sólo para poder escribirlo en el log
+    /// del transporte de desarrollo: sin él habría que leer el HTML entero
+    /// para encontrar los seis dígitos.
+    async fn send(&self, to: &str, subject: &str, html: &str, code: &str) -> Result<(), MailError> {
         match self {
             Mailer::Log => {
                 // A nivel `warn` y con el código bien visible: en dev esto
@@ -101,6 +128,17 @@ impl Mailer {
             }
         }
     }
+}
+
+fn reset_html(code: &str) -> String {
+    format!(
+        r#"<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 8px">Recupera tu contraseña</h2>
+  <p style="margin:0 0 20px;color:#555">Escribe este código en la app para elegir una nueva. Caduca en 15 minutos.</p>
+  <p style="font-size:34px;letter-spacing:9px;font-weight:bold;margin:0 0 20px">{code}</p>
+  <p style="margin:0;color:#777;font-size:13px">Si no has pedido cambiarla, ignora este correo: tu contraseña sigue como estaba.</p>
+</div>"#
+    )
 }
 
 fn verification_html(code: &str) -> String {

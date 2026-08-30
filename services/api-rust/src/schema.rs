@@ -71,6 +71,22 @@ diesel::table! {
 }
 
 diesel::table! {
+    #[sql_name = "PasswordReset"]
+    password_resets (id) {
+        id -> Text,
+        #[sql_name = "userId"]
+        user_id -> Text,
+        #[sql_name = "codeHash"]
+        code_hash -> Text,
+        #[sql_name = "expiresAt"]
+        expires_at -> Timestamptz,
+        attempts -> Int4,
+        #[sql_name = "createdAt"]
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     #[sql_name = "DeviceToken"]
     device_tokens (id) {
         id -> Text,
@@ -305,6 +321,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     preferences,
     refresh_tokens,
     email_verifications,
+    password_resets,
     device_tokens,
     swipes,
     matches,

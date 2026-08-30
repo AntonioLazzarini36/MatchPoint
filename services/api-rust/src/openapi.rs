@@ -31,6 +31,7 @@ pub struct OkResponse {
     paths(
         crate::app::controller::get_hello,
         crate::app::controller::health,
+        crate::app::controller::app_config,
         crate::auth::controller::email_available,
         crate::auth::controller::register,
         crate::auth::controller::login,
@@ -38,6 +39,8 @@ pub struct OkResponse {
         crate::auth::controller::logout,
         crate::auth::controller::send_verification,
         crate::auth::controller::verify_email,
+        crate::auth::controller::forgot_password,
+        crate::auth::controller::reset_password,
         crate::me::controller::get_me,
         crate::me::controller::delete_account,
         crate::me::controller::update_profile,
@@ -74,7 +77,10 @@ pub struct OkResponse {
     components(schemas(
         ErrorResponse,
         OkResponse,
+        crate::app::controller::PublicConfig,
         crate::auth::controller::VerifyEmailDto,
+        crate::auth::controller::ForgotPasswordDto,
+        crate::auth::controller::ResetPasswordDto,
         crate::models::Sport,
         crate::models::SwipeType,
         crate::models::SkillLevel,

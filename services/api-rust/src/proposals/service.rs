@@ -403,9 +403,18 @@ pub async fn respond(
 
     let name = display_name_of(&mut conn, user_id).await;
     let (titulo, cuerpo) = match new_status {
+        // El único aviso que además dice **qué falta hacer**. Aceptar cierra
+        // el acuerdo entre dos personas y nada más: la pista sigue sin
+        // alquilar, porque la app no reserva nada ni tiene convenio con
+        // ningún club. Sin esta coletilla, "ha aceptado" se lee como "ya
+        // está" y la forma normal de fallar pasa a ser la peor — los dos
+        // aparecen y no hay pista.
         ProposalStatus::Accepted => (
             format!("{name} ha aceptado"),
-            when_label(existing.scheduled_at, existing.sport),
+            format!(
+                "{} · Falta reservar la pista",
+                when_label(existing.scheduled_at, existing.sport)
+            ),
         ),
         ProposalStatus::Declined => (
             format!("{name} no puede"),

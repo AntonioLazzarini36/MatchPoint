@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::schema::{
-    device_tokens, email_verifications, matches, messages, preferences, profiles, proposals,
-    refresh_tokens, reports, session_feedback, skill_levels, swipes, users,
+    device_tokens, email_verifications, matches, messages, password_resets, preferences, profiles,
+    proposals, refresh_tokens, reports, session_feedback, skill_levels, swipes, users,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DbEnum, Serialize, Deserialize, ToSchema)]
@@ -189,6 +189,32 @@ pub struct EmailVerification {
 #[derive(Debug, Insertable)]
 #[diesel(table_name = email_verifications)]
 pub struct NewEmailVerification {
+    pub id: String,
+    pub user_id: String,
+    pub code_hash: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// Un código de recuperación de contraseña pendiente.
+///
+/// Se guarda el SHA-256 del código, no el código: mismo criterio que
+/// `EmailVerification` — lo que protege seis dígitos es el plazo de vida y el
+/// límite de intentos, no el coste de hashearlos.
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = password_resets)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct PasswordReset {
+    pub id: String,
+    pub user_id: String,
+    pub code_hash: String,
+    pub expires_at: DateTime<Utc>,
+    pub attempts: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = password_resets)]
+pub struct NewPasswordReset {
     pub id: String,
     pub user_id: String,
     pub code_hash: String,

@@ -25,6 +25,12 @@ pub fn router(state: AppState) -> Router<AppState> {
         .route("/auth/email-available", get(email_available))
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
+        // Los dos de recuperación van aquí y no en el grupo libre: no piden
+        // token (quien los usa es justamente quien no puede entrar), así que
+        // sin límite serían un buzón abierto para probar códigos y para
+        // bombardear el correo de otra persona.
+        .route("/auth/forgot-password", post(forgot_password))
+        .route("/auth/reset-password", post(reset_password))
         .route_layer(middleware::from_fn_with_state(
             state,
             rate_limit::rate_limit,
@@ -162,7 +168,9 @@ impl IntoResponse for AuthRejection {
             AuthError::MailFailed(_) => StatusCode::BAD_GATEWAY,
             // 503 y no 400: la peticion es correcta, es el servicio el que
             // no esta disponible — y volvera a estarlo al encender el flag.
-            AuthError::EmailVerificationDisabled => StatusCode::SERVICE_UNAVAILABLE,
+            AuthError::EmailVerificationDisabled | AuthError::MailDisabled => {
+                StatusCode::SERVICE_UNAVAILABLE
+            }
             AuthError::Db(_) | AuthError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         // `MailFailed` lleva dentro el error del proveedor de correo. Es un
@@ -227,5 +235,83 @@ async fn verify_email(
     match service::verify_email(&state, &user.user_id, dto.code.trim()).await {
         Ok(()) => Json(json!({ "ok": true })).into_response(),
         Err(e) => AuthRejection(e).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct ForgotPasswordDto {
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct ResetPasswordDto {
+    pub email: String,
+    pub code: String,
+    #[serde(rename = "newPassword")]
+    pub new_password: String,
+}
+
+/// Pide un código para recuperar la contraseña.
+///
+/// **Contesta 204 exista la cuenta o no**, a propósito: si distinguiera, este
+/// endpoint —que no lleva token, porque quien lo usa no puede entrar— serviría
+/// para averiguar quién tiene cuenta aquí probando correos ajenos.
+#[utoipa::path(
+    post,
+    path = "/auth/forgot-password",
+    tag = "auth",
+    request_body = ForgotPasswordDto,
+    responses(
+        (status = 204, description = "Si esa cuenta existe, se le ha enviado un código"),
+        (status = 429, description = "Demasiadas peticiones, o código pedido hace muy poco", body = ErrorResponse),
+    )
+)]
+async fn forgot_password(
+    State(state): State<AppState>,
+    Json(dto): Json<ForgotPasswordDto>,
+) -> impl IntoResponse {
+    match service::request_password_reset(&state, &dto.email).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(err @ AuthError::MailDisabled) => {
+            crate::http_error::respond(StatusCode::SERVICE_UNAVAILABLE, err)
+        }
+        Err(err @ AuthError::CodeRequestedTooSoon(_)) => {
+            crate::http_error::respond(StatusCode::TOO_MANY_REQUESTS, err)
+        }
+        Err(err @ AuthError::MailFailed(_)) => {
+            crate::http_error::respond(StatusCode::BAD_GATEWAY, err)
+        }
+        Err(err) => crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err),
+    }
+}
+
+/// Cambia la contraseña con el código recibido. Cierra todas las sesiones.
+#[utoipa::path(
+    post,
+    path = "/auth/reset-password",
+    tag = "auth",
+    request_body = ResetPasswordDto,
+    responses(
+        (status = 204, description = "Contraseña cambiada; hay que volver a iniciar sesión"),
+        (status = 400, description = "Código incorrecto, caducado, o contraseña inválida", body = ErrorResponse),
+        (status = 429, description = "Demasiados intentos", body = ErrorResponse),
+    )
+)]
+async fn reset_password(
+    State(state): State<AppState>,
+    Json(dto): Json<ResetPasswordDto>,
+) -> impl IntoResponse {
+    match service::confirm_password_reset(&state, &dto.email, &dto.code, &dto.new_password).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(err @ AuthError::MailDisabled) => {
+            crate::http_error::respond(StatusCode::SERVICE_UNAVAILABLE, err)
+        }
+        Err(err @ AuthError::TooManyCodeAttempts) => {
+            crate::http_error::respond(StatusCode::TOO_MANY_REQUESTS, err)
+        }
+        Err(
+            err @ (AuthError::InvalidCode | AuthError::CodeExpired | AuthError::InvalidPassword),
+        ) => crate::http_error::respond(StatusCode::BAD_REQUEST, err),
+        Err(err) => crate::http_error::respond(StatusCode::INTERNAL_SERVER_ERROR, err),
     }
 }

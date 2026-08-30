@@ -94,6 +94,7 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         avg_distance_km,
     ) = row;
     let skill_levels = fetch_skill_levels(&mut conn, &user_id).await?;
+    let record = player_record(&mut conn, &user_id).await?;
 
     Ok(DiscoverProfile {
         // Todos estos son relativos a quien mira, no propiedades publicas
@@ -120,7 +121,95 @@ pub async fn get_profile(state: &AppState, user_id: &str) -> Result<DiscoverProf
         avg_distance_km,
         achievements,
         skill_levels,
+        // Éste es el único endpoint que los rellena — ver el comentario del
+        // campo en `discover/service.rs`.
+        played_count: Some(record.played),
+        won_count: Some(record.won),
     })
+}
+
+/// Cuántos partidos ha jugado alguien y cuántos dice haber ganado.
+pub struct PlayerRecord {
+    pub played: i64,
+    pub won: i64,
+}
+
+/// Se calcula en Rust y no en SQL a propósito: son dos filas por partido como
+/// mucho (`SessionFeedback` tiene una por persona y propuesta), así que traerlas
+/// y contarlas cuesta nada, y las reglas de abajo son bastante más legibles
+/// aquí que dentro de una consulta.
+///
+/// **Las dos cifras se cuentan distinto porque no valen lo mismo:**
+///
+/// - `played` cuenta un partido si **cualquiera de los dos** confirmó que se
+///   jugó. Es la misma regla que `playedTogether` en `/matches`, y la razón es
+///   que hace falta otra persona para inflarla: nadie puede fabricarse
+///   partidos solo.
+/// - `won` sale de lo que declara cada uno, que sí es inflable. El único
+///   filtro posible sin árbitro es el desacuerdo evidente: si el rival
+///   también dice haber ganado ese mismo partido, no cuenta para ninguno. No
+///   convierte el número en verdad, pero quita el caso descarado — y evita
+///   que la app dé por buena una contradicción que ella misma tiene delante.
+pub async fn player_record(
+    conn: &mut diesel_async::AsyncPgConnection,
+    user_id: &str,
+) -> Result<PlayerRecord, UsersError> {
+    use crate::models::SessionOutcome;
+    use crate::schema::{matches, proposals, session_feedback};
+
+    // Los partidos de esta persona: las propuestas de sus matches.
+    let proposal_ids = proposals::table
+        .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
+        .filter(
+            matches::user_a_id
+                .eq(user_id)
+                .or(matches::user_b_id.eq(user_id)),
+        )
+        .select(proposals::id)
+        .load::<String>(conn)
+        .await?;
+
+    if proposal_ids.is_empty() {
+        return Ok(PlayerRecord { played: 0, won: 0 });
+    }
+
+    let rows = session_feedback::table
+        .filter(session_feedback::proposal_id.eq_any(&proposal_ids))
+        .select((
+            session_feedback::proposal_id,
+            session_feedback::user_id,
+            session_feedback::played,
+            session_feedback::outcome,
+        ))
+        .load::<(String, String, bool, Option<SessionOutcome>)>(conn)
+        .await?;
+
+    let mut played = 0i64;
+    let mut won = 0i64;
+
+    for proposal_id in &proposal_ids {
+        let for_this: Vec<_> = rows.iter().filter(|r| &r.0 == proposal_id).collect();
+        if for_this.is_empty() {
+            continue;
+        }
+
+        // Basta con que uno lo diga.
+        if for_this.iter().any(|r| r.2) {
+            played += 1;
+        }
+
+        let mine_won = for_this
+            .iter()
+            .any(|r| r.1 == user_id && r.3 == Some(SessionOutcome::Won));
+        let theirs_won = for_this
+            .iter()
+            .any(|r| r.1 != user_id && r.3 == Some(SessionOutcome::Won));
+        if mine_won && !theirs_won {
+            won += 1;
+        }
+    }
+
+    Ok(PlayerRecord { played, won })
 }
 
 /// A propósito NO borra el match — reportar es solo dejar constancia para

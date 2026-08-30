@@ -24,6 +24,7 @@ pub mod notifications;
 pub mod openapi;
 pub mod proposals;
 pub mod push;
+pub mod reminders;
 pub mod schema;
 pub mod state;
 pub mod swipes;
@@ -141,6 +142,8 @@ pub async fn run() {
         pusher: push::Pusher::from_config(&cfg_for_services),
     };
 
+    let state_for_reminders = state.clone();
+
     // Con la lista vacía se permite cualquier origen, que es lo comodo en
     // dev (Flutter web arranca en un puerto distinto cada vez). En
     // produccion `AppConfig::validate` no deja arrancar asi.
@@ -182,6 +185,11 @@ pub async fn run() {
     let router = app::build_router(state)
         .layer(cors)
         .layer(DefaultBodyLimit::max(8 * 1024 * 1024));
+
+    // Los únicos avisos que no los dispara nadie: "mañana juegas" y "cuéntanos
+    // qué tal fue". Van en el proceso porque el plan de Railway no tiene cron
+    // (ver `reminders.rs`).
+    reminders::spawn(state_for_reminders);
 
     let listener = bind_dual_stack(port).await;
 

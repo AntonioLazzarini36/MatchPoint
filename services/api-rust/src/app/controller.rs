@@ -19,6 +19,37 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(get_hello))
         .route("/health", get(health))
+        .route("/app/config", get(app_config))
+}
+
+/// Lo que el cliente necesita saber **antes** de tener sesión.
+///
+/// De momento una sola cosa: si esta instalación puede mandar correos. Hace
+/// falta en la pantalla de login, que es donde vive "he olvidado mi
+/// contraseña" — y ese enlace, con el correo apagado, lleva a un 503. Un
+/// enlace que siempre falla se lee como una app rota, así que el cliente lo
+/// esconde; pero no puede preguntarlo por `/me`, que va autenticado y aquí
+/// justamente no hay sesión.
+///
+/// No expone nada: es un booleano de configuración, no un dato de nadie.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicConfig {
+    /// Si es `false`, verificar el email y recuperar la contraseña devuelven
+    /// 503 y el cliente debería esconder las dos cosas.
+    pub email_enabled: bool,
+}
+
+#[utoipa::path(
+    get,
+    path = "/app/config",
+    tag = "misc",
+    responses((status = 200, description = "Configuración pública", body = PublicConfig))
+)]
+async fn app_config(State(state): State<AppState>) -> Json<PublicConfig> {
+    Json(PublicConfig {
+        email_enabled: state.config.email_verification_enabled,
+    })
 }
 
 #[utoipa::path(

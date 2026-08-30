@@ -12,10 +12,12 @@ use utoipa::ToSchema;
 use crate::auth::dto::{LoginDto, RegisterDto};
 use crate::auth::jwt::{self, Claims};
 use crate::models::{
-    EmailVerification, NewEmailVerification, NewPreferences, NewProfile, NewRefreshToken, NewUser,
-    User,
+    EmailVerification, NewEmailVerification, NewPasswordReset, NewPreferences, NewProfile,
+    NewRefreshToken, NewUser, PasswordReset, User,
 };
-use crate::schema::{email_verifications, preferences, profiles, refresh_tokens, users};
+use crate::schema::{
+    email_verifications, password_resets, preferences, profiles, refresh_tokens, users,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -53,6 +55,13 @@ pub enum AuthError {
     UserNotFound,
     #[error("La verificación de email está desactivada ahora mismo")]
     EmailVerificationDisabled,
+    /// Recuperar la contraseña va **por correo**, así que depende de lo mismo
+    /// que la verificación: sin un dominio verificado en el proveedor, los
+    /// correos no llegan a nadie que no sea el titular de la cuenta del
+    /// proveedor. Con el correo apagado, ofrecer el flujo sería mandar a la
+    /// gente a un callejón sin salida, así que se dice claramente.
+    #[error("Ahora mismo no podemos enviar correos, así que no se puede recuperar la contraseña")]
+    MailDisabled,
     #[error("Tu email ya está verificado")]
     EmailAlreadyVerified,
     #[error("Espera {0}s antes de pedir otro código")]
@@ -560,6 +569,177 @@ pub async fn verify_email(state: &AppState, user_id: &str, code: &str) -> Result
 
     // Ya no vale para nada y guardarlo sólo alarga la tabla.
     diesel::delete(email_verifications::table.filter(email_verifications::user_id.eq(user_id)))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+// --- Recuperar la contraseña olvidada ---
+
+/// Manda un código de recuperación al email dado, **si esa cuenta existe**.
+///
+/// Devuelve `Ok(())` tanto si existe como si no, y eso es deliberado: si
+/// contestara distinto, este endpoint —que no pide autenticación, porque quien
+/// lo usa justo no puede entrar— serviría para averiguar quién tiene cuenta
+/// aquí escribiendo correos ajenos. `/auth/email-available` sí lo dice, pero
+/// ese es un chequeo del registro y está limitado por IP; convertir además la
+/// recuperación en un detector de cuentas sería regalarlo.
+///
+/// El límite por IP de `/auth/login` aplica igual aquí (ver `controller.rs`).
+pub async fn request_password_reset(state: &AppState, email: &str) -> Result<(), AuthError> {
+    if !state.config.email_verification_enabled {
+        return Err(AuthError::MailDisabled);
+    }
+
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
+
+    let normalized = email.trim().to_lowercase();
+    let user = users::table
+        .filter(users::email.eq(&normalized))
+        .first::<User>(&mut conn)
+        .await
+        .optional()?;
+
+    // Sin cuenta: se corta aquí y se contesta lo mismo que si la hubiera.
+    let Some(user) = user else {
+        tracing::info!("reset: petición para un email sin cuenta, no se envía nada");
+        return Ok(());
+    };
+
+    let now = Utc::now();
+
+    // Mismo cooldown que la verificación, mirando el código más reciente.
+    let last_sent = password_resets::table
+        .filter(password_resets::user_id.eq(&user.id))
+        .order(password_resets::created_at.desc())
+        .select(password_resets::created_at)
+        .first::<DateTime<Utc>>(&mut conn)
+        .await
+        .optional()?;
+
+    if let Some(sent_at) = last_sent {
+        let elapsed = now.signed_duration_since(sent_at).num_seconds();
+        if elapsed < RESEND_COOLDOWN_SECONDS {
+            return Err(AuthError::CodeRequestedTooSoon(
+                RESEND_COOLDOWN_SECONDS - elapsed,
+            ));
+        }
+    }
+
+    let code = generate_code();
+
+    // Un solo código válido a la vez: dos duplicarían la superficie de
+    // adivinación sin ganar nada.
+    diesel::delete(password_resets::table.filter(password_resets::user_id.eq(&user.id)))
+        .execute(&mut conn)
+        .await?;
+
+    diesel::insert_into(password_resets::table)
+        .values(NewPasswordReset {
+            id: uuid::Uuid::new_v4().to_string(),
+            user_id: user.id.clone(),
+            code_hash: code_digest(&code),
+            expires_at: now + Duration::minutes(CODE_TTL_MINUTES),
+        })
+        .execute(&mut conn)
+        .await?;
+
+    state
+        .mailer
+        .send_password_reset_code(&user.email, &code)
+        .await
+        .map_err(|e| AuthError::MailFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Cambia la contraseña si el código es correcto.
+///
+/// Al terminar **borra todos los refresh token** de esa cuenta. Es la parte
+/// que de verdad importa: si alguien perdió la contraseña porque otra persona
+/// se la sabía, cambiarla sin cerrar las sesiones abiertas no arregla nada —
+/// la sesión robada seguiría viva treinta días.
+pub async fn confirm_password_reset(
+    state: &AppState,
+    email: &str,
+    code: &str,
+    new_password: &str,
+) -> Result<(), AuthError> {
+    if !state.config.email_verification_enabled {
+        return Err(AuthError::MailDisabled);
+    }
+
+    // Mismo criterio que el registro: 8-72, el tope por el truncado de
+    // bcrypt (ver el comentario de `register`).
+    if !(8..=72).contains(&new_password.len()) {
+        return Err(AuthError::InvalidPassword);
+    }
+
+    let mut conn = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AuthError::Pool(e.to_string()))?;
+
+    let normalized = email.trim().to_lowercase();
+    let user = users::table
+        .filter(users::email.eq(&normalized))
+        .first::<User>(&mut conn)
+        .await
+        .optional()?
+        // Aquí sí se puede ser concreto sin filtrar nada: para llegar a este
+        // punto hay que traer un código de seis dígitos que sólo se manda al
+        // buzón de esa cuenta.
+        .ok_or(AuthError::InvalidCode)?;
+
+    let now = Utc::now();
+    let pending = password_resets::table
+        .filter(password_resets::user_id.eq(&user.id))
+        .order(password_resets::created_at.desc())
+        .first::<PasswordReset>(&mut conn)
+        .await
+        .optional()?
+        .ok_or(AuthError::InvalidCode)?;
+
+    if pending.expires_at < now {
+        return Err(AuthError::CodeExpired);
+    }
+    if pending.attempts >= MAX_CODE_ATTEMPTS {
+        return Err(AuthError::TooManyCodeAttempts);
+    }
+
+    if pending.code_hash != code_digest(code) {
+        // El intento se cuenta **antes** de contestar: si no, probar códigos
+        // saldría gratis.
+        diesel::update(password_resets::table.filter(password_resets::id.eq(&pending.id)))
+            .set(password_resets::attempts.eq(pending.attempts + 1))
+            .execute(&mut conn)
+            .await?;
+        return Err(AuthError::InvalidCode);
+    }
+
+    let hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST)
+        .map_err(|e| AuthError::MailFailed(e.to_string()))?;
+    diesel::update(users::table.filter(users::id.eq(&user.id)))
+        .set((
+            users::password_hash.eq(hash),
+            users::updated_at.eq(Utc::now()),
+        ))
+        .execute(&mut conn)
+        .await?;
+
+    diesel::delete(password_resets::table.filter(password_resets::user_id.eq(&user.id)))
+        .execute(&mut conn)
+        .await?;
+
+    // Fuera todas las sesiones abiertas, incluida la de quien pudiera haber
+    // entrado con la contraseña vieja.
+    diesel::delete(refresh_tokens::table.filter(refresh_tokens::user_id.eq(&user.id)))
         .execute(&mut conn)
         .await?;
 
