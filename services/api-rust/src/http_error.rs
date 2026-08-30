@@ -44,6 +44,29 @@ pub fn respond(status: StatusCode, err: impl std::fmt::Display) -> Response {
     (status, Json(json!({ "message": err.to_string() }))).into_response()
 }
 
+/// Un 5xx cuyo mensaje **sí** se enseña, porque no delata nada.
+///
+/// La regla de arriba existe contra los fallos internos: un error de Diesel
+/// lleva dentro nombres de tablas y restricciones, y ésos no pueden salir.
+/// Pero no todos los 5xx son eso. Un 503 de "esta instalación tiene el correo
+/// apagado" es una decisión de configuración nuestra, dicha a propósito, y
+/// esconderla no protege nada — sólo deja a quien lo lee con "inténtalo de
+/// nuevo en unos segundos" delante de algo que no se va a arreglar solo por
+/// esperar, porque no es un fallo pasajero.
+///
+/// **Sólo para mensajes constantes escritos por nosotros.** En cuanto el
+/// texto venga de un error de una capa de abajo (base de datos, HTTP de un
+/// tercero, sistema de ficheros), es `respond` y no esto: ahí es justo donde
+/// se filtran las cosas. Si dudas, `respond`.
+pub fn respond_public(status: StatusCode, message: impl std::fmt::Display) -> Response {
+    if status.is_server_error() {
+        // Se sigue registrando: que el cliente lo vea no quita que sea un
+        // 5xx y que en el log haga falta para saber cuántos hay.
+        tracing::warn!(%status, "{message}");
+    }
+    (status, Json(json!({ "message": message.to_string() }))).into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,5 +111,27 @@ mod tests {
     async fn un_404_conserva_el_mensaje() {
         let res = respond(StatusCode::NOT_FOUND, "Perfil no encontrado");
         assert!(body_of(res).await.contains("Perfil no encontrado"));
+    }
+
+    /// El caso del correo apagado: es un 503, pero el motivo se enseña. Con
+    /// el genérico, quien lo lee entiende "vuelve a intentarlo" delante de
+    /// algo que sólo se arregla encendiendo un flag en el servidor.
+    #[tokio::test]
+    async fn un_503_de_configuracion_si_explica_el_motivo() {
+        let res = respond_public(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Ahora mismo no podemos enviar correos",
+        );
+        let body = body_of(res).await;
+        assert!(body.contains("no podemos enviar correos"));
+        assert!(!body.contains("Inténtalo de nuevo"));
+    }
+
+    /// Y la puerta que abre `respond_public` no toca la regla de `respond`:
+    /// un fallo interno sigue sin salir por la vía normal.
+    #[tokio::test]
+    async fn respond_sigue_ocultando_los_5xx() {
+        let res = respond(StatusCode::SERVICE_UNAVAILABLE, "Database error: boom");
+        assert!(!body_of(res).await.contains("Database"));
     }
 }

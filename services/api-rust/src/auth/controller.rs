@@ -173,6 +173,16 @@ impl IntoResponse for AuthRejection {
             }
             AuthError::Db(_) | AuthError::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
+        // Los dos "esto está apagado" son 5xx pero su mensaje se enseña: es
+        // configuración nuestra dicha a propósito, no un fallo que delate
+        // nada, y el genérico ("inténtalo en unos segundos") miente — esperar
+        // no lo arregla. Ver `http_error::respond_public`.
+        if matches!(
+            self.0,
+            AuthError::EmailVerificationDisabled | AuthError::MailDisabled
+        ) {
+            return crate::http_error::respond_public(status, self.0);
+        }
         // `MailFailed` lleva dentro el error del proveedor de correo. Es un
         // 5xx, asi que `respond` ya se encarga de que no salga.
         crate::http_error::respond(status, self.0)
@@ -273,7 +283,7 @@ async fn forgot_password(
     match service::request_password_reset(&state, &dto.email).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err @ AuthError::MailDisabled) => {
-            crate::http_error::respond(StatusCode::SERVICE_UNAVAILABLE, err)
+            crate::http_error::respond_public(StatusCode::SERVICE_UNAVAILABLE, err)
         }
         Err(err @ AuthError::CodeRequestedTooSoon(_)) => {
             crate::http_error::respond(StatusCode::TOO_MANY_REQUESTS, err)
@@ -304,7 +314,7 @@ async fn reset_password(
     match service::confirm_password_reset(&state, &dto.email, &dto.code, &dto.new_password).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err @ AuthError::MailDisabled) => {
-            crate::http_error::respond(StatusCode::SERVICE_UNAVAILABLE, err)
+            crate::http_error::respond_public(StatusCode::SERVICE_UNAVAILABLE, err)
         }
         Err(err @ AuthError::TooManyCodeAttempts) => {
             crate::http_error::respond(StatusCode::TOO_MANY_REQUESTS, err)
