@@ -40,7 +40,19 @@ android {
         // Play prohíbe el prefijo `com.example`, y esto no se puede cambiar
         // nunca una vez publicada la app: cambiarlo significa publicar una
         // app distinta y perder usuarios, valoraciones e historial.
-        applicationId = "com.matchpoint.app"
+        //
+        // Fue `com.matchpoint.app` hasta el 2026-08-29, y ese id **no se podía
+        // usar**: ya existe una ficha publicada en Google Play con él (otra
+        // app, del mismo nombre y parecido propósito, no disponible en
+        // España). Los application ID son únicos en toda la tienda, así que
+        // publicar con él era imposible — no "difícil", imposible. Se detectó
+        // por casualidad, al abrir un enlace de invitar que se había
+        // construido a partir de este id dando por hecho que la ficha sería
+        // la nuestra.
+        //
+        // El prefijo es `es.` y no `com.matchpoint` a propósito: el segundo es
+        // el que con más probabilidad reclame quien ya tiene esa ficha.
+        applicationId = "es.matchpoint.tenis"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
