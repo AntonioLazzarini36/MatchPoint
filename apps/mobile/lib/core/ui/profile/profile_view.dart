@@ -148,7 +148,13 @@ class ProfileView extends StatelessWidget {
                 // el dibujo dice mejor.
                 if (data.availability.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  AvailabilityView(value: data.availability),
+                  AvailabilityView(
+                    value: data.availability,
+                    highlight: data.sharedAvailability.isEmpty
+                        ? null
+                        : data.sharedAvailability,
+                    personName: data.displayName,
+                  ),
                 ],
 
                 if (data.intention != null) ...[
@@ -233,17 +239,23 @@ class ProfileView extends StatelessWidget {
                 // justo de donde esta app viene huyendo. Se quedan las dos que
                 // se pueden calcular y significan algo aqui: con cuanta gente
                 // has conectado y cuantos partidos has jugado de verdad.
+                //
+                // En la ficha de otra persona son otras dos: jugados y
+                // ganados. "Compañeros" no sale ahí a propósito — con cuánta
+                // gente ha hecho match alguien no es asunto de quien mira.
                 if (showStats && stats != null) ...[
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          context,
-                          'Compañeros',
-                          '${stats!.partners}',
+                      if (stats!.partners != null) ...[
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Compañeros',
+                            '${stats!.partners}',
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: _buildStatCard(
                           context,
@@ -251,6 +263,21 @@ class ProfileView extends StatelessWidget {
                           '${stats!.played}',
                         ),
                       ),
+                      if (stats!.won != null) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          // "(dice)" y no "Ganados" a secas: este número lo
+                          // rellena esa misma persona contando sus propios
+                          // partidos, así que presentarlo como un hecho sería
+                          // prestarle una autoridad que no tiene. Los jugados
+                          // sí la tienen — hacen falta dos para subirlos.
+                          child: _buildStatCard(
+                            context,
+                            'Ganados (dice)',
+                            '${stats!.won}',
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -388,14 +415,25 @@ class ProfileView extends StatelessWidget {
   }
 }
 
-/// Las cifras que se enseñan en el perfil propio.
+/// Las cifras de un perfil, propio o de otra persona.
 class ProfileStats {
-  /// Con cuanta gente has conectado (matches).
-  final int partners;
+  /// Con cuanta gente has conectado (matches). **Sólo en el perfil propio**:
+  /// de otra persona no se sabe ni se debe — con cuánta gente ha hecho match
+  /// alguien no es asunto de quien mira su ficha.
+  final int? partners;
 
   /// Partidos jugados de verdad: los que alguna de las dos partes confirmo
   /// que ocurrieron. No propuestos ni aceptados — jugados.
   final int played;
 
-  const ProfileStats({required this.partners, required this.played});
+  /// Partidos que dice haber ganado. `null` cuando no aplica (perfil propio,
+  /// donde la pantalla ya enseña el historial completo con sus resultados).
+  ///
+  /// Es **auto-declarado**, a diferencia de [played], que necesita a otra
+  /// persona para subir. Por eso en la ficha va etiquetado como "Ganados
+  /// (dice)": enseñarlo con la misma autoridad que los jugados convertiría
+  /// la app en una tabla de mentiras cómodas.
+  final int? won;
+
+  const ProfileStats({this.partners, required this.played, this.won});
 }

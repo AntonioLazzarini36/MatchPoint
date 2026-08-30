@@ -33,11 +33,27 @@ class TennisCourtsMapScreen extends StatefulWidget {
   State<TennisCourtsMapScreen> createState() => _TennisCourtsMapScreenState();
 }
 
+/// Por qué el mapa está donde está.
+///
+/// Las tres situaciones acababan en la misma pantalla muda: centrado en tu
+/// ubicación, centrado en el sitio de reserva porque no tienes ninguna
+/// puesta, y centrado ahí porque no se ha podido leer tu perfil. Sólo la
+/// primera es normal, y las otras dos se arreglan de formas distintas — una
+/// poniéndote una ubicación y la otra reintentando.
+enum _CenterSource { profile, noLocation, failed }
+
 class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
-  // Fallback only for accounts that haven't set a location yet (see
-  // feat/manual-location) — the real default is the user's own profile
-  // location, loaded in initState.
+  // Dónde se centra el mapa cuando no se sabe dónde estás: Madrid.
+  //
+  // **Y hay que decirlo cuando pasa**, que es lo que faltaba. Antes se caía
+  // aquí en silencio, así que "no he podido leer tu perfil" y "tu perfil no
+  // tiene ubicación" se veían igual que un funcionamiento normal: el mapa
+  // aparecía en Madrid, con clubes de verdad, y desde Málaga eso no se lee
+  // como un fallo — se lee como que la búsqueda de clubes cercanos está rota.
+  // Salió a la luz al reinstalar la app con el `applicationId` nuevo, que
+  // borró la sesión: primera vez en meses que `getMe()` fallaba de verdad.
   static const _fallbackCenter = LatLng(40.4168, -3.7038);
+  static const _fallbackName = 'Madrid';
 
   final _mapController = MapController();
   final _overpass = OverpassService();
@@ -45,6 +61,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
   final _searchCtrl = TextEditingController();
 
   LatLng _center = _fallbackCenter;
+  _CenterSource _centerSource = _CenterSource.profile;
   List<TennisClub> _clubs = [];
   bool _loadingClubs = false;
   bool _searching = false;
@@ -63,17 +80,33 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
   }
 
   Future<void> _initCenter() async {
+    var source = _CenterSource.profile;
+    var center = _fallbackCenter;
+
     try {
       final me = await _profileService.getMe();
       final profile = me.profile;
       if (profile != null && profile.hasLocation) {
-        _center = LatLng(profile.latitude!, profile.longitude!);
+        center = LatLng(profile.latitude!, profile.longitude!);
+      } else {
+        // Cuenta sin ubicación puesta. No es un fallo, pero tampoco es "tus
+        // clubes": hay que decir dónde está mirando.
+        source = _CenterSource.noLocation;
       }
-    } catch (_) {
-      // Sin perfil/ubicación todavía -> se queda con el fallback, sin
-      // bloquear la pantalla por esto.
+    } catch (e) {
+      // Aquí sí ha fallado algo — sesión caducada, sin red, backend caído.
+      // Distinguirlo de "no tienes ubicación" es el punto: son la misma
+      // pantalla pero una se arregla reintentando y la otra poniéndote una
+      // ubicación, y antes las dos callaban.
+      debugPrint('Clubes: no se ha podido leer el perfil: $e');
+      source = _CenterSource.failed;
     }
+
     if (!mounted) return;
+    setState(() {
+      _center = center;
+      _centerSource = source;
+    });
     _mapController.move(_center, 13);
     await _loadClubs(_center);
   }
@@ -140,7 +173,12 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       final newCenter = LatLng(lat, lon);
 
       if (!mounted) return;
-      setState(() => _center = newCenter);
+      // Has elegido tú dónde mirar, así que el aviso de "no sé dónde estás"
+      // ya no aplica: sobra en cuanto lo has resuelto a mano.
+      setState(() {
+        _center = newCenter;
+        _centerSource = _CenterSource.profile;
+      });
       _mapController.move(newCenter, 13);
       await _loadClubs(newCenter);
     } catch (e) {
@@ -280,7 +318,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.matchpoint.app',
+                userAgentPackageName: 'es.matchpoint.tenis',
               ),
               MarkerLayer(
                 markers: [
@@ -336,6 +374,53 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
               ),
             ),
           ),
+          // Debajo del buscador y no abajo del todo: dice *dónde* está
+          // mirando el mapa, así que tiene que leerse antes de mirar los
+          // resultados, no después de sacar conclusiones de ellos.
+          if (_centerSource != _CenterSource.profile)
+            Positioned(
+              top: 70,
+              left: 12,
+              right: 12,
+              child: Material(
+                color: context.colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _centerSource == _CenterSource.failed
+                            ? Icons.cloud_off
+                            : Icons.location_off_outlined,
+                        size: 20,
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _centerSource == _CenterSource.failed
+                              ? 'No hemos podido leer tu ubicación. Esto es '
+                                    '$_fallbackName, no tu zona.'
+                              : 'Todavía no tienes ubicación en tu perfil. '
+                                    'Esto es $_fallbackName: busca tu zona '
+                                    'arriba.',
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (_centerSource == _CenterSource.failed)
+                        TextButton(
+                          onPressed: _initCenter,
+                          child: const Text('Reintentar'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (_loadingClubs)
             const Positioned(
               bottom: 24,

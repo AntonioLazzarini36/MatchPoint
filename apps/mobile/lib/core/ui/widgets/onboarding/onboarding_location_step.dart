@@ -421,7 +421,7 @@ class _ChosenPlace extends StatelessWidget {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.matchpoint.app',
+                    userAgentPackageName: 'es.matchpoint.tenis',
                   ),
                   CircleLayer(
                     circles: [

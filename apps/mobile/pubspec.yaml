@@ -22,7 +22,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # **4009**. Al volver a una build universal, cualquier numero por debajo de eso
 # se rechaza con INSTALL_FAILED_VERSION_DOWNGRADE sin explicar de donde sale
 # la cifra. Se sube por encima del mayor ya instalado y se deja de mezclar.
-version: 1.0.0+5019
+version: 1.0.0+5025
 
 environment:
   sdk: ^3.11.0
@@ -51,6 +51,8 @@ dependencies:
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
   firebase_analytics: ^12.5.0
+  share_plus: ^12.0.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

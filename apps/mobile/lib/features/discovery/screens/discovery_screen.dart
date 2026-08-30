@@ -4,6 +4,7 @@ import 'package:match_point/core/theme/app_theme.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
 import 'package:match_point/core/ui/widgets/screen_header.dart';
 import 'package:match_point/core/utils/app_sports.dart';
+import 'package:match_point/core/utils/invite.dart';
 
 import '../../../core/network/api.dart';
 import '../../../core/storage/local_flags.dart';
@@ -19,7 +20,9 @@ import 'package:match_point/features/discovery/models/swipe_type.dart';
 import '../../../core/ui/widgets/discovery/discovery_intro_banner.dart';
 import '../../../core/ui/widgets/discovery/discovery_match_dialog.dart';
 import '../../../core/ui/widgets/discovery/discovery_preferences_sheet.dart';
-import '../../../core/ui/widgets/discovery/discovery_preview_sheet.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../app/routes.dart';
 import '../../../core/ui/widgets/discovery/player_list_tile.dart';
 
 /// Buscar con quién jugar.
@@ -270,6 +273,22 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     return _buildList(context, controller);
   }
 
+  /// El **mismo** perfil que se abre desde el chat, y por la misma ruta.
+  ///
+  /// Antes esto abría una hoja modal propia (`DiscoveryPreviewSheet`) que
+  /// enseñaba una versión recortada del perfil: foto, nivel y poco más. El
+  /// problema no era que fuese modal, era que había **dos** pantallas para
+  /// una cosa — y como pasa siempre, se les fue quedando distinto lo que
+  /// enseñaba cada una (la hoja nunca supo del horario compartido ni del
+  /// historial de partidos). Con una sola, cualquier campo nuevo del perfil
+  /// aparece en los dos sitios sin acordarse de nada.
+  void _openProfile(DiscoverProfile user) {
+    context.pushNamed(
+      AppRoutes.userProfileName,
+      pathParameters: {'userId': user.userId},
+    );
+  }
+
   Widget _buildList(BuildContext context, DiscoveryController controller) {
     final people = controller.stack;
     return RefreshIndicator(
@@ -283,7 +302,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             key: ValueKey(user.userId),
             user: user,
             myLevel: _myLevel,
-            onTap: () => showDiscoveryPreviewSheet(context, user),
+            onTap: () => _openProfile(user),
             onWantToPlay: () => _handleSwipe(user, SwipeType.like),
             onDismiss: () => _handleSwipe(user, SwipeType.pass),
           );
@@ -356,6 +375,18 @@ class _EmptyState extends StatelessWidget {
                 icon: const Icon(Icons.travel_explore),
                 label: const Text('Ampliar el radio'),
               ),
+            const SizedBox(height: 4),
+            // La otra salida, y en una app de densidad local la de verdad:
+            // si no hay nadie por tu zona, ampliar el radio te enseña gente
+            // que te pilla lejos — traer a alguien que ya conoces te
+            // resuelve el problema.
+            Builder(
+              builder: (context) => TextButton.icon(
+                onPressed: () => Invite.share(context),
+                icon: const Icon(Icons.person_add_alt),
+                label: const Text('Invitar a alguien con quien juegas'),
+              ),
+            ),
           ],
         ),
       ),

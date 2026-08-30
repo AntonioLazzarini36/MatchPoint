@@ -278,13 +278,43 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   }
 
   Widget _sessionTile(BuildContext context, UpcomingSession session) {
+    return _SessionCard(
+      key: ValueKey(session.proposal.id),
+      session: session,
+      onTap: () => _openDetail(session),
+    );
+  }
+}
+
+/// Una quedada, como **evento** y no como conversación.
+///
+/// La pantalla entera se leía como una lista de chats, y con motivo: cada
+/// fila era foto grande + nombre en negrita + líneas de texto debajo, que es
+/// literalmente la maqueta de WhatsApp. Con esa jerarquía, la cara mandaba y
+/// el partido —cuándo y dónde, lo único que hay que saber para presentarse—
+/// quedaba de texto secundario.
+///
+/// Así que se invierte: primero **cuándo**, en un bloque tipo hoja de
+/// calendario que ninguna app de mensajes tiene; después la hora; después con
+/// quién, con la foto reducida a miniatura; y por último el sitio. La cara
+/// sigue ahí porque ayuda a reconocer a alguien de un vistazo, pero deja de
+/// ser el titular.
+class _SessionCard extends StatelessWidget {
+  final UpcomingSession session;
+  final VoidCallback onTap;
+
+  const _SessionCard({super.key, required this.session, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     final proposal = session.proposal;
-    final photo = session.otherPhoto;
     final colors = context.colors;
+    final t = context.textStyles;
     // El mismo `proposalStateStyle` que usa la burbuja del chat. Antes esta
     // pantalla señalaba "espera tu respuesta" con un borde verde y el chat
     // con fondo lima: el mismo estado, dos idiomas.
     final style = proposalStateStyle(context, proposal, short: true);
+    final relative = relativeDayEs(proposal.scheduledAt);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -294,32 +324,15 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
       // el color más llamativo de la app en algo que no requiere nada.
       color: style.wantsAttention ? style.background : null,
       child: InkWell(
-        onTap: () => _openDetail(session),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cuadrado redondeado y no círculo, igual que en Compañeros:
-              // el círculo es la convención de las apps de citas, y esto se
-              // lee como ficha. Era lo que más desentonaba de la pantalla.
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: photo == null
-                      ? Container(
-                          color: colors.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.person_outline,
-                            color: colors.outline,
-                          ),
-                        )
-                      : NetworkPhoto(url: photo, fit: BoxFit.cover),
-                ),
-              ),
-              const SizedBox(width: 12),
+              _DateBlock(when: proposal.scheduledAt),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,45 +350,72 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                           ),
                           const SizedBox(width: 6),
                         ],
+                        Text(
+                          formatTimeEs(proposal.scheduledAt),
+                          style: t.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (relative != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            relative,
+                            style: t.labelMedium?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _MiniAvatar(url: session.otherPhoto),
+                        const SizedBox(width: 7),
                         Expanded(
                           child: Text(
                             session.otherDisplayName,
-                            style: context.textStyles.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                            style: t.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatProposalDateTime(proposal.scheduledAt),
-                      style: context.textStyles.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (proposal.placeName != null)
-                      Text(
-                        proposal.placeName!,
-                        style: context.textStyles.bodySmall?.copyWith(
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.place_outlined,
+                          size: 14,
                           color: colors.onSurfaceVariant,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            // Se dice también cuando falta: un hueco en
+                            // blanco parece que el sitio está puesto y no se
+                            // ve, y aquí "sin sitio" es información — queda
+                            // algo por acordar.
+                            proposal.placeName ?? 'Sin sitio concreto',
+                            style: t.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                     if (style.wantsAttention) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(
-                            style.icon,
-                            size: 15,
-                            color: style.foreground,
-                          ),
+                          Icon(style.icon, size: 15, color: style.foreground),
                           const SizedBox(width: 5),
                           Text(
                             style.headline,
-                            style: context.textStyles.labelMedium?.copyWith(
+                            style: t.labelMedium?.copyWith(
                               color: style.foreground,
                               fontWeight: FontWeight.bold,
                             ),
@@ -386,10 +426,95 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Icon(Icons.chevron_right),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// La hoja de calendario: día, mes y día de la semana.
+///
+/// Es la pieza que cambia de qué va la pantalla. Con números tabulares para
+/// que las tarjetas no bailen entre un día de una cifra y otro de dos.
+class _DateBlock extends StatelessWidget {
+  final DateTime when;
+
+  const _DateBlock({required this.when});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final t = context.textStyles;
+    final d = dateBlockEs(when);
+
+    return Container(
+      width: 52,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            d.month,
+            style: t.labelSmall?.copyWith(
+              color: colors.onPrimaryContainer,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.6,
+            ),
+          ),
+          Text(
+            d.day,
+            style: t.headlineSmall?.copyWith(
+              color: colors.onPrimaryContainer,
+              fontWeight: FontWeight.bold,
+              height: 1.1,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          Text(
+            d.weekday,
+            style: t.labelSmall?.copyWith(color: colors.onPrimaryContainer),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La cara, en pequeño. Sigue sirviendo para reconocer a alguien de un
+/// vistazo, pero ya no es el titular de la fila.
+class _MiniAvatar extends StatelessWidget {
+  final String? url;
+
+  const _MiniAvatar({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: url == null
+            ? Container(
+                color: colors.surfaceContainerHighest,
+                child: Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: colors.outline,
+                ),
+              )
+            : NetworkPhoto(url: url!, fit: BoxFit.cover, iconSize: 14),
       ),
     );
   }
@@ -590,42 +715,31 @@ class _PlayedRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              width: 44,
-              height: 44,
-              child: photo == null
-                  ? Container(
-                      color: colors.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.person_outline,
-                        color: colors.outline,
-                        size: 20,
-                      ),
-                    )
-                  : NetworkPhoto(url: photo, fit: BoxFit.cover, iconSize: 20),
+          // Misma lógica que arriba, en pequeño: la fecha manda también aquí,
+          // porque lo que ordena un historial es cuándo pasó. Sin fondo, que
+          // esto es para mirar y no debe competir con lo que sí pide algo.
+          SizedBox(
+            width: 52,
+            child: Text(
+              formatPastDate(session.proposal.scheduledAt),
+              style: t.labelMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+          _MiniAvatar(url: photo),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.otherDisplayName,
-                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  formatPastDate(session.proposal.scheduledAt),
-                  style: t.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                ),
-              ],
+            child: Text(
+              session.otherDisplayName,
+              style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
           if (label != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

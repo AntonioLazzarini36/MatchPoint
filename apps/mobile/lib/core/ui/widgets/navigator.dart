@@ -6,15 +6,42 @@ import '../../../features/matches/screens/matches_screen.dart';
 import '../../../features/matches/screens/upcoming_screen.dart';
 import '../../../features/profile/screens/profile_screen.dart';
 
+/// Índices de las pestañas, con nombre.
+///
+/// Existen porque desde fuera (una notificación) hay que poder decir "abre
+/// Partidos" sin escribir un `2` que se rompe en silencio el día que se
+/// reordenen.
+class ShellTab {
+  static const discover = 0;
+  static const companions = 1;
+  static const upcoming = 2;
+  static const profile = 3;
+}
+
 class NavigatorShell extends StatefulWidget {
-  const NavigatorShell({super.key});
+  const NavigatorShell({super.key, this.initialTab = ShellTab.discover});
+
+  /// Pestaña con la que abrir. Sólo se usa al construir el shell.
+  final int initialTab;
+
+  /// Petición de cambio de pestaña desde fuera del árbol de widgets.
+  ///
+  /// Hace falta porque el shell casi nunca se reconstruye: cuando llega una
+  /// notificación con la app abierta, ya está montado y `initialTab` pasó hace
+  /// rato. Un notificador es la vía más corta para moverlo sin sacar el índice
+  /// a un gestor de estado que sólo usaría esto.
+  static final ValueNotifier<int?> requestedTab = ValueNotifier<int?>(null);
+
+  /// Lleva el shell a una pestaña. Si aún no está montado, la petición se
+  /// queda guardada y el `initState` la recoge.
+  static void goToTab(int tab) => requestedTab.value = tab;
 
   @override
   State<NavigatorShell> createState() => NavigatorShellState();
 }
 
 class NavigatorShellState extends State<NavigatorShell> {
-  int _index = 0;
+  late int _index = widget.initialTab;
 
   /// "Partidos" va justo detrás de Compañeros: el recorrido natural es
   /// match -> hablar -> quedar, y tener el plan a un toque es la mitad del
@@ -38,13 +65,33 @@ class NavigatorShellState extends State<NavigatorShell> {
     super.initState();
     _counts.addListener(_onCounts);
     _counts.start();
+
+    NavigatorShell.requestedTab.addListener(_onTabRequested);
+    // Una petición que llegó antes de que esto existiera (la app abierta
+    // *por* la notificación) se atiende aquí, sin `setState` porque todavía
+    // no ha habido un primer build que actualizar.
+    final pending = NavigatorShell.requestedTab.value;
+    if (pending != null) {
+      NavigatorShell.requestedTab.value = null;
+      _index = pending;
+    }
   }
 
   @override
   void dispose() {
     _counts.removeListener(_onCounts);
     _counts.stop();
+    NavigatorShell.requestedTab.removeListener(_onTabRequested);
     super.dispose();
+  }
+
+  void _onTabRequested() {
+    final tab = NavigatorShell.requestedTab.value;
+    if (tab == null || !mounted) return;
+    // Se consume: si no, volver al shell más tarde te devolvería otra vez a
+    // la pestaña de aquella notificación.
+    NavigatorShell.requestedTab.value = null;
+    _select(tab);
   }
 
   void _onCounts() {

@@ -22,7 +22,6 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_profile_step.d
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_play_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_location_step.dart';
 import 'package:match_point/core/ui/widgets/onboarding/onboarding_avatar_step.dart';
-import 'package:match_point/core/ui/widgets/onboarding/onboarding_preview_step.dart';
 import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
@@ -44,13 +43,12 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
-  // El wizard pasó de seis pantallas a cinco, y en otro orden:
+  // El wizard pasó de seis pantallas a cuatro, y en otro orden:
   //
   //   0. Ubicación   — primero, porque es lo que decide si hay alguien
   //   1. Perfil      — nombre, edad, género, descripción
   //   2. Tu partido  — nivel + cuándo sueles poder (lo que empareja)
   //   3. Avatar      — opcional; quien lo salta se lleva uno por defecto
-  //   4. Así te van a ver
   //
   // Lo que desapareció: elegir deporte (la app es de tenis, ver
   // `app_sports.dart`), las experiencia (años/club/logros — se rellenan
@@ -58,23 +56,26 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   // (rango de edad, género, "a qué vienes"), que son filtros con valores
   // por defecto razonables y que en una app vacía sólo sirven para dejarla
   // más vacía. Todo eso sigue existiendo en Ajustes.
+  //
+  // Y desapareció también **"Así te van a ver"**, que era el paso final.
+  // Enseñaba una tarjeta con lo que acababas de escribir y pedía
+  // confirmarla. El problema no era que sobrara información, es que llegaba
+  // en el peor momento: una pantalla más entre "ya he terminado" y estar
+  // dentro, que no pide nada y no se puede editar desde ahí — para cambiar
+  // algo hay que ir hacia atrás igualmente. Y lo que enseñaba (nombre, edad,
+  // ciudad, avatar) ya se acaba de escribir en las dos pantallas anteriores.
+  // El perfil sigue siendo visible y editable entero desde Perfil, que es
+  // donde se mira cuando de verdad hay ganas de retocarlo.
   /// Nombre de cada paso para la analitica. Por nombre y no por numero: si
   /// manana se reordenan los pasos, un embudo guardado por indices pasa a
   /// mentir sin que nadie se entere.
-  static const _stepNames = [
-    'ubicacion',
-    'perfil',
-    'nivel_horario',
-    'avatar',
-    'preview',
-  ];
+  static const _stepNames = ['ubicacion', 'perfil', 'nivel_horario', 'avatar'];
 
-  static const _totalPages = 5;
+  static const _totalPages = 4;
   static const _locationStepIndex = 0;
   static const _profileStepIndex = 1;
   static const _playStepIndex = 2;
   static const _avatarStepIndex = 3;
-  static const _previewStepIndex = 4;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
@@ -144,17 +145,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   bool get _isPlayStepEmpty =>
       _skillLevels.isEmpty && _availability.isEmpty;
 
-  int? get _age {
-    final b = birthDate;
-    if (b == null) return null;
-    final now = DateTime.now();
-    var a = now.year - b.year;
-    final hadBirthday =
-        (now.month > b.month) || (now.month == b.month && now.day >= b.day);
-    if (!hadBirthday) a--;
-    return a;
-  }
-
   String _formatDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -200,7 +190,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       }
     }
 
-    if (_currentPage < _previewStepIndex) {
+    if (_currentPage < _avatarStepIndex) {
       controller.setError(null);
       Analytics.onboardingStep(_stepNames[_currentPage]);
       await _pageController.nextPage(
@@ -210,11 +200,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       return;
     }
 
-    // _currentPage == _previewStepIndex: nada se manda al backend hasta
-    // este último paso — antes se creaba todo directo desde el paso de
-    // fotos, ahora hay un preview de por medio para que confirmes cómo
-    // se ve antes de que se cree de verdad (pedido del usuario,
-    // 2026-08-03).
+    // Último paso: nada existe en el backend hasta aquí, así que este botón
+    // es el que crea la cuenta entera.
     await _completeRegistration();
   }
 
@@ -325,7 +312,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
         );
       }
 
-      Analytics.onboardingStep(_stepNames[_previewStepIndex]);
+      Analytics.onboardingStep(_stepNames[_avatarStepIndex]);
       Analytics.signupCompleted();
 
       if (mounted) context.go(AppRoutes.shell);
@@ -403,10 +390,12 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
           // sin foto y por tanto fuera de Descubrir.
           onNext: controller.isLoading ? null : _goNextOrFinish,
           isLoading: controller.isLoading,
-          nextLabel: _currentPage == _previewStepIndex
-              ? 'Confirmar y crear perfil'
-              : _currentPage == _avatarStepIndex
-              ? (_avatarAsset == null ? 'Saltar' : 'Ver preview')
+          // El paso del avatar es ahora el último, así que su botón crea la
+          // cuenta — y lo dice, incluso cuando se salta sin elegir ninguno
+          // (se lleva el de reserva, ver `_fallbackAvatar`): "Saltar" en el
+          // botón que de verdad te registra sería mentir sobre lo que hace.
+          nextLabel: _currentPage == _avatarStepIndex
+              ? 'Crear mi perfil'
               : (_currentPage == _playStepIndex && _isPlayStepEmpty
                     ? 'Saltar'
                     : 'Siguiente'),
@@ -445,19 +434,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               OnboardingAvatarStep(
                 selectedAsset: _avatarAsset,
                 onSelect: (asset) => setState(() => _avatarAsset = asset),
-              ),
-              OnboardingPreviewStep(
-                photos: const [],
-                // Todavía no hay bytes del avatar (se cargan al crear el
-                // perfil), así que el preview lo pinta desde el asset.
-                avatarAsset: _avatarAsset ?? _fallbackAvatar,
-                displayName: displayNameCtrl.text.trim(),
-                age: _age,
-                city: _selectedLocation?.displayName,
-                bio: bioCtrl.text.trim().isEmpty ? null : bioCtrl.text.trim(),
-                sports: enabledSports,
-                skillLevels: _skillLevels,
-                achievements: const [],
               ),
             ],
           ),

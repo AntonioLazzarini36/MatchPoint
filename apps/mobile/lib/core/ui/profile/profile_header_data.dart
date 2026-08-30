@@ -16,6 +16,10 @@ class ProfileHeaderData {
 
   /// Horario semanal habitual. Vacío = no lo ha dicho.
   final WeeklyAvailability availability;
+
+  /// Los huecos en los que coincidís, para destacarlos dentro de [availability].
+  /// Vacío en el perfil propio: ahí no hay con quién cruzarlo.
+  final WeeklyAvailability sharedAvailability;
   final List<String> photos;
   final List<Sport> sports;
 
@@ -37,6 +41,7 @@ class ProfileHeaderData {
     this.bio,
     this.intention,
     this.availability = WeeklyAvailability.empty,
+    this.sharedAvailability = WeeklyAvailability.empty,
     this.skillLevels = const {},
     this.yearsPlaying,
     this.club,

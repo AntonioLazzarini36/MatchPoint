@@ -57,6 +57,41 @@ class AuthService {
 
   /// Devuelve true si el código era correcto. Lanza con el motivo real
   /// (caducado, demasiados intentos) si no.
+  /// Pide un código para recuperar la contraseña.
+  ///
+  /// **El backend contesta lo mismo exista la cuenta o no** (ver
+  /// `auth::service::request_password_reset`), así que la app no puede — ni
+  /// debe — decir "ese correo no está registrado": eso convertiría la
+  /// pantalla en un detector de quién tiene cuenta aquí.
+  Future<void> requestPasswordReset(String email) async {
+    final res = await api.post(
+      '/auth/forgot-password',
+      body: {'email': email},
+    );
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw apiError(res, fallback: 'No se ha podido enviar el código');
+    }
+  }
+
+  /// Cambia la contraseña con el código recibido por correo.
+  ///
+  /// Al terminar, el backend borra todas las sesiones de esa cuenta, así que
+  /// después de esto hay que iniciar sesión otra vez — también en el móvil
+  /// donde estuviera abierta.
+  Future<void> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final res = await api.post(
+      '/auth/reset-password',
+      body: {'email': email, 'code': code, 'newPassword': newPassword},
+    );
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw apiError(res, fallback: 'No se ha podido cambiar la contraseña');
+    }
+  }
+
   Future<void> verifyEmail(String code) async {
     final res = await api.post(
       '/auth/verify-email',

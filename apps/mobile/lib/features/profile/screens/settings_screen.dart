@@ -10,6 +10,7 @@ import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/ui/dialogs/delete_account_dialog.dart';
 import '../../../core/ui/location/location_search_screen.dart';
+import '../../../core/utils/invite.dart';
 import '../../../core/utils/pace_format.dart';
 import '../../../core/utils/sport_words.dart';
 import '../../auth/screens/email_verification_screen.dart';
@@ -216,6 +217,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _changeIntention() async {
     final chosen = await showModalBottomSheet<_IntentionChoice>(
       context: context,
+      // **Sin esto la pantalla no se podía usar.** Una hoja normal se queda
+      // en media pantalla, y aquí hay título, cinco opciones (cuatro con
+      // subtítulo) y un botón: no caben. Lo que se salía por abajo era justo
+      // el botón de "Guardar", así que se podía elegir y no había manera de
+      // confirmar — se leía como que la opción no se podía seleccionar.
+      isScrollControlled: true,
       builder: (_) => _IntentionSheet(initial: _profile?.intention),
     );
     if (chosen == null || !mounted) return;
@@ -658,6 +665,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: context.colors.outline,
                             ),
                       onTap: _savingExperience ? null : _changeExperience,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                // Por encima de "Cuenta" y no enterrado abajo del todo: la
+                // app sólo funciona si hay gente de tu zona dentro, así que
+                // traer a alguien no es una opción secundaria.
+                _SettingsGroup(
+                  children: [
+                    Builder(
+                      builder: (context) => _SettingsRow(
+                        icon: Icons.person_add_alt,
+                        iconBackground: context.colors.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        iconColor: context.colors.primary,
+                        title: 'Invitar a alguien',
+                        subtitle: 'Cuanta más gente de tu zona, más partidos',
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: context.colors.outline,
+                        ),
+                        onTap: () => Invite.share(context),
+                      ),
                     ),
                   ],
                 ),
@@ -1411,14 +1442,25 @@ class _IntentionSheetState extends State<_IntentionSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
+        // Y con scroll además del `isScrollControlled`: en un móvil pequeño,
+        // o con el tamaño de letra del sistema subido, esto sigue sin caber
+        // por mucha altura que se le deje.
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('A qué vienes', style: context.textStyles.titleLarge),
-            const SizedBox(height: 16),
+            const SizedBox(height: 4),
+            Text(
+              'Aparece en tu perfil para que sepan qué buscas. Si no eliges '
+              'nada, no se enseña.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
             for (final option in Intention.values)
               _choice(
                 icon: option.icon,

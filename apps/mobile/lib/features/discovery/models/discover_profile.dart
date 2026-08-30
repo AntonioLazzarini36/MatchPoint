@@ -51,6 +51,16 @@ class DiscoverProfile {
   /// Cuántos son. Viene hecho del backend porque además ordena el feed.
   final int sharedSlots;
 
+  /// Partidos jugados y ganados. **Sólo vienen en `/users/:userId/profile`**
+  /// — en la lista de Descubrir son null, porque calcularlos por cada uno de
+  /// los 50 candidatos cuesta dos consultas y ahí no los lee nadie.
+  ///
+  /// Los dos no valen lo mismo: [playedCount] sube sólo si alguna de las dos
+  /// partes confirmó que se jugó (hace falta otra persona), y [wonCount] lo
+  /// declara cada uno de sí mismo. La ficha lo dice al enseñarlos.
+  final int? playedCount;
+  final int? wonCount;
+
   DiscoverProfile({
     required this.userId,
     required this.displayName,
@@ -72,6 +82,8 @@ class DiscoverProfile {
     this.likesYou = false,
     this.sharedAvailability = WeeklyAvailability.empty,
     this.sharedSlots = 0,
+    this.playedCount,
+    this.wonCount,
   });
 
   String? get mainPhoto => photos.isNotEmpty ? photos.first : null;
@@ -111,6 +123,8 @@ class DiscoverProfile {
       likesYou: p['likesYou'] == true,
       sharedAvailability: WeeklyAvailability.fromJson(p['sharedAvailability']),
       sharedSlots: (p['sharedSlots'] as num?)?.toInt() ?? 0,
+      playedCount: (p['playedCount'] as num?)?.toInt(),
+      wonCount: (p['wonCount'] as num?)?.toInt(),
     );
   }
 }

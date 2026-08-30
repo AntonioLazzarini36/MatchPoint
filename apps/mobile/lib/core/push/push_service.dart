@@ -3,9 +3,11 @@ import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 
 import '../network/api.dart';
 import '../storage/token_storage.dart';
+import 'push_navigation.dart';
 
 /// Notificaciones push.
 ///
@@ -32,6 +34,7 @@ class PushService {
   PushService._();
 
   static bool _initialised = false;
+  static bool _tapsWired = false;
   static String? _registeredToken;
 
   /// ¿Puede esta plataforma recibir push? En web haría falta configuración
@@ -93,8 +96,40 @@ class PushService {
 
       // El token puede rotar sin que la app se entere de otra forma.
       messaging.onTokenRefresh.listen(_sendToBackend);
+
+      await _listenForTaps(messaging);
     } catch (e) {
       debugPrint('push: no se pudo registrar el dispositivo: $e');
+    }
+  }
+
+  /// Abre la pantalla que corresponde cuando se toca un aviso.
+  ///
+  /// Son **dos** caminos distintos y hacen falta los dos, que es justo lo que
+  /// se olvida al montar esto:
+  ///
+  /// - `onMessageOpenedApp` cubre la app en segundo plano — el caso normal.
+  /// - `getInitialMessage` cubre la app **cerrada del todo**: ahí el aviso
+  ///   arrancó el proceso y no hay ningún evento que escuchar, el mensaje
+  ///   está esperando y hay que ir a por él una vez.
+  ///
+  /// Sin el segundo, tocar una notificación con la app cerrada te deja en la
+  /// pantalla de inicio, que es el caso más frecuente de todos.
+  static Future<void> _listenForTaps(FirebaseMessaging messaging) async {
+    if (_tapsWired) return;
+    _tapsWired = true;
+
+    FirebaseMessaging.onMessageOpenedApp.listen(
+      (m) => PushNavigation.handle(m.data),
+    );
+
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) {
+      // Un frame de margen: aquí el router todavía se está montando, y
+      // navegar antes de eso no lleva a ninguna parte.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => PushNavigation.handle(initial.data),
+      );
     }
   }
 

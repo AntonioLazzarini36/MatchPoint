@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import 'package:match_point/core/network/api.dart';
+import 'package:match_point/core/network/public_config.dart';
 import 'package:match_point/core/ui/widgets/app_logo.dart';
+import 'password_reset_screen.dart';
 import '../auth_controller.dart';
 import '../models/register_request.dart';
 import '../services/auth_service.dart';
@@ -36,11 +38,36 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
 
   bool _checkingEmail = false;
 
+  /// Empieza en false y se enciende con la respuesta del servidor: mejor que
+  /// el enlace aparezca un instante tarde a que parpadee y desaparezca.
+  bool _canResetPassword = false;
+
   @override
   void initState() {
     super.initState();
     authService = AuthService(Api.client);
     controller = AuthController(authService);
+    PublicConfig.emailEnabled().then((value) {
+      if (mounted) setState(() => _canResetPassword = value);
+    });
+  }
+
+  Future<void> _openPasswordReset() async {
+    final email = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) =>
+            PasswordResetScreen(initialEmail: emailCtrl.text.trim()),
+      ),
+    );
+    if (!mounted || email == null) return;
+    // Vuelve con el correo ya puesto y el foco en la contraseña: acaba de
+    // elegir una nueva, lo siguiente es escribirla aquí.
+    emailCtrl.text = email;
+    passCtrl.clear();
+    passFocus.requestFocus();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Contraseña cambiada. Entra con la nueva')),
+    );
   }
 
   @override
@@ -232,7 +259,17 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       : Text(isLogin ? 'Entrar' : 'Crear cuenta'),
                 ),
 
-                const SizedBox(height: 12),
+                // Sólo al entrar: en el registro no hay contraseña que
+                // recuperar todavía. Y sólo si esta instalación puede mandar
+                // correos — si no, el enlace acaba siempre en un 503.
+                if (isLogin && _canResetPassword) ...[
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: busy ? null : _openPasswordReset,
+                    child: const Text('¿Has olvidado tu contraseña?'),
+                  ),
+                ] else
+                  const SizedBox(height: 12),
 
                 TextButton(
                   onPressed: busy

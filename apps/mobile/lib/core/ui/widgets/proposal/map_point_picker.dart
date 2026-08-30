@@ -78,7 +78,7 @@ class _MapPointPickerState extends State<MapPointPicker> {
                     TileLayer(
                       urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.matchpoint.app',
+                      userAgentPackageName: 'es.matchpoint.tenis',
                     ),
                   ],
                 ),

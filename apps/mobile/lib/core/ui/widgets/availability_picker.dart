@@ -201,7 +201,31 @@ class _AvailabilityPickerState extends State<AvailabilityPicker> {
 class AvailabilityView extends StatelessWidget {
   final WeeklyAvailability value;
 
-  const AvailabilityView({super.key, required this.value});
+  /// Los huecos en los que **coincidís**, para pintarlos aparte.
+  ///
+  /// Sin esto, la rejilla de otra persona sólo contestaba "cuándo puede
+  /// ella", y la pregunta que lleva a un partido es otra: "cuándo podemos
+  /// los dos". Estaba calculado ya para ordenar `/discover`
+  /// (`sharedAvailability`) pero no se enseñaba en ninguna pantalla, así
+  /// que había que cruzarlo de cabeza mirando dos rejillas distintas.
+  ///
+  /// Se cruza en el cliente y no se pide al servidor: la ficha pública no
+  /// devuelve nada relativo a quien mira (ver `users/service.rs`), y aquí
+  /// ya se tienen las dos rejillas — la suya y la tuya.
+  final WeeklyAvailability? highlight;
+
+  /// De quién es esta rejilla, para poder nombrarle en la leyenda. Sin esto
+  /// ponía "Sólo puede él/ella", que además de feo obliga a quien lo lee a
+  /// resolver de quién habla — estando el nombre a dos dedos, en la cabecera
+  /// del mismo perfil.
+  final String? personName;
+
+  const AvailabilityView({
+    super.key,
+    required this.value,
+    this.highlight,
+    this.personName,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -245,20 +269,92 @@ class AvailabilityView extends StatelessWidget {
                       padding: const EdgeInsets.all(2),
                       child: AspectRatio(
                         aspectRatio: 1.6,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: value.has(day, band)
-                                ? context.colors.primary
-                                : context.colors.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
+                        child: _cell(context, day, band),
                       ),
                     ),
                   ),
               ],
             ),
           ),
+        if (_shared > 0) ...[
+          const SizedBox(height: 10),
+          _legend(context),
+        ],
+      ],
+    );
+  }
+
+  int get _shared => highlight?.count ?? 0;
+
+  /// Tres estados y no dos: puede ella, podéis los dos, no puede.
+  ///
+  /// El hueco compartido va relleno del color de acento y con un punto
+  /// dentro; el suyo a secas, del mismo color pero apagado. Así la rejilla
+  /// se lee de un vistazo sin tener que consultar la leyenda — que está
+  /// abajo para la primera vez, no para cada vez.
+  Widget _cell(BuildContext context, int day, int band) {
+    final free = value.has(day, band);
+    final both = free && (highlight?.has(day, band) ?? false);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: both
+            ? context.colors.primary
+            : free
+            ? context.colors.primary.withValues(alpha: 0.28)
+            : context.colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: both
+          ? Center(
+              child: Icon(
+                Icons.check,
+                size: 12,
+                color: context.colors.onPrimary,
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _legend(BuildContext context) {
+    return Row(
+      children: [
+        _legendDot(context, context.colors.primary, 'Coincidís ($_shared)'),
+        const SizedBox(width: 14),
+        _legendDot(
+          context,
+          context.colors.primary.withValues(alpha: 0.28),
+          // Sin nombre no se dice "él/ella": la app no conoce el género de
+          // todo el mundo (`gender` es opcional y "prefiero no decirlo" es
+          // una respuesta válida), así que se habla de la persona.
+          personName == null
+              ? 'Sólo puede la otra persona'
+              : 'Sólo puede $personName',
+        ),
+      ],
+    );
+  }
+
+  Widget _legendDot(BuildContext context, Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: context.textStyles.labelSmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }

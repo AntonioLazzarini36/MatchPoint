@@ -18,6 +18,8 @@ import '../../discovery/models/discover_profile.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/services/profile_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/utils/club_booking.dart';
 
 /// Ficha de una quedada: cuándo, dónde, contra quién — y, si todavía no
 /// está cerrada, los botones que la cierran.
@@ -169,6 +171,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               Text('Dónde', style: context.textStyles.titleSmall),
               const SizedBox(height: 8),
               _placeCard(context),
+              const SizedBox(height: 16),
+            ],
+
+            // Va **antes** de "con quién juegas" y justo debajo del sitio: es
+            // lo único que queda por hacer, y enterrarlo al final lo
+            // convertiría en letra pequeña.
+            if (_proposal.status == ProposalStatus.accepted) ...[
+              _bookingCard(context),
               const SizedBox(height: 16),
             ],
 
@@ -378,6 +388,99 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     return days == 1 ? 'Mañana' : 'Dentro de $days días';
   }
 
+  /// Lo que falta después de decir que sí: **alquilar la pista**.
+  ///
+  /// La ficha pone "Confirmada" en cuanto la otra persona acepta, y esa
+  /// palabra prometía algo que la app no hace. MatchPoint no tiene convenio
+  /// con ningún club, no sabe si queda hueco a esa hora y no reserva nada: lo
+  /// único cerrado es el acuerdo entre dos personas. Sin decirlo, la forma
+  /// normal de fallar era la peor posible — los dos aparecen y no hay pista,
+  /// que es exactamente el momento en el que se juzga si esto sirve.
+  ///
+  /// **No dice quién de los dos reserva**, y es a propósito: se probó a
+  /// sugerirlo ("normalmente reserva quien propone el sitio") y sobraba —
+  /// la app no puede saber quién es socio de dónde, y repartir tareas que
+  /// no le constan es meterse donde no la llaman. Se dice qué falta; con
+  /// quién hablarlo ya lo tienen a un toque, en el chat.
+  Widget _bookingCard(BuildContext context) {
+    final colors = context.colors;
+    final styles = context.textStyles;
+
+    final url = clubMapsUrl(
+      name: _proposal.placeName,
+      latitude: _proposal.placeLat,
+      longitude: _proposal.placeLng,
+    );
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.tertiaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.confirmation_number_outlined,
+                size: 20,
+                color: colors.onTertiaryContainer,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _proposal.placeName == null
+                      ? 'Falta decidir dónde jugáis'
+                      : 'Falta reservar la pista',
+                  style: styles.titleSmall?.copyWith(
+                    color: colors.onTertiaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _proposal.placeName == null
+                ? 'Habéis quedado en el día y la hora, pero no en el sitio. '
+                      'Acordadlo en el chat y reservad la pista: '
+                : 'MatchPoint aún no reserva pistas. Habéis cerrado la '
+                      'quedada entre vosotros pero aún debéis contactar el club para alquilar la pista',
+            style: styles.bodySmall?.copyWith(color: colors.onTertiaryContainer),
+          ),
+          if (url != null) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _openBookingInfo(url),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('Ver el club en Maps'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Abre la ficha del club fuera de la app. Si no hay quien atienda el
+  /// enlace (un móvil sin navegador ni Maps), se dice en vez de no pasar
+  /// nada: un botón que no hace nada al tocarlo se lee como app rota.
+  Future<void> _openBookingInfo(String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    ).catchError((_) => false);
+    if (!ok) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se ha podido abrir el mapa')),
+      );
+    }
+  }
+
   Widget _placeCard(BuildContext context) {
     final colors = context.colors;
     final styles = context.textStyles;
@@ -411,7 +514,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.matchpoint.app',
+                    userAgentPackageName: 'es.matchpoint.tenis',
                   ),
                   MarkerLayer(
                     markers: [
