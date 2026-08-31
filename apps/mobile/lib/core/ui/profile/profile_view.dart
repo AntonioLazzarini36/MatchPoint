@@ -275,14 +275,9 @@ class ProfileView extends StatelessWidget {
                       if (stats!.won != null) ...[
                         const SizedBox(width: 12),
                         Expanded(
-                          // "(dice)" y no "Ganados" a secas: este número lo
-                          // rellena esa misma persona contando sus propios
-                          // partidos, así que presentarlo como un hecho sería
-                          // prestarle una autoridad que no tiene. Los jugados
-                          // sí la tienen — hacen falta dos para subirlos.
                           child: _buildStatCard(
                             context,
-                            'Ganados (dice)',
+                            'Ganados',
                             '${stats!.won}',
                           ),
                         ),

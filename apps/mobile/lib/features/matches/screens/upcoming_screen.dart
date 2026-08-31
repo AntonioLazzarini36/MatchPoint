@@ -799,7 +799,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                       backgroundColor: context.colors.primaryContainer,
                     )
                   : null,
-              child: const Text('Sí, es ese'),
+              child: const Text('Sí'),
             ),
           ),
           const SizedBox(width: 12),
@@ -814,7 +814,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                       backgroundColor: context.colors.tertiaryContainer,
                     )
                   : null,
-              child: const Text('No exactamente'),
+              child: const Text('No'),
             ),
           ),
         ],
