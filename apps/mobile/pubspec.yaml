@@ -1,5 +1,5 @@
-name: match_point
-description: "MatchPoint — encuentra con quién jugar al tenis: tu nivel, tu zona, tus horas."
+﻿name: match_point
+description: "MatchPoint â€” encuentra con quiÃ©n jugar al tenis: tu nivel, tu zona, tus horas."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -22,7 +22,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # **4009**. Al volver a una build universal, cualquier numero por debajo de eso
 # se rechaza con INSTALL_FAILED_VERSION_DOWNGRADE sin explicar de donde sale
 # la cifra. Se sube por encima del mayor ya instalado y se deja de mezclar.
-version: 1.0.0+5027
+version: 1.0.0+5035
 
 environment:
   sdk: ^3.11.0
@@ -58,7 +58,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  # Sólo se ejecuta a mano (`dart run flutter_launcher_icons`) para repartir
+  # SÃ³lo se ejecuta a mano (`dart run flutter_launcher_icons`) para repartir
   # el icono por Android/iOS/web; no entra en el build de la app.
   flutter_launcher_icons: ^0.14.3
 
@@ -70,15 +70,15 @@ flutter_launcher_icons:
   android: true
   # El icono adaptativo va en dos capas porque Android las mueve por separado
   # (el efecto de profundidad al tocar el icono) y recorta el conjunto con la
-  # forma que decida cada fabricante: detrás, la división en dos mitades, que
-  # **tiene que llegar hasta el borde** — con una capa de fondo transparente,
-  # HyperOS rellenó de negro lo que le faltaba a su máscara de cuadrado
-  # redondeado; delante, sólo la raqueta y la zapatilla.
+  # forma que decida cada fabricante: detrÃ¡s, la divisiÃ³n en dos mitades, que
+  # **tiene que llegar hasta el borde** â€” con una capa de fondo transparente,
+  # HyperOS rellenÃ³ de negro lo que le faltaba a su mÃ¡scara de cuadrado
+  # redondeado; delante, sÃ³lo la raqueta y la zapatilla.
   adaptive_icon_background: assets/icon/app_icon_background.png
   adaptive_icon_foreground: assets/icon/app_icon_foreground.png
   ios: true
   # iOS rechaza iconos con canal alfa; `app_icon.png` es opaco, pero esto lo
-  # deja explícito por si alguien cambia el generador.
+  # deja explÃ­cito por si alguien cambia el generador.
   remove_alpha_ios: true
   web:
     generate: true
@@ -105,8 +105,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
      # El logo de dentro de la app (Welcome, login/registro): el mismo dibujo
-     # que el icono del lanzador, pero recortado en círculo, que es como se
-     # quiere ver aquí. Se lista el archivo suelto y no la carpeta, porque el
+     # que el icono del lanzador, pero recortado en cÃ­rculo, que es como se
+     # quiere ver aquÃ­. Se lista el archivo suelto y no la carpeta, porque el
      # resto de PNG que hay al lado son para el lanzador y dentro de la app
      # no los usa nadie.
      - assets/icon/app_logo.png

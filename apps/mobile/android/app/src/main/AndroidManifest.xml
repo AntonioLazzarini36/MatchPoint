@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Obligatorio aqui, no solo en los manifests de debug/profile.
          Flutter declara INTERNET en esos dos porque su tooling lo necesita
          para hablar con la app, pero NO los mezcla en el build de release:
@@ -11,6 +12,27 @@
          PushService.registerCurrentDevice). Sin esto no llega ninguna
          notificacion y tampoco salta ningun error: simplemente no suena. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- El ID de publicidad, FUERA.
+         No lo pide ningun codigo nuestro: lo mete firebase_analytics al
+         fusionar su manifest, y de ahi acababa en el AAB. Importa porque en
+         Google Play el permiso es una declaracion: si viaja en el paquete,
+         el formulario de Seguridad de los datos hay que rellenarlo diciendo
+         que la app usa un identificador de publicidad, y esa respuesta tiene
+         que ser verdad para todo lo que Play deduce de ella (publicidad,
+         seguimiento entre apps). Esta app no muestra anuncios ni hace
+         atribucion de campanas, asi que la respuesta honesta es "no" — y
+         para que lo sea, el permiso no puede estar.
+         Analytics sigue funcionando: lo unico que pierde es la atribucion de
+         instalaciones a campanas de pago, que aqui no existen.
+         Se quitan los dos nombres porque conviven: el clasico de Play
+         Services y el nuevo de Privacy Sandbox, que es el que estaba
+         apareciendo en el bundle. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove"/>
+
     <application
         android:label="MatchPoint"
         android:name="${applicationName}"
