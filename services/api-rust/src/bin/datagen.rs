@@ -32,9 +32,12 @@ use diesel_async::{AsyncConnection, AsyncPgConnection};
 use matchpoint_api::config::AppConfig;
 use matchpoint_api::db;
 use matchpoint_api::models::{
-    Gender, Intention, NewPreferences, NewProfile, NewUser, NewUserSkillLevel, SkillLevel, Sport,
+    Gender, Intention, NewMatch, NewPreferences, NewProfile, NewProposal, NewSessionFeedback,
+    NewUser, NewUserSkillLevel, ProposalStatus, SkillLevel, Sport,
 };
-use matchpoint_api::schema::{preferences, profiles, skill_levels, users};
+use matchpoint_api::schema::{
+    matches, preferences, profiles, proposals, session_feedback, skill_levels, users,
+};
 
 use std::path::Path;
 
@@ -619,12 +622,222 @@ async fn seed_fakes(conn: &mut AsyncPgConnection, cfg: &AppConfig) -> anyhow::Re
         }
     }
 
+    seed_level_opinions(conn).await?;
+
     println!("\nListo: {created} creados, {repaired} reparados, {skipped} ya existían.");
     if created > 0 {
         println!("Contraseña de todos los perfiles falsos: {FAKE_PASSWORD}");
     }
 
     Ok(())
+}
+
+/// Le pone a cada perfil sembrado lo que opinan de su nivel los demás.
+///
+/// Sin esto, la franja de "3 personas confirman su nivel" no se podía ver en
+/// ninguna parte hasta que dos personas reales jugaran y se valoraran — o sea,
+/// no se podía enseñar. Y es de las pocas cosas de un perfil que **no escribe
+/// su dueño**, que es justo lo que hay que poder demostrar.
+///
+/// El reparto es fijo por posición en la lista, no aleatorio: sembrar dos
+/// veces tiene que dar exactamente lo mismo, o comparar capturas de pantalla
+/// deja de servir para nada.
+///
+/// Se cubren los cuatro casos a propósito, para que se vean los cuatro:
+///
+/// - los primeros: todos de acuerdo -> "confirman su nivel"
+/// - los siguientes: la mayoría le pone por encima -> "juega mejor de lo que
+///   pone"
+/// - los siguientes: la mayoría por debajo -> "le sobra nivel"
+/// - los últimos: **nadie** les ha valorado -> la franja no sale, que también
+///   hay que poder verlo
+///
+/// Cada valoración necesita un partido de verdad detrás (match + propuesta
+/// aceptada y pasada + fila de `SessionFeedback`), porque el veredicto se
+/// calcula de ahí. Eso deja además a los perfiles con partidos jugados, que es
+/// como se ven de verdad los que llevan tiempo.
+async fn seed_level_opinions(conn: &mut AsyncPgConnection) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    let emails: Vec<&str> = FAKE_PROFILES.iter().map(|p| p.email).collect();
+
+    // id + nivel declarado en tenis de cada semilla, en el orden de la lista.
+    let mut seeds: Vec<(String, SkillLevel)> = Vec::new();
+    for email in &emails {
+        let user_id = users::table
+            .filter(users::email.eq(email))
+            .select(users::id)
+            .first::<String>(conn)
+            .await
+            .optional()?;
+        let Some(user_id) = user_id else { continue };
+        let level = skill_levels::table
+            .filter(skill_levels::user_id.eq(&user_id))
+            .filter(skill_levels::sport.eq(Sport::Tennis))
+            .select(skill_levels::level)
+            .first::<SkillLevel>(conn)
+            .await
+            .optional()?;
+        let Some(level) = level else { continue };
+        seeds.push((user_id, level));
+    }
+
+    if seeds.len() < 4 {
+        return Ok(());
+    }
+
+    // Qué opina la gente de cada uno, por posición.
+    // 0 = de acuerdo, +1 = un nivel por encima, -1 = uno por debajo.
+    let plan: HashMap<usize, Vec<i32>> = HashMap::from([
+        (0, vec![0, 0, 0]),
+        (1, vec![0, 0]),
+        (2, vec![1, 1, 0]),
+        (3, vec![1, 1]),
+        (4, vec![-1, -1, 0]),
+        (5, vec![-1, -1, -1]),
+        (6, vec![0, 1, -1]), // empate a tres: gana "de acuerdo"
+    ]);
+
+    let mut written = 0;
+    for (index, (target_id, declared)) in seeds.iter().enumerate() {
+        let Some(offsets) = plan.get(&index) else {
+            continue;
+        };
+
+        for (n, offset) in offsets.iter().enumerate() {
+            // Quien valora: otro de la lista, elegido por posición.
+            let reviewer_index = (index + 1 + n) % seeds.len();
+            if reviewer_index == index {
+                continue;
+            }
+            let reviewer_id = &seeds[reviewer_index].0;
+
+            let assessed = shift_level(*declared, *offset);
+            let match_id = ensure_match(conn, target_id, reviewer_id).await?;
+            let proposal_id = ensure_past_proposal(conn, &match_id, reviewer_id, n).await?;
+
+            // La fila la escribe **quien valora**, no el valorado: el
+            // veredicto de alguien no cuenta con su propia opinión.
+            let exists = session_feedback::table
+                .filter(session_feedback::proposal_id.eq(&proposal_id))
+                .filter(session_feedback::user_id.eq(reviewer_id))
+                .select(session_feedback::id)
+                .first::<String>(conn)
+                .await
+                .optional()?;
+            if exists.is_some() {
+                continue;
+            }
+
+            diesel::insert_into(session_feedback::table)
+                .values(NewSessionFeedback {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    proposal_id,
+                    user_id: reviewer_id.clone(),
+                    played: true,
+                    outcome: None,
+                    would_repeat: None,
+                    assessed_level: Some(assessed),
+                    skipped: false,
+                })
+                .execute(conn)
+                .await?;
+            written += 1;
+        }
+    }
+
+    println!("  ~ {written} valoraciones de nivel entre perfiles sembrados");
+    Ok(())
+}
+
+/// Sube o baja un nivel sin salirse de la escala.
+fn shift_level(level: SkillLevel, offset: i32) -> SkillLevel {
+    let all = [
+        SkillLevel::Beginner,
+        SkillLevel::Intermediate,
+        SkillLevel::Advanced,
+        SkillLevel::Competitive,
+    ];
+    let current = all.iter().position(|l| *l == level).unwrap_or(1) as i32;
+    let next = (current + offset).clamp(0, all.len() as i32 - 1) as usize;
+    // Si el desplazamiento se sale por arriba o por abajo, se queda igual y
+    // cuenta como "de acuerdo". Es preferible a inventar un nivel que no
+    // existe.
+    all[next]
+}
+
+/// El match entre dos semillas, creándolo si no lo había.
+///
+/// El par se guarda siempre en el mismo orden (el id menor primero) porque la
+/// tabla tiene clave única sobre (userA, userB, deporte): sin ordenar, sembrar
+/// dos veces crearía el mismo match del revés.
+async fn ensure_match(conn: &mut AsyncPgConnection, a: &str, b: &str) -> anyhow::Result<String> {
+    let (first, second) = if a < b { (a, b) } else { (b, a) };
+
+    let existing = matches::table
+        .filter(matches::user_a_id.eq(first))
+        .filter(matches::user_b_id.eq(second))
+        .select(matches::id)
+        .first::<String>(conn)
+        .await
+        .optional()?;
+    if let Some(id) = existing {
+        return Ok(id);
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    diesel::insert_into(matches::table)
+        .values(NewMatch {
+            id: id.clone(),
+            user_a_id: first.to_string(),
+            user_b_id: second.to_string(),
+            sport: Sport::Tennis,
+        })
+        .execute(conn)
+        .await?;
+    Ok(id)
+}
+
+/// Un partido ya jugado dentro de ese match. `slot` lo separa en el tiempo
+/// para que varias valoraciones del mismo par no compartan propuesta.
+async fn ensure_past_proposal(
+    conn: &mut AsyncPgConnection,
+    match_id: &str,
+    proposed_by: &str,
+    slot: usize,
+) -> anyhow::Result<String> {
+    let when = Utc::now() - chrono::Duration::days(10 + slot as i64 * 7);
+
+    let existing = proposals::table
+        .filter(proposals::match_id.eq(match_id))
+        .filter(proposals::scheduled_at.lt(Utc::now()))
+        .select(proposals::id)
+        .order(proposals::scheduled_at.desc())
+        .offset(slot as i64)
+        .first::<String>(conn)
+        .await
+        .optional()?;
+    if let Some(id) = existing {
+        return Ok(id);
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    diesel::insert_into(proposals::table)
+        .values(NewProposal {
+            id: id.clone(),
+            match_id: match_id.to_string(),
+            proposed_by_id: proposed_by.to_string(),
+            sport: Sport::Tennis,
+            place_name: Some("Club de Tenis Capellanía".to_string()),
+            place_lat: Some(36.5987),
+            place_lng: Some(-4.5432),
+            scheduled_at: when,
+            status: ProposalStatus::Accepted,
+            updated_at: Utc::now(),
+        })
+        .execute(conn)
+        .await?;
+    Ok(id)
 }
 
 async fn seed_me(
