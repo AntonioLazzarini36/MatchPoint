@@ -5,6 +5,7 @@ import '../../../features/discovery/screens/discovery_screen.dart';
 import '../../../features/matches/screens/matches_screen.dart';
 import '../../../features/matches/screens/upcoming_screen.dart';
 import '../../../features/profile/screens/profile_screen.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Índices de las pestañas, con nombre.
 ///
@@ -114,10 +115,10 @@ class NavigatorShellState extends State<NavigatorShell> {
         selectedIndex: _index,
         onDestinationSelected: _select,
         destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.local_fire_department_outlined),
-            selectedIcon: Icon(Icons.local_fire_department),
-            label: 'Descubrir',
+          NavigationDestination(
+            icon: const Icon(Icons.local_fire_department_outlined),
+            selectedIcon: const Icon(Icons.local_fire_department),
+            label: S.current.tabDiscover,
           ),
           NavigationDestination(
             icon: _badged(
@@ -128,7 +129,7 @@ class NavigatorShellState extends State<NavigatorShell> {
               const Icon(Icons.chat_bubble),
               _counts.unreadMessages,
             ),
-            label: 'Compañeros',
+            label: S.current.tabPartners,
           ),
           NavigationDestination(
             // Las dos cosas que reclaman tu atencion en esta pestaña suman en
@@ -143,12 +144,12 @@ class NavigatorShellState extends State<NavigatorShell> {
               const Icon(Icons.event),
               _counts.pendingProposals + _counts.sessionsToConfirm,
             ),
-            label: 'Partidos',
+            label: S.current.tabMatches,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
+          NavigationDestination(
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
+            label: S.current.tabProfile,
           ),
         ],
       ),

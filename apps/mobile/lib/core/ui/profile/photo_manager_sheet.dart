@@ -9,6 +9,7 @@ import 'photo_source_sheet.dart';
 import 'avatar_gallery.dart';
 import 'photo_crop_preview.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Bottom sheet para gestionar las fotos del propio perfil: grid de fotos
 /// actuales + tile para añadir (abre el selector de imagen) + borrar por
@@ -48,7 +49,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
   Future<void> _addPhotos() async {
     final remaining = PhotoGridEditor.maxPhotos - _photos.length;
     if (remaining <= 0) {
-      setState(() => _error = 'Máximo ${PhotoGridEditor.maxPhotos} fotos.');
+      setState(() => _error = S.current.maxPhotos(PhotoGridEditor.maxPhotos));
       return;
     }
 
@@ -102,7 +103,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
       setState(
         () => _error = friendlyError(
           e,
-          fallback: 'No se han podido subir todas las fotos.',
+          fallback: S.current.couldNotUploadAllPhotos,
         ),
       );
       widget.onChanged(_photos);
@@ -113,7 +114,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
 
   Future<void> _deletePhoto(String url) async {
     if (_photos.length <= 1) {
-      setState(() => _error = 'Tu perfil necesita al menos una foto.');
+      setState(() => _error = S.current.profileNeedsOnePhoto);
       return;
     }
 
@@ -132,7 +133,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
       setState(
         () => _error = friendlyError(
           e,
-          fallback: 'No se ha podido borrar la foto.',
+          fallback: S.current.couldNotDeletePhoto,
         ),
       );
     } finally {
@@ -152,7 +153,7 @@ class _PhotoManagerSheetState extends State<PhotoManagerSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Tus fotos', style: context.textStyles.titleLarge),
+                Text(S.current.yourPhotos, style: context.textStyles.titleLarge),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.of(context).pop(),

@@ -14,6 +14,7 @@ import '../../matches/services/matches_service.dart';
 import '../../../core/ui/profile/photo_manager_sheet.dart';
 import '../../../core/ui/profile/profile_header_data.dart';
 import '../../../core/ui/profile/profile_view.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -72,8 +73,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // No hay perfil todavia: renderizamos algo “vacio”
         setState(() {
           profile = null;
-          data = const ProfileHeaderData(
-            displayName: 'Sin perfil',
+          data = ProfileHeaderData(
+            displayName: S.current.noProfile,
             photos: [],
             sports: [],
           );
@@ -203,18 +204,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Perfil')),
+        appBar: AppBar(title: Text(S.current.profile)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('No se pudo cargar el perfil'),
+                Text(S.current.couldNotLoadProfile),
                 const SizedBox(height: 8),
                 Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: _load, child: const Text('Reintentar')),
+                FilledButton(onPressed: _load, child: Text(S.current.retry)),
               ],
             ),
           ),
@@ -226,12 +227,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       body: ProfileView(
         data: d,
-        sportsTitle: 'Mis Deportes',
-        bioTitle: 'Sobre mi',
+        sportsTitle: S.current.mySports,
+        bioTitle: S.current.aboutMe,
         showStats: true,
         stats: _stats,
         showBottomButton: true,
-        bottomButtonText: 'Ver mi perfil público',
+        bottomButtonText: S.current.seeMyPublicProfile,
         onBottomButton: myUserId == null ? null : _viewPublicProfile,
         onSettings: _openSettings,
         onEdit: _openPhotoManager,

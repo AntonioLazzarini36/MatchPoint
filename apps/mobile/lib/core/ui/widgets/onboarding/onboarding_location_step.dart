@@ -12,6 +12,7 @@ import '../../../location/geocoding_service.dart';
 import '../../../location/location_result.dart';
 import '../../../network/connection_error.dart';
 import '../../location/location_search_screen.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Primer paso del registro, y a propósito.
 ///
@@ -164,8 +165,7 @@ class _OnboardingLocationStepState extends State<OnboardingLocationStep> {
       if (results.isEmpty) {
         setState(
           () => _postalError =
-              'No encontramos ese código postal. Revísalo o busca tu '
-              'ciudad por el nombre.',
+              S.current.postcodeNotFound,
         );
         return;
       }
@@ -186,7 +186,7 @@ class _OnboardingLocationStepState extends State<OnboardingLocationStep> {
         _postalLoading = false;
         _postalError = friendlyError(
           e,
-          fallback: 'No se ha podido buscar el código postal.',
+          fallback: S.current.couldNotSearchPostcode,
         );
       });
     }
@@ -213,10 +213,10 @@ class _OnboardingLocationStepState extends State<OnboardingLocationStep> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('¿Dónde juegas?', style: t.headlineMedium),
+          Text(S.current.whereDoYouPlay, style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Escribe tu código postal y te mostraremos gente cerca de ti.',
+            S.current.postcodeHint,
             style: t.bodyLarge,
           ),
           const SizedBox(height: 20),
@@ -233,9 +233,9 @@ class _OnboardingLocationStepState extends State<OnboardingLocationStep> {
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(5),
                   ],
-                  decoration: const InputDecoration(
-                    labelText: 'Código postal',
-                    hintText: '29639',
+                  decoration: InputDecoration(
+                    labelText: S.current.postcode,
+                    hintText: S.current.postcodeExample,
                     prefixIcon: Icon(Icons.markunread_mailbox_outlined),
                   ),
                   // Se busca solo al llegar al quinto dígito: un código postal
@@ -275,7 +275,7 @@ class _OnboardingLocationStepState extends State<OnboardingLocationStep> {
             child: TextButton.icon(
               onPressed: _searchByName,
               icon: const Icon(Icons.search, size: 18),
-              label: const Text('No lo sé — buscar por ciudad'),
+              label: Text(S.current.dontKnowSearchByCity),
             ),
           ),
 
@@ -291,7 +291,7 @@ class _OnboardingLocationStepState extends State<OnboardingLocationStep> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Hasta ${widget.radiusKm.round()} km de distancia',
+              S.current.upToKm(widget.radiusKm.round()),
               style: t.labelMedium,
             ),
             Slider(
@@ -333,8 +333,7 @@ class _EmptyHint extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Sólo usamos tu zona para calcular distancias. Nadie ve dónde '
-              'vives: en los perfiles sólo aparece a cuántos kilómetros estás.',
+              S.current.onlyYourAreaIsUsed,
               style: style?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
@@ -395,7 +394,7 @@ class _ChosenPlace extends StatelessWidget {
             ),
             trailing: TextButton(
               onPressed: onChange,
-              child: const Text('Cambiar'),
+              child: Text(S.current.change),
             ),
           ),
           SizedBox(
@@ -475,7 +474,7 @@ class _PlaceChoiceSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Text(
-              '¿Cuál de estos?',
+              S.current.whichOfThese,
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -513,7 +512,7 @@ class _DensityNote extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text('Mirando quién juega por ahí…', style: t.bodyMedium),
+          Text(S.current.lookingWhoPlaysAround, style: t.bodyMedium),
         ],
       );
     }
@@ -526,17 +525,15 @@ class _DensityNote extends StatelessWidget {
     final (icon, title, body) = none
         ? (
             Icons.flag_outlined,
-            'Todavía no hay nadie por aquí',
-            'Serías de los primeros. Te avisamos en cuanto alguien se '
-                'apunte cerca — y mientras tanto puedes ampliar el radio '
-                'para ver más lejos.',
+            S.current.nobodyHereYet,
+            S.current.nobodyHereYetHint,
           )
         : (
             Icons.groups_outlined,
             count == 1
-                ? 'Hay 1 persona jugando por aquí'
-                : 'Hay $count personas jugando por aquí',
-            'Podrás verlas en cuanto termines de crear tu perfil.',
+                ? S.current.onePersonPlayingHere
+                : S.current.peoplePlayingHere(count!),
+            S.current.youWillSeeThemAfterProfile,
           );
 
     return AnimatedOpacity(

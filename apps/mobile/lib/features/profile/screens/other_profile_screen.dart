@@ -8,6 +8,7 @@ import '../../onboarding/models/availability.dart';
 import '../../onboarding/services/profile_service.dart';
 import '../../discovery/models/discover_profile.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class OtherProfileScreen extends StatefulWidget {
   final String userId;
@@ -46,13 +47,13 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
     try {
       await service.reportUser(widget.userId, reason);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado')));
+      messenger.showSnackBar(SnackBar(content: Text(S.current.reportSent)));
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            friendlyError(e, fallback: 'No se ha podido enviar el reporte.'),
+            friendlyError(e, fallback: S.current.couldNotSendReport),
           ),
         ),
       );
@@ -127,18 +128,18 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
 
     if (error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Perfil')),
+        appBar: AppBar(title: Text(S.current.profile)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('No se pudo cargar el perfil'),
+                Text(S.current.couldNotLoadProfile),
                 const SizedBox(height: 12),
                 Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: _load, child: const Text('Reintentar')),
+                FilledButton(onPressed: _load, child: Text(S.current.retry)),
               ],
             ),
           ),
@@ -149,8 +150,8 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
     return Scaffold(
       body: ProfileView(
         data: data!,
-        sportsTitle: 'Deportes',
-        bioTitle: 'Sobre',
+        sportsTitle: S.current.sports,
+        bioTitle: S.current.aboutYou,
         // Las cifras sólo si el servidor las manda: contra un backend viejo
         // llegan null y la fila desaparece, en vez de enseñar dos ceros que
         // se leerían como "no ha jugado nunca".
@@ -164,7 +165,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
         extraActions: [
           IconButton(
             icon: const Icon(Icons.flag_outlined),
-            tooltip: 'Reportar',
+            tooltip: S.current.report,
             onPressed: _busy ? null : _report,
           ),
         ],

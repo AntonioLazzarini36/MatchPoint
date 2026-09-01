@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../../features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Rejilla semanal de "lo que suelo tener libre".
 ///
@@ -125,7 +126,7 @@ class _AvailabilityPickerState extends State<AvailabilityPicker> {
           // Cabecera de días.
           Row(
             children: [
-              const SizedBox(width: 56),
+              const SizedBox(width: _bandColumn),
               for (final d in WeeklyAvailability.days)
                 Expanded(
                   child: Center(
@@ -145,13 +146,8 @@ class _AvailabilityPickerState extends State<AvailabilityPicker> {
             Row(
               children: [
                 SizedBox(
-                  width: 56,
-                  child: Text(
-                    WeeklyAvailability.bands[band],
-                    style: context.textStyles.labelSmall?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
+                  width: _bandColumn,
+                  child: _BandLabel(WeeklyAvailability.bands[band]),
                 ),
                 for (var day = 0; day < 7; day++)
                   Expanded(child: _cell(context, day, band)),
@@ -188,6 +184,40 @@ class _AvailabilityPickerState extends State<AvailabilityPicker> {
           child: on
               ? Icon(Icons.check, size: 14, color: context.colors.onPrimary)
               : null,
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Ancho de la columna donde van "Mañana / Tarde / Noche".
+///
+/// Se subió de 56 a 66 al traducir: "Afternoon" no cabía y se partía en dos
+/// líneas ("Afternoo" / "n"), que descuadraba la rejilla entera.
+const double _bandColumn = 66;
+
+/// El nombre de una franja, encogiéndose antes que partirse.
+///
+/// `FittedBox` en vez de un tamaño fijo más pequeño porque el problema no es
+/// el castellano ni el inglés: es la palabra más larga de **cualquier** idioma
+/// que se añada, y la letra del sistema, que el usuario puede tener subida.
+/// Bajar el tamaño a ojo arregla el inglés de hoy y vuelve a romperse solo.
+class _BandLabel extends StatelessWidget {
+  const _BandLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        maxLines: 1,
+        style: context.textStyles.labelSmall?.copyWith(
+          color: context.colors.onSurfaceVariant,
         ),
       ),
     );
@@ -234,7 +264,7 @@ class AvailabilityView extends StatelessWidget {
       children: [
         Row(
           children: [
-            const SizedBox(width: 56),
+            const SizedBox(width: _bandColumn),
             for (final d in WeeklyAvailability.days)
               Expanded(
                 child: Center(
@@ -255,13 +285,8 @@ class AvailabilityView extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                  width: 56,
-                  child: Text(
-                    WeeklyAvailability.bands[band],
-                    style: context.textStyles.labelSmall?.copyWith(
-                      color: context.colors.onSurfaceVariant,
-                    ),
-                  ),
+                  width: _bandColumn,
+                  child: _BandLabel(WeeklyAvailability.bands[band]),
                 ),
                 for (var day = 0; day < 7; day++)
                   Expanded(
@@ -320,7 +345,7 @@ class AvailabilityView extends StatelessWidget {
   Widget _legend(BuildContext context) {
     return Row(
       children: [
-        _legendDot(context, context.colors.primary, 'Coincidís ($_shared)'),
+        _legendDot(context, context.colors.primary, S.current.youOverlapCount(_shared)),
         const SizedBox(width: 14),
         _legendDot(
           context,
@@ -329,8 +354,8 @@ class AvailabilityView extends StatelessWidget {
           // todo el mundo (`gender` es opcional y "prefiero no decirlo" es
           // una respuesta válida), así que se habla de la persona.
           personName == null
-              ? 'Sólo puede la otra persona'
-              : 'Sólo puede $personName',
+              ? S.current.onlyTheOtherPersonCan
+              : S.current.onlyPersonCan(personName!),
         ),
       ],
     );

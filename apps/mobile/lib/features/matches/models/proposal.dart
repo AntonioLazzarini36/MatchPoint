@@ -1,4 +1,5 @@
 import 'package:match_point/features/discovery/models/sport.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Estado de una propuesta. `cancelled` es que quien la hizo se echó
 /// atrás; `declined` es que la otra persona dijo que no — separados a
@@ -131,9 +132,9 @@ class PlayedSession {
   String? get outcomeLabel {
     if (!hasResult) return null;
     return switch (outcome) {
-      'WON' => 'Ganaste',
-      'LOST' => 'Perdiste',
-      'DRAW' => 'Empate',
+      'WON' => S.current.youWon,
+      'LOST' => S.current.youLost,
+      'DRAW' => S.current.itWasADraw,
       _ => null,
     };
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/landscape_crop.dart';
 import '../../profile/avatar_gallery.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Último paso del registro: elegir un avatar.
 ///
@@ -41,11 +42,10 @@ class OnboardingAvatarStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Elige tu avatar', style: t.headlineMedium),
+          Text(S.current.chooseYourAvatar, style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Si prefieres una foto tuya, '
-            'puedes subirla más adelante desde tu perfil.',
+            S.current.avatarHint,
             style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),

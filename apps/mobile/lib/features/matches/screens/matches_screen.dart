@@ -13,6 +13,7 @@ import '../../../core/ui/widgets/matches/partner_row.dart';
 import '../models/proposal.dart';
 import '../services/proposal_service.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
@@ -70,14 +71,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   Future<void> _confirmUnmatch(MatchItem m) async {
-    final name = m.otherUser.profile?.displayName ?? 'esta persona';
+    final name = m.otherUser.profile?.displayName ?? S.current.thisPerson;
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Dejar de ser compañeros',
+      title: S.current.unmatch,
       content:
-          '¿Seguro que quieres dejar de ser compañeros con $name? Se borrará '
-          'también la conversación, y no se puede deshacer.',
-      confirmLabel: 'Dejar de ser compañeros',
+          S.current.unmatchConfirm(name),
+      confirmLabel: S.current.unmatch,
       destructive: true,
     );
     if (!confirmed) return;
@@ -92,7 +92,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se ha podido completar la operación.',
+              fallback: S.current.couldNotCompleteOperation,
             ),
           ),
         ),
@@ -114,14 +114,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
             child: Column(
               children: [
                 ScreenHeader(
-                  title: 'Tus compañeros',
+                  title: S.current.yourPartners,
                   replacement: _searching
                       ? TextField(
                           controller: _searchCtrl,
                           autofocus: true,
                           style: context.textStyles.titleLarge,
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar por nombre...',
+                          decoration: InputDecoration(
+                            hintText: S.current.searchByName,
                             border: InputBorder.none,
                           ),
                         )
@@ -172,7 +172,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           const SizedBox(height: 16),
           Center(
             child: Text(
-              'Todavía no tienes compañeros',
+              S.current.noPartnersYet,
               style: context.textStyles.titleMedium?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -182,8 +182,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Cuando alguien a quien has dado "Quiero jugar" te lo devuelva, '
-              'aparecerá aquí y podréis hablar.',
+              S.current.noPartnersHint,
               textAlign: TextAlign.center,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
@@ -209,7 +208,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     if (filteredMatches.isEmpty && _query.isNotEmpty) {
       return Center(
         child: Text(
-          'Sin resultados para "$_query"',
+          S.current.noResultsFor(_query),
           style: context.textStyles.bodyMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),
@@ -242,9 +241,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        ..._group(context, 'Esperan tu respuesta', esperanRespuesta),
-        ..._group(context, 'Con quedada', conQuedada),
-        ..._group(context, 'Sin planes todavía', sinPlanes),
+        ..._group(context, S.current.awaitingYourAnswer, esperanRespuesta),
+        ..._group(context, S.current.withAPlan, conQuedada),
+        ..._group(context, S.current.noPlansYet, sinPlanes),
       ],
     );
   }
@@ -255,7 +254,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
         child: Text(
-          '$title · ${ms.length}',
+          S.current.sectionCount(title, ms.length),
           style: context.textStyles.labelMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
             letterSpacing: 0.6,

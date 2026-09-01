@@ -27,6 +27,7 @@ import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
 import 'package:match_point/core/ui/profile/avatar_gallery.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class OnboardingProfileScreen extends StatefulWidget {
   /// Null cuando se llega aquí ya logueado (cuenta a medias de un intento
@@ -167,7 +168,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   Future<void> _goNextOrFinish() async {
     if (_currentPage == _locationStepIndex && _selectedLocation == null) {
       controller.setError(
-        'Elige dónde juegas para poder enseñarte gente cerca de ti',
+        S.current.chooseWhereYouPlayFirst,
       );
       return;
     }
@@ -175,17 +176,17 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     if (_currentPage == _profileStepIndex) {
       final name = displayNameCtrl.text.trim();
       if (name.isEmpty) {
-        controller.setError('Escribe el nombre con el que quieres aparecer');
+        controller.setError(S.current.writeYourDisplayName);
         return;
       }
       if (name.length > _maxDisplayNameLength) {
         controller.setError(
-          'El nombre no puede superar los $_maxDisplayNameLength caracteres',
+          S.current.displayNameTooLong(_maxDisplayNameLength),
         );
         return;
       }
       if (birthDate == null) {
-        controller.setError('Elige tu fecha de nacimiento');
+        controller.setError(S.current.chooseYourBirthDate);
         return;
       }
     }
@@ -318,7 +319,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       if (mounted) context.go(AppRoutes.shell);
     } catch (e) {
       controller.setError(
-        friendlyError(e, fallback: 'No se ha podido completar el registro.'),
+        friendlyError(e, fallback: S.current.couldNotCompleteSignUp),
       );
     } finally {
       if (mounted) controller.setLoading(false);
@@ -343,20 +344,16 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Salir del registro?'),
-        content: const Text(
-          'Vas a volver a la pantalla de inicio de sesión. Nada de lo que '
-          'completaste todavía se guardó — no se pierde ningún dato ya '
-          'creado, pero tendrás que volver a empezar el registro.',
-        ),
+        title: Text(S.current.leaveSignUp),
+        content: Text(S.current.leaveSignUpHint),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(S.current.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Salir'),
+            child: Text(S.current.leave),
           ),
         ],
       ),
@@ -395,10 +392,10 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
           // (se lleva el de reserva, ver `_fallbackAvatar`): "Saltar" en el
           // botón que de verdad te registra sería mentir sobre lo que hace.
           nextLabel: _currentPage == _avatarStepIndex
-              ? 'Crear mi perfil'
+              ? S.current.createMyProfile
               : (_currentPage == _playStepIndex && _isPlayStepEmpty
-                    ? 'Saltar'
-                    : 'Siguiente'),
+                    ? S.current.skip
+                    : S.current.next),
           errorText: controller.error,
           child: PageView(
             controller: _pageController,
@@ -417,7 +414,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 birthDate: birthDate,
                 onPickBirthDate: _pickBirthDate,
                 birthDateLabel: birthDate == null
-                    ? 'Elegir fecha'
+                    ? S.current.chooseDate
                     : _formatDate(birthDate!),
                 gender: _gender,
                 onGenderChanged: (g) => setState(() => _gender = g),

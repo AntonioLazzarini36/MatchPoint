@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:match_point/core/ui/widgets/discovery/when_filter_sheet.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Los atajos ("Este finde", "Por las noches"...) se comportan como un OR de
 /// conjuntos: marcar suma, desmarcar quita **sólo lo que no sostenga otro**.
@@ -10,6 +11,10 @@ import 'package:match_point/features/onboarding/models/availability.dart';
 /// noches no puede llevarse las noches del sábado y el domingo, porque las
 /// sostiene "Este finde". Es justo lo que haría un `& ~preset` ingenuo.
 void main() {
+  // Estas pruebas comprueban textos en castellano, así que fijan el idioma:
+  // el entorno de test arranca con el del sistema, que en CI es inglés.
+  setUp(() => LocaleController.locale.value = AppLocale.es);
+
   Future<WeeklyAvailability?> openAndTap(
     WidgetTester tester,
     List<String> taps,

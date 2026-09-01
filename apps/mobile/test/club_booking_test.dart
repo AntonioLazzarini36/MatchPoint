@@ -34,4 +34,13 @@ void main() {
     expect(clubMapsUrl(), isNull);
     expect(clubMapsUrl(name: '   '), isNull);
   });
+
+  test('el enlace al punto marcado ignora el nombre', () {
+    // Un punto marcado a mano lleva de nombre lo que escribió quien lo marcó
+    // ("entrada del parque"). Buscar eso en Maps lleva a cualquier sitio menos
+    // al bueno: aquí sólo valen las coordenadas.
+    final url = mapsPinUrl(36.5987, -4.5169);
+    expect(url, contains('query=36.5987,-4.5169'));
+    expect(url, isNot(contains('parque')));
+  });
 }

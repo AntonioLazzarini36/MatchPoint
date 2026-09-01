@@ -11,6 +11,7 @@ import '../../../../core/network/connection_error.dart';
 import '../../../../features/discovery/models/discover_filters.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import 'when_filter_sheet.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Filtros de Discovery (cuando, nivel, edad), compartidos
 /// entre Ajustes y el boton de filtros de la propia pantalla de Discovery
@@ -107,7 +108,7 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
   Future<void> _save() async {
     if (_sportsWanted.isEmpty) {
       setState(
-        () => _error = 'Elige al menos un deporte para poder ver perfiles',
+        () => _error = S.current.chooseAtLeastOneSport,
       );
       return;
     }
@@ -137,7 +138,7 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
         _saving = false;
         _error = friendlyError(
           e,
-          fallback: 'No se han podido guardar los filtros.',
+          fallback: S.current.couldNotSaveFilters,
         );
       });
     }
@@ -179,11 +180,10 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Filtros', style: context.textStyles.titleMedium),
+              Text(S.current.filters, style: context.textStyles.titleMedium),
               const SizedBox(height: 4),
               Text(
-                'Deciden a quién te mostramos. El radio de distancia se '
-                'cambia en Ajustes, junto a tu ubicación.',
+                S.current.filtersDecideWhoWeShow,
                 style: context.textStyles.bodySmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
                 ),
@@ -195,9 +195,9 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
               ...[
                 _FilterRow(
                   icon: Icons.schedule,
-                  label: 'Cuándo puedo jugar',
+                  label: S.current.whenICanPlay,
                   value: _filters.when.isEmpty
-                      ? 'Cualquier momento'
+                      ? S.current.anyTime
                       : (_filters.when.count <= 2
                             ? _filters.when.slotLabels.join(' · ')
                             : '${_filters.when.count} franjas'),
@@ -213,8 +213,8 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
                 ),
                 _FilterRow(
                   icon: Icons.workspace_premium_outlined,
-                  label: 'Nivel',
-                  value: _filters.level?.label ?? 'Cualquiera',
+                  label: S.current.level,
+                  value: _filters.level?.label ?? S.current.anyLevel,
                   active: _filters.level != null,
                   onTap: _pickLevel,
                 ),
@@ -223,9 +223,9 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
                 const SizedBox(height: 12),
               ],
 
-              Text('Rango de edad', style: context.textStyles.titleSmall),
+              Text(S.current.ageRange, style: context.textStyles.titleSmall),
               Text(
-                '${_ageRange.start.round()} - ${_ageRange.end.round()} años',
+                S.current.ageRangeValue(_ageRange.start.round(), _ageRange.end.round()),
                 style: context.textStyles.bodyMedium,
               ),
               RangeSlider(
@@ -245,7 +245,7 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
               if (!isSingleSportApp) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Deportes que quieres ver',
+                  S.current.sportsYouWantToSee,
                   style: context.textStyles.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -288,7 +288,7 @@ class _PreferencesSheetState extends State<_PreferencesSheet> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Guardar'),
+                      : Text(S.current.save),
                 ),
               ),
             ],
@@ -379,20 +379,19 @@ class _LevelSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-            child: Text('Nivel', style: context.textStyles.headlineSmall),
+            child: Text(S.current.level, style: context.textStyles.headlineSmall),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Text(
-              'Un partido igualado es mejor partido. Es el nivel que cada uno '
-              'dice tener, no un ranking.',
+              S.current.levelSheetHint,
               style: context.textStyles.bodyMedium?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
             ),
           ),
           _LevelOption(
-            label: 'Cualquiera',
+            label: S.current.anyLevel,
             selected: current == null,
             onTap: () => Navigator.of(context).pop(const _LevelChoice(null)),
           ),

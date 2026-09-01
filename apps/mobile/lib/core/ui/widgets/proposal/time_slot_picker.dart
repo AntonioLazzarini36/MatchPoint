@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../../../features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// "¿A qué hora?" — dos ruedas, hora y minutos.
 ///
@@ -139,7 +140,7 @@ class _TimeWheelSheetState extends State<_TimeWheelSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿A qué hora?', style: t.headlineSmall),
+            Text(S.current.atWhatTime, style: t.headlineSmall),
             if (_free.isNotEmpty) ...[
               const SizedBox(height: 10),
               // Leyenda con la misma marca que llevan las horas, igual que en
@@ -158,8 +159,8 @@ class _TimeWheelSheetState extends State<_TimeWheelSheet> {
                   Expanded(
                     child: Text(
                       widget.otherName == null
-                          ? 'Horas a las que suele poder'
-                          : '${widget.otherName} suele poder a estas horas',
+                          ? S.current.hoursTheyCanUsually
+                          : S.current.personUsuallyCanAtTheseHours(widget.otherName!),
                       style: t.bodySmall?.copyWith(
                         color: colors.onSurfaceVariant,
                       ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Un error que ha devuelto el servidor, con un mensaje que se puede enseñar.
 ///
@@ -63,20 +64,19 @@ String? _messageFrom(String body) {
 
 String _byStatus(int status) {
   if (status == 401) {
-    return 'Tu sesión ha caducado. Vuelve a iniciar sesión.';
+    return S.current.sessionExpired;
   }
   if (status == 403) {
     return 'No tienes permiso para hacer esto.';
   }
   if (status == 404) {
-    return 'Esto ya no está disponible.';
+    return S.current.noLongerAvailable;
   }
   if (status == 429) {
-    return 'Has hecho demasiadas peticiones seguidas. Espera un momento.';
+    return S.current.tooManyRequests;
   }
   if (status >= 500) {
-    return 'No hemos podido completar la operación. Inténtalo de nuevo en '
-        'unos segundos.';
+    return S.current.serverFailure;
   }
-  return 'No se ha podido completar la operación.';
+  return S.current.couldNotCompleteOperation;
 }

@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/ui/widgets/discovery/player_list_tile.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Buscar con quién jugar.
 ///
@@ -63,6 +64,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   /// vez de repetir la etiqueta suelta del otro.
   SkillLevel? _myLevel;
 
+  /// Mi propia foto, para que el cuadro de "ahora sois compañeros" enseñe
+  /// las dos caras y no sólo la del otro.
+  String? _myPhoto;
+
   @override
   void initState() {
     super.initState();
@@ -89,9 +94,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     List<Sport> mySports = const [];
     Preferences? prefs;
     SkillLevel? myLevel;
+    String? myPhoto;
     try {
       final me = await ProfileService(Api.client).getMe();
       mySports = me.profile?.sports ?? const [];
+      final photos = me.profile?.photos ?? const <String>[];
+      myPhoto = photos.isEmpty ? null : photos.first;
       prefs = me.preferences;
       final sport = singleSport;
       if (sport != null) myLevel = me.skillLevels[sport];
@@ -109,6 +117,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       _preferences = prefs;
       _mySports = mySports;
       _myLevel = myLevel;
+      _myPhoto = myPhoto;
       controller = created;
     });
     await created.init();
@@ -186,14 +195,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           context,
           user: res.user,
           matchId: res.matchId,
+          myPhoto: _myPhoto,
         );
       }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo registrar el swipe, reintenta'),
-        ),
+        SnackBar(content: Text(S.current.couldNotRegisterDecision)),
       );
     }
   }
@@ -225,7 +233,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 // y dejarla suelta era garantizar que las tres se volvieran
                 // a separar en cuanto alguna cambiara.
                 ScreenHeader(
-                  title: 'Busca tu partido',
+                  title: S.current.findYourMatch,
                   actions: [
                     _FilterButton(
                       active: controller.filters.activeCount,
@@ -355,10 +363,8 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               filtered
-                  ? 'Prueba con más franjas libres, o quita los filtros para ver '
-                        'a todo el mundo que hay cerca.'
-                  : 'Amplía el radio de búsqueda para ver gente de más lejos. '
-                        'Te avisamos cuando se apunte alguien nuevo por tu zona.',
+                  ? S.current.tryMoreFreeSlots
+                  : S.current.widenTheRadius,
               textAlign: TextAlign.center,
               style: t.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
@@ -367,13 +373,13 @@ class _EmptyState extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onClearFilters,
                 icon: const Icon(Icons.filter_alt_off_outlined),
-                label: const Text('Quitar filtros'),
+                label: Text(S.current.clearFilters),
               )
             else
               FilledButton.icon(
                 onPressed: onOpenPreferences,
                 icon: const Icon(Icons.travel_explore),
-                label: const Text('Ampliar el radio'),
+                label: Text(S.current.widenRadius),
               ),
             const SizedBox(height: 4),
             // La otra salida, y en una app de densidad local la de verdad:
@@ -384,7 +390,7 @@ class _EmptyState extends StatelessWidget {
               builder: (context) => TextButton.icon(
                 onPressed: () => Invite.share(context),
                 icon: const Icon(Icons.person_add_alt),
-                label: const Text('Invitar a alguien con quien juegas'),
+                label: Text(S.current.inviteSomeoneYouPlayWith),
               ),
             ),
           ],
@@ -413,7 +419,7 @@ class _FilterButton extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onTap,
-          tooltip: 'Filtros',
+          tooltip: S.current.filters,
           icon: Icon(
             Icons.tune,
             color: active > 0 ? colors.primary : colors.onSurface,

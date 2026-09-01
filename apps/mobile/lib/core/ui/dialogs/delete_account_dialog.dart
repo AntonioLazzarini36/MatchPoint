@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Palabra que hay que escribir para confirmar. En mayúsculas y en
 /// castellano, igual que el botón.
@@ -49,22 +50,22 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     final colors = context.colors;
 
     return AlertDialog(
-      title: const Text('Borrar tu cuenta'),
+      title: Text(S.current.deleteYourAccount),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Esto no se puede deshacer. Se borra para siempre:',
+              S.current.deleteCannotBeUndone,
               style: context.textStyles.bodyMedium,
             ),
             const SizedBox(height: 12),
-            for (final item in const [
-              'Tu perfil y tus fotos',
-              'Tus compañeros y todas tus conversaciones',
-              'Los partidos y salidas que tengas acordados',
-              'Tu nivel, tu experiencia y tus preferencias',
+            for (final item in [
+              S.current.yourProfileAndPhotos,
+              S.current.partnersAndConversations,
+              S.current.agreedSessions,
+              S.current.yourLevelExperiencePreferences,
             ])
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
@@ -81,15 +82,14 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               ),
             const SizedBox(height: 8),
             Text(
-              'La gente con la que hablabas dejará de verte, y no hay forma '
-              'de recuperar nada de esto más tarde.',
+              S.current.peopleWillStopSeeingYou,
               style: context.textStyles.bodySmall?.copyWith(
                 color: colors.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 20),
             Text(
-              'Escribe $_confirmWord para confirmar:',
+              S.current.typeToConfirm(_confirmWord),
               style: context.textStyles.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -109,7 +109,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text(S.current.cancel),
         ),
         FilledButton(
           // Deshabilitado hasta escribir la palabra: el botón no puede
@@ -119,7 +119,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             backgroundColor: colors.error,
             foregroundColor: colors.onError,
           ),
-          child: const Text('Borrar cuenta'),
+          child: Text(S.current.deleteAccount),
         ),
       ],
     );

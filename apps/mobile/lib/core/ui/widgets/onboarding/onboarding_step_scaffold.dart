@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class OnboardingStepScaffold extends StatelessWidget {
   final int currentPage;
@@ -39,7 +40,7 @@ class OnboardingStepScaffold extends StatelessWidget {
             : IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack),
         actions: onSkip == null
             ? const []
-            : [TextButton(onPressed: onSkip, child: const Text('Saltar'))],
+            : [TextButton(onPressed: onSkip, child: Text(S.current.skip))],
       ),
       body: Column(
         children: [

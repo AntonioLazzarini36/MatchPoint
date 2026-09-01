@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/routes.dart';
 import '../../../core/ui/widgets/app_logo.dart';
@@ -38,8 +39,7 @@ class WelcomeScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
-                      'Encuentra con quién jugar al tenis: gente de tu '
-                      'nivel, cerca de ti, y disponibles cuando tú lo estés.',
+                      S.current.welcomeTagline,
                       textAlign: TextAlign.center,
                       style: t.bodyLarge?.copyWith(color: Colors.white70),
                     ),
@@ -54,7 +54,7 @@ class WelcomeScreen extends StatelessWidget {
                   // que nadie puede usar. Vuelven cuando funcionen.
                   FilledButton(
                     onPressed: () => context.go(AppRoutes.onboardingAuth),
-                    child: const Text('Empezar'),
+                    child: Text(S.current.getStarted),
                   ),
                   const SizedBox(height: 16),
                 ],

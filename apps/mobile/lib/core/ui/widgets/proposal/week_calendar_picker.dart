@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Week-view date picker: 7 days in a row, Monday-first, with prev/next
 /// week navigation. Can't go to a week entirely before the current one
@@ -27,15 +28,10 @@ class WeekCalendarPicker extends StatefulWidget {
 }
 
 class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
-  static const _weekdaysShort = [
-    'lun',
-    'mar',
-    'mié',
-    'jue',
-    'vie',
-    'sáb',
-    'dom',
-  ];
+  /// Tenía su propia copia de los días y los meses en castellano, así que
+  /// esta pantalla se quedaba sin traducir aunque el resto de la app
+  /// cambiara. Ahora salen de `S`, como todo lo demás.
+  static List<String> get _weekdaysShort => S.current.weekdayShort;
   static const _months = [
     'enero',
     'febrero',
@@ -98,7 +94,7 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
             // mañana SD", que es la misma informacion que ya esta pintada en
             // los propios dias y ademas en un formato que hay que descifrar.
             // Lo que se ve se entiende antes que lo que se lee.
-            Text('¿Qué día?', style: Theme.of(context).textTheme.headlineSmall),
+            Text(S.current.whatDay, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -135,8 +131,8 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
                   Expanded(
                     child: Text(
                       widget.otherName == null
-                          ? 'Días que suele tener libres'
-                          : '${widget.otherName} suele tener libres estos días',
+                          ? S.current.daysTheyUsuallyHaveFree
+                          : S.current.personUsuallyFreeTheseDays(widget.otherName!),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),

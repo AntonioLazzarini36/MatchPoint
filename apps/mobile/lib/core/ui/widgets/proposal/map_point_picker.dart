@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../location/location_result.dart';
 import '../../../theme/app_theme.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Elegir un punto exacto moviendo el mapa bajo un pin fijo.
 ///
@@ -112,9 +113,9 @@ class _MapPointPickerState extends State<MapPointPicker> {
                     controller: _labelCtrl,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _confirm(),
-                    decoration: const InputDecoration(
-                      labelText: 'Referencia (opcional)',
-                      hintText: 'Ej: entrada del parque, junto a la fuente',
+                    decoration: InputDecoration(
+                      labelText: S.current.referenceOptional,
+                      hintText: S.current.referenceHint,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -123,7 +124,7 @@ class _MapPointPickerState extends State<MapPointPicker> {
                     child: FilledButton.icon(
                       onPressed: _confirm,
                       icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Usar este punto'),
+                      label: Text(S.current.useThisSpot),
                     ),
                   ),
                 ],

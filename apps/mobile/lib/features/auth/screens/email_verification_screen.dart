@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:match_point/core/network/api.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
 import '../services/auth_service.dart';
@@ -81,7 +82,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (!mounted) return;
       setState(
         () =>
-            _info = initial ? 'Te hemos enviado un código' : 'Código reenviado',
+            _info = initial ? S.current.codeSent : S.current.codeResent,
       );
       _startCooldown();
     } catch (e) {
@@ -95,7 +96,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Future<void> _verify() async {
     final code = _controller.text.trim();
     if (code.length != 6) {
-      setState(() => _error = 'El código tiene 6 dígitos');
+      setState(() => _error = S.current.codeIsSixDigits);
       return;
     }
 
@@ -125,7 +126,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     final busy = _sending || _verifying;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verifica tu email')),
+      appBar: AppBar(title: Text(S.current.verifyYourEmail)),
       // Scroll porque el teclado numérico se come media pantalla.
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -139,14 +140,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Escribe el código',
+              S.current.writeTheCode,
               style: context.textStyles.headlineSmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Te hemos escrito a ${widget.email}. El código caduca en 15 '
-              'minutos.',
+              S.current.weWroteTo(widget.email),
               textAlign: TextAlign.center,
               style: context.textStyles.bodyMedium?.copyWith(
                 color: colors.onSurfaceVariant,
@@ -208,15 +208,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Verificar'),
+                  : Text(S.current.verify),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: (busy || _cooldown > 0) ? null : _send,
               child: Text(
                 _cooldown > 0
-                    ? 'Reenviar código ($_cooldown s)'
-                    : 'Reenviar código',
+                    ? S.current.resendCodeIn(_cooldown)
+                    : S.current.resendCode,
               ),
             ),
             // Salida explicita, no sólo la flecha de atrás: se llega aquí
@@ -225,7 +225,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             TextButton(
               onPressed: busy ? null : () => Navigator.of(context).pop(false),
               child: Text(
-                'Más tarde',
+                S.current.later,
                 style: TextStyle(color: context.colors.onSurfaceVariant),
               ),
             ),

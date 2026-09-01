@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../theme/app_theme.dart';
 import 'avatar_gallery.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Lo que devuelve [pickPhotos]: o ficheros de la cámara/galería, o un
 /// avatar de los que trae la app. Nunca las dos cosas.
@@ -39,14 +40,14 @@ Future<PhotoPick> pickPhotos(BuildContext context, {required int limit}) async {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-            child: Text('Añadir foto', style: context.textStyles.titleMedium),
+            child: Text(S.current.addPhoto, style: context.textStyles.titleMedium),
           ),
           ListTile(
             leading: Icon(
               Icons.photo_camera_outlined,
               color: context.colors.primary,
             ),
-            title: const Text('Hacer una foto'),
+            title: Text(S.current.takeAPhoto),
             onTap: () => Navigator.of(context).pop(_Source.camera),
           ),
           ListTile(
@@ -54,9 +55,9 @@ Future<PhotoPick> pickPhotos(BuildContext context, {required int limit}) async {
               Icons.photo_library_outlined,
               color: context.colors.primary,
             ),
-            title: const Text('Elegir de la galería'),
+            title: Text(S.current.chooseFromGallery),
             subtitle: Text(
-              limit == 1 ? 'Una foto' : 'Puedes elegir hasta $limit',
+              limit == 1 ? 'Una foto' : S.current.youCanChooseUpTo(limit),
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -65,9 +66,9 @@ Future<PhotoPick> pickPhotos(BuildContext context, {required int limit}) async {
           ),
           ListTile(
             leading: Icon(Icons.face_outlined, color: context.colors.primary),
-            title: const Text('Usar un avatar'),
+            title: Text(S.current.useAnAvatar),
             subtitle: Text(
-              'Ilustraciones de la app, si prefieres no poner tu cara',
+              S.current.avatarGalleryHint,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),

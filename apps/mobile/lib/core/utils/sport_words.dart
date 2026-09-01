@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/discovery/models/sport.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Como se llama en castellano lo que dos personas acuerdan jugar.
 ///
@@ -14,12 +15,12 @@ import '../../features/discovery/models/sport.dart';
 /// se dice de verdad ("una quedada para correr", "quedada en el club") y,
 /// a diferencia de "propuesta", sigue siendo correcto una vez aceptada.
 String sportSessionTitle(Sport sport) =>
-    sport == Sport.tennis ? 'Partido de tenis' : 'Salida a correr';
+    sport == Sport.tennis ? S.current.tennisMatch : S.current.runningSession;
 
 /// El sustantivo suelto, para meterlo dentro de una frase
 /// ("Cancelar el $noun", "El $noun es el jueves").
 String sportSessionNoun(Sport sport) =>
-    sport == Sport.tennis ? 'partido' : 'salida';
+    sport == Sport.tennis ? S.current.matchNoun : S.current.runNoun;
 
 IconData sportIcon(Sport sport) =>
     sport == Sport.tennis ? Icons.sports_tennis : Icons.directions_run;

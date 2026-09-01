@@ -7,6 +7,7 @@ import 'package:match_point/features/matches/models/match_item.dart';
 import 'package:match_point/features/matches/services/matches_service.dart';
 
 import 'chat_screen.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// La puerta de entrada al chat cuando **no** se viene de la lista.
 ///
@@ -68,8 +69,8 @@ class _ChatEntryState extends State<ChatEntry> {
           // pantalla en blanco.
           return _Unavailable(
             message: snap.hasError
-                ? 'No se ha podido abrir la conversación'
-                : 'Esta conversación ya no está disponible',
+                ? S.current.couldNotOpenConversation
+                : S.current.conversationNoLongerAvailable,
           );
         }
 
@@ -110,7 +111,7 @@ class _Unavailable extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => context.go(AppRoutes.shell),
-                child: const Text('Volver'),
+                child: Text(S.current.back),
               ),
             ],
           ),

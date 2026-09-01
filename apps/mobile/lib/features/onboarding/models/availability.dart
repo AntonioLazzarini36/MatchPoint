@@ -1,3 +1,4 @@
+import 'package:match_point/core/i18n/app_locale.dart';
 /// El horario semanal habitual de alguien (`Profile.availability`).
 ///
 /// **Es una referencia, no una verdad.** Dice lo que esa persona *suele*
@@ -10,29 +11,18 @@
 /// que es como llega y sale del backend. Un entero en vez de una lista de
 /// nombres porque lo único que se hace con esto es pintarlo.
 class WeeklyAvailability {
-  /// Lunes primero, como una semana española.
-  static const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-  static const dayNames = [
-    'Lunes',
-    'Martes',
-    'Miércoles',
-    'Jueves',
-    'Viernes',
-    'Sábado',
-    'Domingo',
-  ];
+  /// Lunes primero, como una semana española. Iniciales en el idioma
+  /// activo: en inglés hacen falta dos letras en cuatro de los siete.
+  static List<String> get days => S.current.weekdayInitials;
+  /// Nombres completos, en el idioma activo.
+  static List<String> get dayNames => S.current.weekdayNames;
   /// Para frases cortas ("sáb mañana"), donde `dayNames` no cabe y `days`
   /// (una sola letra) no se entiende fuera de la rejilla.
-  static const shortDayNames = [
-    'lun',
-    'mar',
-    'mié',
-    'jue',
-    'vie',
-    'sáb',
-    'dom',
-  ];
-  static const bands = ['Mañana', 'Tarde', 'Noche'];
+  /// Días abreviados, en el idioma activo.
+  static List<String> get shortDayNames => S.current.weekdayShort;
+  /// Los nombres de las franjas, en el idioma activo. Getter y no `const`
+  /// porque cambian al cambiar de idioma.
+  static List<String> get bands => S.current.bandNames;
 
   final int mask;
   const WeeklyAvailability(this.mask);
@@ -83,7 +73,7 @@ class WeeklyAvailability {
   /// No intenta describir el horario entero: con más de unos pocos huecos
   /// cualquier frase se vuelve ilegible, y para eso está la rejilla.
   String get summary {
-    if (isEmpty) return 'Sin definir';
+    if (isEmpty) return S.current.notSet;
     if (count >= 15) return 'Casi siempre disponible';
 
     final byBand = <int, List<int>>{};

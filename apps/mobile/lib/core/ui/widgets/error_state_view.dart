@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../network/connection_error.dart';
 import '../../theme/app_theme.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Cómo enseña la app que algo ha fallado al cargar.
 ///
@@ -37,7 +38,7 @@ class ErrorStateView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          offline ? 'Sin conexión' : 'Algo ha ido mal',
+          offline ? S.current.noConnection : S.current.somethingWentWrong,
           textAlign: TextAlign.center,
           style: context.textStyles.titleMedium,
         ),
@@ -54,7 +55,7 @@ class ErrorStateView extends StatelessWidget {
           child: FilledButton.tonalIcon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Reintentar'),
+            label: Text(S.current.retry),
           ),
         ),
       ],

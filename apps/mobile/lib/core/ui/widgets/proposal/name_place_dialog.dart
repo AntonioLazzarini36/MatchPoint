@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../location/geocoding_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../../features/courts/models/tennis_club.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Pregunta cómo se llama un sitio que OpenStreetMap no tiene nombrado,
 /// con el nombre ya propuesto y editable.
@@ -42,7 +43,7 @@ Future<String> suggestedPlaceName(
         club.latitude,
         club.longitude,
       );
-  return address == null ? 'Pistas de tenis' : 'Pistas de tenis · $address';
+  return address == null ? S.current.tennisCourts : S.current.tennisCourtsAt(address);
 }
 
 class _NamePlaceDialog extends StatefulWidget {
@@ -79,18 +80,16 @@ class _NamePlaceDialogState extends State<_NamePlaceDialog> {
   Widget build(BuildContext context) {
     final courts = widget.courtCount == 1
         ? '1 pista'
-        : '${widget.courtCount} pistas';
+        : S.current.courtsCount(widget.courtCount);
 
     return AlertDialog(
-      title: const Text('¿Cómo se llama este sitio?'),
+      title: Text(S.current.whatIsThisPlaceCalled),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'OpenStreetMap tiene aquí $courts, pero sin nombre. Ponle uno '
-            'para que la otra persona sepa dónde es — la ubicación exacta '
-            'va igualmente en el mapa de la quedada.',
+            S.current.osmHasCourtsNoName(courts),
             style: context.textStyles.bodySmall?.copyWith(
               color: context.colors.onSurfaceVariant,
             ),
@@ -102,18 +101,18 @@ class _NamePlaceDialogState extends State<_NamePlaceDialog> {
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Nombre del sitio'),
+            decoration: InputDecoration(labelText: S.current.placeName),
           ),
         ],
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(S.current.cancel),
         ),
         FilledButton(
           onPressed: _ctrl.text.trim().isEmpty ? null : _submit,
-          child: const Text('Usar este sitio'),
+          child: Text(S.current.useThisPlace),
         ),
       ],
     );

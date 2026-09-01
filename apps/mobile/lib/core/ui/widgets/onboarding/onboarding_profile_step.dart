@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:match_point/features/onboarding/models/gender.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class OnboardingProfileStep extends StatelessWidget {
   final TextEditingController displayNameCtrl;
@@ -42,7 +43,7 @@ class OnboardingProfileStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tu perfil', style: t.headlineMedium),
+          Text(S.current.yourProfileStep, style: t.headlineMedium),
           const SizedBox(height: 8),
 
 
@@ -50,7 +51,7 @@ class OnboardingProfileStep extends StatelessWidget {
             controller: displayNameCtrl,
             textInputAction: TextInputAction.next,
             onSubmitted: (_) => onNameSubmitted?.call(),
-            decoration: const InputDecoration(labelText: 'Nombre visible'),
+            decoration: InputDecoration(labelText: S.current.displayName),
           ),
           const SizedBox(height: 12),
 
@@ -58,8 +59,8 @@ class OnboardingProfileStep extends StatelessWidget {
             onTap: onPickBirthDate,
             borderRadius: BorderRadius.circular(12),
             child: InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Fecha de nacimiento',
+              decoration: InputDecoration(
+                labelText: S.current.birthDate,
                 border: OutlineInputBorder(),
               ),
               child: Text(birthDateLabel),
@@ -68,7 +69,7 @@ class OnboardingProfileStep extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          Text('Género', style: t.titleMedium),
+          Text(S.current.gender, style: t.titleMedium),
           const SizedBox(height: 4),
           Wrap(
             spacing: 12,
@@ -89,10 +90,10 @@ class OnboardingProfileStep extends StatelessWidget {
 
           const SizedBox(height: 28),
 
-          Text('Sobre ti', style: t.titleMedium),
+          Text(S.current.aboutYou, style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Menciona lo que creas que otros perfiles deberían saber de ti.',
+            S.current.aboutYouHint,
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -104,10 +105,8 @@ class OnboardingProfileStep extends StatelessWidget {
             maxLines: 4,
             minLines: 3,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText:
-                  'Juego los martes por la tarde cerca del centro. '
-                  'Busco a alguien constante más que competitivo.',
+            decoration: InputDecoration(
+              hintText: S.current.bioExample,
               alignLabelWithHint: true,
             ),
           ),

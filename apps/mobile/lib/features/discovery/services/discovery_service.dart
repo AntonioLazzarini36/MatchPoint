@@ -7,6 +7,7 @@ import '../models/sport.dart';
 import '../models/swipe_response.dart';
 import '../models/swipe_type.dart';
 import 'package:flutter/foundation.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class DiscoveryService {
   final ApiClient api;
@@ -27,7 +28,7 @@ class DiscoveryService {
     final res = await api.get('/discover?$qs', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se han podido cargar los perfiles');
+      throw apiError(res, fallback: S.current.couldNotLoadProfiles);
     }
 
     final decoded = jsonDecode(res.body);
@@ -62,7 +63,7 @@ class DiscoveryService {
     if (kDebugMode) {}
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido registrar tu decisión');
+      throw apiError(res, fallback: S.current.couldNotRegisterDecision);
     }
 
     return SwipeResponse.fromJson(jsonDecode(res.body) as Map<String, dynamic>);

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../../theme/app_theme.dart';
 import '../../utils/landscape_crop.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Las ilustraciones que trae la app para quien no quiere poner una foto
 /// suya el primer día.
@@ -36,7 +37,7 @@ Future<String?> pickAvatar(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Elige un avatar', style: sheetContext.textStyles.titleMedium),
+            Text(S.current.chooseAnAvatar, style: sheetContext.textStyles.titleMedium),
             const SizedBox(height: 4),
             Text(
               'Puedes cambiarlo por una foto tuya cuando quieras, desde tu '

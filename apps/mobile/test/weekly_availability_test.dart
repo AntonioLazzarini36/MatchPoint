@@ -1,7 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 void main() {
+  // Estas pruebas comprueban textos en castellano, así que fijan el idioma:
+  // el entorno de test arranca con el del sistema, que en CI es inglés.
+  setUp(() => LocaleController.locale.value = AppLocale.es);
+
   group('horario semanal', () {
     // Lunes tarde+noche, miércoles mañana, jueves tarde: el mismo valor que
     // se comprobó contra el backend, para que un cambio en la numeración de

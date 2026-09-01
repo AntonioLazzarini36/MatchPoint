@@ -3,6 +3,7 @@ import '../../core/network/api_error.dart';
 import 'package:http/http.dart' as http;
 
 import 'location_result.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Wraps Nominatim (OpenStreetMap's free geocoding API, no API key) so the
 /// user can type "Málaga", "Benalmádena", "Innsbruck"... and pick from
@@ -44,7 +45,7 @@ class GeocodingService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
 
     final decoded = jsonDecode(res.body) as List<dynamic>;
@@ -103,7 +104,7 @@ class GeocodingService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido buscar el código postal');
+      throw apiError(res, fallback: S.current.couldNotSearchPostcode);
     }
 
     final decoded = jsonDecode(res.body) as List<dynamic>;

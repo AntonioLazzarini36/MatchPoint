@@ -7,6 +7,7 @@ import '../../profile/network_photo.dart';
 import '../../../../features/discovery/models/discover_profile.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import '../../../../features/discovery/models/sport.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Una persona, como una fila de una lista que se recorre — no como una
 /// carta que se arrastra.
@@ -238,14 +239,14 @@ class PlayerListTile extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: onDismiss,
-                    child: const Text('Ahora no'),
+                    child: Text(S.current.notNow),
                   ),
                   const Spacer(),
                   FilledButton.icon(
                     onPressed: onWantToPlay,
                     icon: const Icon(Icons.sports_tennis, size: 18),
                     label: Text(
-                      user.likesYou ? 'Jugar con $_firstName' : 'Quiero jugar',
+                      user.likesYou ? S.current.playWith(_firstName) : S.current.iWantToPlay,
                     ),
                   ),
                 ],
@@ -272,10 +273,10 @@ class PlayerListTile extends StatelessWidget {
   /// rejilla lo enseña entero y bien.
   static String _sharedLabel(List<String> slots) {
     if (slots.isEmpty) {
-      return 'No coincidís en ninguna franja horaria';
+      return S.current.noSharedSlots;
     }
-    if (slots.length == 1) return 'Coincidís en 1 franja horaria';
-    return 'Coincidís en ${slots.length} franjas horarias';
+    if (slots.length == 1) return S.current.oneSharedSlot;
+    return S.current.sharedSlots(slots.length);
   }
 }
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/network/notification_counts.dart';
 import 'package:match_point/core/theme/app_theme.dart';
-import 'package:match_point/core/utils/date_format_es.dart';
+import 'package:match_point/core/utils/date_format.dart';
 import 'package:match_point/core/ui/widgets/error_state_view.dart';
 import 'package:match_point/core/ui/widgets/screen_header.dart';
 import 'package:match_point/core/ui/profile/network_photo.dart';
@@ -18,6 +18,7 @@ import '../models/proposal.dart';
 import '../services/matches_service.dart';
 import '../services/proposal_service.dart';
 import 'session_detail_screen.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// "Qué juego próximamente" — lo que convierte MatchPoint de "he hecho
 /// match con alguien" a "tengo partido el jueves".
@@ -142,7 +143,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const ScreenHeader(title: 'Tus partidos'),
+            ScreenHeader(title: S.current.yourMatches),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
@@ -178,7 +179,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
           const SizedBox(height: 16),
           Center(
             child: Text(
-              'Todavía no tienes nada agendado',
+              S.current.nothingScheduled,
               style: context.textStyles.titleMedium?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -188,8 +189,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Cuando propongas jugar a alguno de tus compañeros (o te lo '
-              'propongan a ti), lo verás aquí.',
+              S.current.nothingScheduledHint,
               textAlign: TextAlign.center,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
@@ -217,11 +217,11 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
       children: [
         if (_toConfirm.isNotEmpty) ..._confirmSection(context),
         if (needsAnswer.isNotEmpty)
-          ..._section(context, 'Esperan tu respuesta', needsAnswer),
+          ..._section(context, S.current.awaitingYourAnswer, needsAnswer),
         if (confirmed.isNotEmpty)
-          ..._section(context, 'Confirmadas', confirmed),
+          ..._section(context, S.current.matchConfirmed, confirmed),
         if (waiting.isNotEmpty)
-          ..._section(context, 'Esperando respuesta', waiting),
+          ..._section(context, S.current.waitingForYourAnswer, waiting),
         if (_history.isNotEmpty) ..._historySection(context),
       ],
     );
@@ -235,7 +235,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   /// que es justamente la prueba de que sirve para algo.
   List<Widget> _historySection(BuildContext context) {
     return [
-      _SectionTitle('Terminados (${_history.length})'),
+      _SectionTitle(S.current.finishedCount(_history.length)),
       for (final s in _history)
         _PlayedRow(
           key: ValueKey(s.proposal.id),
@@ -247,11 +247,11 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
   /// Seccion de "cuenta que paso". Va primero en la lista.
   List<Widget> _confirmSection(BuildContext context) {
     return [
-      _SectionTitle('¿Qué tal fue? (${_toConfirm.length})'),
+      _SectionTitle(S.current.howDidItGoCount(_toConfirm.length)),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Text(
-          'Contarlo es lo que hace que los niveles del resto signifiquen algo.',
+          S.current.tellingItMakesLevelsMean,
           style: context.textStyles.bodySmall?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),
@@ -309,7 +309,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     List<UpcomingSession> sessions,
   ) {
     return [
-      _SectionTitle('$title (${sessions.length})'),
+      _SectionTitle(S.current.sectionCount(title, sessions.length)),
       for (final session in sessions) _sessionTile(context, session),
     ];
   }
@@ -351,7 +351,7 @@ class _SessionCard extends StatelessWidget {
     // pantalla señalaba "espera tu respuesta" con un borde verde y el chat
     // con fondo lima: el mismo estado, dos idiomas.
     final style = proposalStateStyle(context, proposal, short: true);
-    final relative = relativeDayEs(proposal.scheduledAt);
+    final relative = relativeDay(proposal.scheduledAt);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -388,7 +388,7 @@ class _SessionCard extends StatelessWidget {
                           const SizedBox(width: 6),
                         ],
                         Text(
-                          formatTimeEs(proposal.scheduledAt),
+                          formatTime(proposal.scheduledAt),
                           style: t.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -435,7 +435,7 @@ class _SessionCard extends StatelessWidget {
                             // blanco parece que el sitio está puesto y no se
                             // ve, y aquí "sin sitio" es información — queda
                             // algo por acordar.
-                            proposal.placeName ?? 'Sin sitio concreto',
+                            proposal.placeName ?? S.current.noSpecificPlace,
                             style: t.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
@@ -488,7 +488,7 @@ class _DateBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final t = context.textStyles;
-    final d = dateBlockEs(when);
+    final d = dateBlock(when);
 
     return Container(
       width: 52,
@@ -608,13 +608,13 @@ class _ConfirmCardState extends State<_ConfirmCard> {
 
   bool get _isTennis => widget.session.proposal.sport == Sport.tennis;
 
-  Future<void> _send({required bool played, bool? wouldRepeat}) async {
+  Future<void> _send({required bool played}) async {
     setState(() => _busy = true);
     try {
       await widget.onAnswer(
         played: played,
         outcome: played ? _outcome : null,
-        wouldRepeat: played ? wouldRepeat : null,
+        wouldRepeat: null,
         assessedLevel: played ? _assessedLevel : null,
         skipped: false,
       );
@@ -657,7 +657,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '$noun con ${s.otherDisplayName}',
+                    S.current.sessionWith(noun, s.otherDisplayName),
                     style: context.textStyles.titleMedium,
                   ),
                 ),
@@ -678,21 +678,21 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                 child: LinearProgressIndicator(),
               )
             else if (_played == null) ...[
-              Text('¿Llegasteis a jugar?', style: context.textStyles.bodyLarge),
+              Text(S.current.didYouPlay, style: context.textStyles.bodyLarge),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: FilledButton(
                       onPressed: () => setState(() => _played = true),
-                      child: const Text('Sí, jugamos'),
+                      child: Text(S.current.yesWePlayed),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => _send(played: false),
-                      child: const Text('No pudo ser'),
+                      child: Text(S.current.itCouldNotBe),
                     ),
                   ),
                 ],
@@ -704,21 +704,24 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: _skip,
-                  child: const Text('Saltar'),
+                  child: Text(S.current.skip),
                 ),
               ),
             ] else ...[
               if (_isTennis) ...[
-                Text('¿Cómo acabó?', style: context.textStyles.bodyLarge),
+                Text(S.current.howDidItEnd, style: context.textStyles.bodyLarge),
                 const SizedBox(height: 8),
                 // Sin "Empate": en tenis no existe. Estaba ahí de cuando esta
                 // pantalla servía también para correr.
+                // "Yo" y el nombre del rival, en vez de "Gané"/"Perdí": la
+                // pregunta es quién ganó, y contestarla con un nombre se lee
+                // solo. "Perdí" obliga a traducir mentalmente la respuesta.
                 Wrap(
                   spacing: 8,
                   children: [
-                    for (final option in const [
-                      ('WON', 'Gané'),
-                      ('LOST', 'Perdí'),
+                    for (final option in [
+                      ('WON', S.current.meWon),
+                      ('LOST', s.otherDisplayName),
                     ])
                       ChoiceChip(
                         label: Text(option.$2),
@@ -732,27 +735,18 @@ class _ConfirmCardState extends State<_ConfirmCard> {
 
               ..._levelQuestion(context, s.otherDisplayName),
 
-              Text(
-                '¿Repetirías con ${s.otherDisplayName}?',
-                style: context.textStyles.bodyLarge,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => _send(played: true, wouldRepeat: true),
-                      child: const Text('Sí'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _send(played: true, wouldRepeat: false),
-                      child: const Text('No'),
-                    ),
-                  ),
-                ],
+              // Fuera la pregunta de "¿repetirías?": no la contestaba nadie
+              // con criterio y no la leía nada — el dato que de verdad dice si
+              // repetirías es que vuelvas a proponerle jugar.
+              //
+              // Al quitarla hace falta un botón propio: antes eran sus dos
+              // botones los que enviaban la respuesta entera.
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => _send(played: true),
+                  child: Text(S.current.save),
+                ),
               ),
             ],
           ],
@@ -780,7 +774,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
 
     return [
       Text(
-        '¿Dirías que $name juega a nivel ${theirs.label.toLowerCase()}?',
+        S.current.wouldYouSayPlaysAt(name, theirs.label.toLowerCase()),
         style: context.textStyles.bodyLarge,
       ),
       const SizedBox(height: 8),
@@ -799,7 +793,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                       backgroundColor: context.colors.primaryContainer,
                     )
                   : null,
-              child: const Text('Sí'),
+              child: Text(S.current.yes),
             ),
           ),
           const SizedBox(width: 12),
@@ -814,7 +808,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
                       backgroundColor: context.colors.tertiaryContainer,
                     )
                   : null,
-              child: const Text('No'),
+              child: Text(S.current.no),
             ),
           ),
         ],
@@ -822,7 +816,7 @@ class _ConfirmCardState extends State<_ConfirmCard> {
       if (_levelDisagrees) ...[
         const SizedBox(height: 10),
         Text(
-          '¿Cuál dirías que es?',
+          S.current.whichWouldYouSay,
           style: context.textStyles.bodyMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),
@@ -847,9 +841,9 @@ class _ConfirmCardState extends State<_ConfirmCard> {
 
   String _whenLabel(DateTime when) {
     final days = DateTime.now().difference(when).inDays;
-    if (days <= 0) return 'Hoy';
-    if (days == 1) return 'Ayer';
-    return 'Hace $days días';
+    if (days <= 0) return S.current.today;
+    if (days == 1) return S.current.yesterday;
+    return S.current.daysAgo(days);
   }
 }
 
@@ -924,13 +918,13 @@ class _PlayedRow extends StatelessWidget {
             )
           else if (session.played == false)
             Text(
-              'No se jugó',
+              S.current.itWasNotPlayed,
               style: t.labelMedium?.copyWith(color: colors.onSurfaceVariant),
             )
           else
             // Ni contestado ni sabido: se dice, en vez de dejar el hueco.
             Text(
-              'Sin contestar',
+              S.current.unanswered,
               style: t.labelMedium?.copyWith(color: colors.outline),
             ),
         ],

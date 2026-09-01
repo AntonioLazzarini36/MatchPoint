@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:match_point/core/ui/widgets/availability_picker.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// "¿Cuándo puedes jugar?" — el filtro con el que ahora empieza la búsqueda.
 ///
@@ -68,7 +69,7 @@ int _slot(int day, int band) => 1 << (day * 3 + band);
 
 final _presets = <_Preset>[
   _Preset(
-    'Este finde',
+    S.current.thisWeekend,
     _slot(5, 0) |
         _slot(5, 1) |
         _slot(5, 2) |
@@ -77,15 +78,15 @@ final _presets = <_Preset>[
         _slot(6, 2),
   ),
   _Preset(
-    'Entre semana, tardes',
+    S.current.weekdayEvenings,
     _slot(0, 1) | _slot(1, 1) | _slot(2, 1) | _slot(3, 1) | _slot(4, 1),
   ),
   _Preset(
-    'Entre semana, mañanas',
+    S.current.weekdayMornings,
     _slot(0, 0) | _slot(1, 0) | _slot(2, 0) | _slot(3, 0) | _slot(4, 0),
   ),
   _Preset(
-    'Por las noches',
+    S.current.atNights,
     _slot(0, 2) |
         _slot(1, 2) |
         _slot(2, 2) |
@@ -124,11 +125,10 @@ class _WhenFilterSheetState extends State<_WhenFilterSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Cuándo puedes jugar?', style: t.headlineSmall),
+            Text(S.current.whenCanYouPlay, style: t.headlineSmall),
             const SizedBox(height: 6),
             Text(
-              'Te enseñamos primero a quien le venga bien lo mismo que a ti. '
-              'Marca las franjas en las que sueles tener libre.',
+              S.current.whenFilterHint,
               style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
@@ -170,15 +170,15 @@ class _WhenFilterSheetState extends State<_WhenFilterSheet> {
                       : () => setState(
                           () => _value = WeeklyAvailability.empty,
                         ),
-                  child: const Text('Quitar filtro'),
+                  child: Text(S.current.clearFilter),
                 ),
                 const Spacer(),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(_value),
                   child: Text(
                     _value.isEmpty
-                        ? 'Ver a todo el mundo'
-                        : 'Ver quién puede (${_value.count})',
+                        ? S.current.seeEveryone
+                        : S.current.seeWhoCan(_value.count),
                   ),
                 ),
               ],

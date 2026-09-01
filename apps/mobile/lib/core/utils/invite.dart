@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Invitar a alguien a la app.
 ///
@@ -38,9 +39,7 @@ class Invite {
   /// hablando contigo, y "pásame el enlace" es una respuesta normal. Lo que no
   /// puede pasar es que lleve a una app que no es la tuya.
   static String get message {
-    const texto =
-        '¿Jugamos? Estoy usando MatchPoint, una app para encontrar con quién '
-        'jugar al tenis cerca de casa y a las horas que te vienen bien.';
+    final texto = S.current.inviteMessage;
     return hasUrl ? '$texto\n\n$url' : texto;
   }
 

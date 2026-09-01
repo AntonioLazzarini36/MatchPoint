@@ -1,4 +1,5 @@
 import 'sport.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Self-reported, not computed — there's no Elo/Glicko rating yet (see
 /// status.md). One of these exists per sport a user plays, not a single
@@ -23,13 +24,13 @@ extension SkillLevelApi on SkillLevel {
   String get label {
     switch (this) {
       case SkillLevel.beginner:
-        return 'Principiante';
+        return S.current.levelBeginner;
       case SkillLevel.intermediate:
-        return 'Intermedio';
+        return S.current.levelIntermediate;
       case SkillLevel.advanced:
-        return 'Avanzado';
+        return S.current.levelAdvanced;
       case SkillLevel.competitive:
-        return 'Competitivo';
+        return S.current.levelCompetitive;
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app/app.dart';
 import 'core/analytics/analytics.dart';
+import 'core/i18n/app_locale.dart';
 import 'core/push/push_service.dart';
 
 Future<void> main() async {
@@ -18,6 +19,11 @@ Future<void> main() async {
   // tumbado. `portraitDown` queda fuera a proposito: abrir la app del reves
   // no es algo que nadie quiera.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // El idioma guardado, antes de `runApp`: si se leyera después, la primera
+  // pantalla se pintaría en el idioma por defecto y cambiaría sola un
+  // instante más tarde.
+  await LocaleController.load();
 
   // Antes de `runApp` para que una notificación que abre la app en frío
   // encuentre Firebase ya arrancado. No lanza si falla: quedarse sin

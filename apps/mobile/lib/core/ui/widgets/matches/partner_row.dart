@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../../utils/app_sports.dart';
-import '../../../utils/date_format_es.dart';
+import '../../../utils/date_format.dart';
 import '../../../utils/sport_words.dart';
 import '../../../../features/discovery/models/skill_level.dart';
 import '../../../../features/discovery/models/sport.dart';
 import '../../../../features/matches/models/match_item.dart';
 import '../../../../features/matches/models/proposal.dart';
 import '../../profile/network_photo.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Una persona con la que has hecho match, en la lista de "Tus compañeros".
 ///
@@ -45,7 +46,7 @@ class PartnerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = match.otherUser.profile;
-    final name = profile?.displayName ?? 'Sin nombre';
+    final name = profile?.displayName ?? S.current.noName;
     final photo = (profile?.photos.isNotEmpty ?? false)
         ? profile!.photos.first
         : null;
@@ -155,8 +156,8 @@ class PartnerRow extends StatelessWidget {
       // historia, lo segundo sólo constata un hueco.
       if (match.playedTogether > 0) {
         final veces = match.playedTogether == 1
-            ? 'Habéis jugado una vez'
-            : 'Habéis jugado ${match.playedTogether} veces';
+            ? S.current.playedOnce
+            : S.current.playedNTimes(match.playedTogether);
         return _state(
           context,
           Icons.verified_outlined,
@@ -166,7 +167,7 @@ class PartnerRow extends StatelessWidget {
         );
       }
       return Text(
-        'Aún no habéis quedado',
+        S.current.notPlayedYet,
         style: context.textStyles.bodyMedium?.copyWith(
           color: context.colors.onSurfaceVariant,
         ),
@@ -190,7 +191,7 @@ class PartnerRow extends StatelessWidget {
       return _state(
         context,
         Icons.mark_email_unread_outlined,
-        'Te propone $cuando',
+        S.current.proposesYou(cuando),
         sportAccent(s.sport),
         bold: true,
       );
@@ -199,7 +200,7 @@ class PartnerRow extends StatelessWidget {
     return _state(
       context,
       Icons.hourglass_empty,
-      'Esperando su respuesta · $cuando',
+      S.current.awaitingTheirAnswer(cuando),
       context.colors.onSurfaceVariant,
     );
   }

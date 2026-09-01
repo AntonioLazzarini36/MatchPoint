@@ -24,6 +24,8 @@ import '../../../core/utils/app_sports.dart';
 import '../../onboarding/models/intention.dart';
 import '../../onboarding/models/profile.dart';
 import '../../onboarding/services/profile_service.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
+import 'package:match_point/core/i18n/language_selector.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -111,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            friendlyError(e, fallback: 'No se ha podido guardar tu ubicación.'),
+            friendlyError(e, fallback: S.current.couldNotSaveLocation),
           ),
         ),
       );
@@ -143,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se ha podido guardar el radio de búsqueda.',
+              fallback: S.current.couldNotSaveRadius,
             ),
           ),
         ),
@@ -178,7 +180,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se han podido guardar tus deportes.',
+              fallback: S.current.couldNotSaveSports,
             ),
           ),
         ),
@@ -237,7 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            friendlyError(e, fallback: 'No se han podido guardar los cambios.'),
+            friendlyError(e, fallback: S.current.couldNotSaveChanges),
           ),
         ),
       );
@@ -267,7 +269,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se ha podido guardar tu descripción.',
+              fallback: S.current.couldNotSaveDescription,
             ),
           ),
         ),
@@ -301,7 +303,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            friendlyError(e, fallback: 'No se ha podido guardar tu nivel.'),
+            friendlyError(e, fallback: S.current.couldNotSaveLevel),
           ),
         ),
       );
@@ -344,7 +346,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se ha podido guardar tu experiencia.',
+              fallback: S.current.couldNotSaveExperience,
             ),
           ),
         ),
@@ -358,16 +360,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Seguro que quieres cerrar sesión?'),
+        title: Text(S.current.signOut),
+        content: Text(S.current.signOutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(S.current.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Cerrar sesión'),
+            child: Text(S.current.signOut),
           ),
         ],
       ),
@@ -416,50 +418,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String get _sportsSubtitle {
     final sports = _profile?.sports ?? const [];
-    if (sports.isEmpty) return 'Sin definir';
+    if (sports.isEmpty) return S.current.notSet;
     return sports.map((s) => s.label).join(', ');
   }
 
   String get _skillLevelsSubtitle {
     final sports = _profile?.sports ?? const [];
-    if (sports.isEmpty) return 'Elige tus deportes primero';
+    if (sports.isEmpty) return S.current.chooseSportsFirst;
     final parts = sports
         .map(
           (s) => _skillLevels[s] == null
               ? null
-              : '${s.label}: ${_skillLevels[s]!.label}',
+              : S.current.sportAndLevel(s.label, _skillLevels[s]!.label),
         )
         .whereType<String>()
         .toList();
-    return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
+    return parts.isEmpty ? S.current.notSet : parts.join(' · ');
   }
 
   String get _experienceSubtitle {
     final parts = <String>[
       if (_profile?.yearsPlaying != null)
-        '${_profile!.yearsPlaying} años jugando',
+        S.current.yearsPlaying(_profile!.yearsPlaying!),
       if ((_profile?.club ?? '').isNotEmpty) _profile!.club!,
       if (_profile?.avgPaceMinPerKm != null)
-        '${formatPaceMinPerKm(_profile!.avgPaceMinPerKm)} min/km',
+        S.current.pacePerKm(formatPaceMinPerKm(_profile!.avgPaceMinPerKm)),
       if (_profile?.avgDistanceKm != null)
-        '${_profile!.avgDistanceKm} km medios',
+        S.current.averageKmLabel('${_profile!.avgDistanceKm}'),
       if ((_profile?.achievements ?? const []).isNotEmpty)
-        '${_profile!.achievements.length} logro(s)',
+        S.current.achievementsCount(_profile!.achievements.length),
     ];
-    return parts.isEmpty ? 'Sin definir' : parts.join(' · ');
+    return parts.isEmpty ? S.current.notSet : parts.join(' · ');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ajustes')),
+      appBar: AppBar(title: Text(S.current.settings)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: AppSpacing.paddingLg,
               children: [
                 _ProfileHeaderCard(
-                  displayName: _profile?.displayName ?? 'Sin nombre',
+                  displayName: _profile?.displayName ?? S.current.noName,
                   photoUrl: _profile?.mainPhoto,
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -482,7 +484,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         iconColor: _emailVerified
                             ? context.colors.onSecondaryContainer
                             : context.colors.onTertiaryContainer,
-                        title: 'Email',
+                        title: S.current.email,
                         // Con la verificación apagada en el servidor la
                         // fila es sólo informativa: enseñar "sin verificar"
                         // y dejar tocarlo llevaría a un error que no depende
@@ -490,8 +492,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: !_emailVerificationEnabled
                             ? _email!
                             : _emailVerified
-                            ? '${_email!}\nVerificado'
-                            : '${_email!}\nSin verificar — toca para confirmarlo',
+                            ? '${_email!}\n${S.current.verified}'
+                            : '${_email!}\n${S.current.unverifiedTapToConfirm}',
                         onTap: (_emailVerified || !_emailVerificationEnabled)
                             ? null
                             : _verifyEmail,
@@ -505,7 +507,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     left: AppSpacing.xs,
                     bottom: AppSpacing.sm,
                   ),
-                  child: Text('Perfil', style: context.textStyles.titleMedium),
+                  child: Text(S.current.profile, style: context.textStyles.titleMedium),
                 ),
                 _SettingsGroup(
                   children: [
@@ -513,8 +515,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.location_on_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Ubicación',
-                      subtitle: _profile?.city ?? 'Sin definir',
+                      title: S.current.location,
+                      subtitle: _profile?.city ?? S.current.notSet,
                       trailing: _savingLocation
                           ? const SizedBox(
                               width: 20,
@@ -531,8 +533,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.social_distance_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Radio de búsqueda',
-                      subtitle: '${_preferences?.distanceKm ?? 25} km',
+                      title: S.current.searchRadius,
+                      subtitle: S.current.kmValue(_preferences?.distanceKm ?? 25),
                       trailing: _savingRadius
                           ? const SizedBox(
                               width: 20,
@@ -555,7 +557,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: Icons.sports_tennis,
                         iconBackground: context.colors.tertiaryContainer,
                         iconColor: context.colors.onTertiaryContainer,
-                        title: 'Deportes',
+                        title: S.current.sports,
                         subtitle: _sportsSubtitle,
                         trailing: _savingSports
                             ? const SizedBox(
@@ -575,7 +577,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.schedule,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Disponibilidad',
+                      title: S.current.availability,
                       // Sin resumen debajo: `summary` sale como "Tarde LMXJ ·
                       // mañana SD", que hay que descifrar. La rejilla entera
                       // está a un toque y se lee de un vistazo.
@@ -596,8 +598,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.flag_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'A qué vienes',
-                      subtitle: _profile?.intention?.label ?? 'Sin definir',
+                      title: S.current.whatDoYouCome,
+                      subtitle: _profile?.intention?.label ?? S.current.notSet,
                       trailing: _savingIntention
                           ? const SizedBox(
                               width: 20,
@@ -614,9 +616,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.notes_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Descripción',
+                      title: S.current.description,
                       subtitle: (_profile?.bio ?? '').trim().isEmpty
-                          ? 'Sin escribir'
+                          ? S.current.notWritten
                           : _profile!.bio!.trim(),
                       trailing: _savingBio
                           ? const SizedBox(
@@ -634,7 +636,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.military_tech_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Nivel',
+                      title: S.current.level,
                       subtitle: _skillLevelsSubtitle,
                       trailing: _savingSkillLevels
                           ? const SizedBox(
@@ -652,7 +654,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.emoji_events_outlined,
                       iconBackground: context.colors.tertiaryContainer,
                       iconColor: context.colors.onTertiaryContainer,
-                      title: 'Experiencia',
+                      title: S.current.experience,
                       subtitle: _experienceSubtitle,
                       trailing: _savingExperience
                           ? const SizedBox(
@@ -669,6 +671,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xl),
+                // El idioma, en su propio grupo y antes de "Cuenta": no es
+                // configuración de tu perfil (no lo ve nadie más), es de cómo
+                // te habla la app.
+                const _SettingsGroup(children: [LanguageSettingsTile()]),
+                const SizedBox(height: AppSpacing.xl),
                 // Por encima de "Cuenta" y no enterrado abajo del todo: la
                 // app sólo funciona si hay gente de tu zona dentro, así que
                 // traer a alguien no es una opción secundaria.
@@ -681,8 +688,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           alpha: 0.12,
                         ),
                         iconColor: context.colors.primary,
-                        title: 'Invitar a alguien',
-                        subtitle: 'Cuanta más gente de tu zona, más partidos',
+                        title: S.current.inviteSomeone,
+                        subtitle: S.current.inviteSomeoneHint,
                         trailing: Icon(
                           Icons.chevron_right,
                           color: context.colors.outline,
@@ -698,7 +705,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     left: AppSpacing.xs,
                     bottom: AppSpacing.sm,
                   ),
-                  child: Text('Cuenta', style: context.textStyles.titleMedium),
+                  child: Text(S.current.account, style: context.textStyles.titleMedium),
                 ),
                 _SettingsGroup(
                   children: [
@@ -708,7 +715,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         alpha: 0.12,
                       ),
                       iconColor: context.colors.error,
-                      title: 'Cerrar sesión',
+                      title: S.current.signOut,
                       titleColor: context.colors.error,
                       trailing: _loggingOut
                           ? const SizedBox(
@@ -731,9 +738,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         alpha: 0.12,
                       ),
                       iconColor: context.colors.error,
-                      title: 'Borrar mi cuenta',
+                      title: S.current.deleteMyAccount,
                       titleColor: context.colors.error,
-                      subtitle: 'No se puede deshacer',
+                      subtitle: S.current.cannotBeUndone,
                       trailing: _deletingAccount
                           ? const SizedBox(
                               width: 20,
@@ -915,16 +922,16 @@ class _RadiusSheetState extends State<_RadiusSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Radio de búsqueda', style: context.textStyles.titleMedium),
+            Text(S.current.searchRadius, style: context.textStyles.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'Hasta dónde buscamos gente, desde tu ubicación.',
+              S.current.searchRadiusHint,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 12),
-            Text('${_km.round()} km', style: context.textStyles.titleLarge),
+            Text(S.current.kmValue(_km.round()), style: context.textStyles.titleLarge),
             Slider(
               value: _km,
               min: 1,
@@ -937,7 +944,7 @@ class _RadiusSheetState extends State<_RadiusSheet> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(_km.round()),
-                child: const Text('Guardar'),
+                child: Text(S.current.save),
               ),
             ),
           ],
@@ -988,11 +995,10 @@ class _SportsSheetState extends State<_SportsSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Deportes', style: context.textStyles.titleMedium),
+            Text(S.current.sports, style: context.textStyles.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'A qué juegas. Determina a quién ves en Descubrir y '
-              'quién te ve a vos.',
+              S.current.sportsHint,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -1003,7 +1009,7 @@ class _SportsSheetState extends State<_SportsSheet> {
               runSpacing: 12,
               children: [
                 FilterChip(
-                  label: const Text('Tenis'),
+                  label: Text(S.current.sportTennis),
                   avatar: const Icon(Icons.sports_tennis, size: 18),
                   selected: _selected.contains(Sport.tennis),
                   onSelected: (v) => _toggle(Sport.tennis, v),
@@ -1014,7 +1020,7 @@ class _SportsSheetState extends State<_SportsSheet> {
                   ),
                 ),
                 FilterChip(
-                  label: const Text('Correr'),
+                  label: Text(S.current.sportRunning),
                   avatar: const Icon(Icons.directions_run, size: 18),
                   selected: _selected.contains(Sport.running),
                   onSelected: (v) => _toggle(Sport.running, v),
@@ -1033,7 +1039,7 @@ class _SportsSheetState extends State<_SportsSheet> {
                 onPressed: canSave
                     ? () => Navigator.of(context).pop(_selected.toList())
                     : null,
-                child: const Text('Guardar'),
+                child: Text(S.current.save),
               ),
             ),
           ],
@@ -1071,7 +1077,7 @@ class _SkillLevelSheetState extends State<_SkillLevelSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nivel', style: context.textStyles.titleMedium),
+            Text(S.current.level, style: context.textStyles.titleMedium),
             const SizedBox(height: 16),
             for (final sport in widget.sports) ...[
               // El nombre del deporte solo cuando hay mas de uno que
@@ -1098,7 +1104,7 @@ class _SkillLevelSheetState extends State<_SkillLevelSheet> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(_levels),
-                child: const Text('Guardar'),
+                child: Text(S.current.save),
               ),
             ),
           ],
@@ -1212,12 +1218,12 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
     if (text.isEmpty) return;
     if (text.length > _maxAchievementLength) {
       setState(
-        () => _error = 'Máximo $_maxAchievementLength caracteres por logro',
+        () => _error = S.current.maxCharsPerAchievement(_maxAchievementLength),
       );
       return;
     }
     if (_achievements.length >= _maxAchievements) {
-      setState(() => _error = 'Máximo $_maxAchievements logros');
+      setState(() => _error = S.current.maxAchievements(_maxAchievements));
       return;
     }
     setState(() {
@@ -1236,7 +1242,7 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
     if (club.length > _maxClubLength) {
       setState(
         () =>
-            _error = 'El club no puede superar los $_maxClubLength caracteres',
+            _error = S.current.clubMaxLength(_maxClubLength),
       );
       return;
     }
@@ -1272,7 +1278,7 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Experiencia', style: context.textStyles.titleMedium),
+              Text(S.current.experience, style: context.textStyles.titleMedium),
               const SizedBox(height: 16),
               if (playsTennis) ...[
                 if (playsBoth) _sportHeaderRow(context, Sport.tennis),
@@ -1280,8 +1286,8 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
                   controller: _yearsCtrl,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(
-                    labelText: 'Años jugando al tenis',
+                  decoration: InputDecoration(
+                    labelText: S.current.yearsPlayingTennis,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -1294,7 +1300,7 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
                   controller: _clubCtrl,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(labelText: 'Club'),
+                  decoration: InputDecoration(labelText: S.current.club),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -1304,9 +1310,9 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
                   controller: _paceCtrl,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(
-                    labelText: 'Ritmo medio (min:seg / km)',
-                    hintText: 'Ej. 4:30',
+                  decoration: InputDecoration(
+                    labelText: S.current.averagePaceLabel,
+                    hintText: S.current.averagePaceHint,
                   ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9:.]')),
@@ -1318,9 +1324,9 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
                   controller: _distanceCtrl,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(
-                    labelText: 'Distancia media (km)',
-                    hintText: 'Ej. 10',
+                  decoration: InputDecoration(
+                    labelText: S.current.averageDistanceLabel,
+                    hintText: S.current.averageDistanceHint,
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -1333,15 +1339,15 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
                 const SizedBox(height: 12),
               ],
               const SizedBox(height: 4),
-              Text('Torneos / logros', style: context.textStyles.bodyMedium),
+              Text(S.current.tournamentsAchievements, style: context.textStyles.bodyMedium),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _achievementCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Ej. Campeón provincial 2024',
+                      decoration: InputDecoration(
+                        hintText: S.current.achievementHint,
                       ),
                       onSubmitted: (_) => _addAchievement(),
                     ),
@@ -1381,7 +1387,7 @@ class _ExperienceSheetState extends State<_ExperienceSheet> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _save,
-                  child: const Text('Guardar'),
+                  child: Text(S.current.save),
                 ),
               ),
             ],
@@ -1451,11 +1457,10 @@ class _IntentionSheetState extends State<_IntentionSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('A qué vienes', style: context.textStyles.titleLarge),
+            Text(S.current.whatDoYouCome, style: context.textStyles.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Aparece en tu perfil para que sepan qué buscas. Si no eliges '
-              'nada, no se enseña.',
+              S.current.intentionShownHint,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -1471,7 +1476,7 @@ class _IntentionSheetState extends State<_IntentionSheet> {
               ),
             _choice(
               icon: Icons.remove_circle_outline,
-              title: 'Prefiero no decirlo',
+              title: S.current.preferNotToSay,
               selected: _selected == null,
               onTap: () => setState(() => _selected = null),
             ),
@@ -1479,7 +1484,7 @@ class _IntentionSheetState extends State<_IntentionSheet> {
             FilledButton(
               onPressed: () =>
                   Navigator.of(context).pop(_IntentionChoice(_selected)),
-              child: const Text('Guardar'),
+              child: Text(S.current.save),
             ),
           ],
         ),
@@ -1518,7 +1523,7 @@ class _BioSheetState extends State<_BioSheet> {
     // un `maxLength`, que dibujaría un contador permanente bajo el campo —
     // ruido visual que ya se quitó del resto de la app a petición tuya.
     if (text.length > 500) {
-      setState(() => _error = 'Máximo 500 caracteres (llevas ${text.length}).');
+      setState(() => _error = S.current.maxCharsUsed(500, text.length));
       return;
     }
     Navigator.of(context).pop(text);
@@ -1539,10 +1544,10 @@ class _BioSheetState extends State<_BioSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Sobre ti', style: context.textStyles.titleLarge),
+          Text(S.current.aboutYou, style: context.textStyles.titleLarge),
           const SizedBox(height: 4),
           Text(
-            'Añade cualquier información que pueda interesarle a tu futuro compañero.',
+            S.current.addAnythingUseful,
             style: context.textStyles.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -1561,7 +1566,7 @@ class _BioSheetState extends State<_BioSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton(onPressed: _save, child: const Text('Guardar')),
+          FilledButton(onPressed: _save, child: Text(S.current.save)),
         ],
       ),
     );
@@ -1595,7 +1600,7 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Disponibilidad',
+              S.current.availability,
               style: context.textStyles.titleLarge,
             ),
             const SizedBox(height: 16),
@@ -1606,7 +1611,7 @@ class _AvailabilitySheetState extends State<_AvailabilitySheet> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(_selected),
-              child: const Text('Guardar'),
+              child: Text(S.current.save),
             ),
           ],
         ),

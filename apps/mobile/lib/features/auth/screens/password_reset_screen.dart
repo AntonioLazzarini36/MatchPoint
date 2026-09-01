@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:match_point/core/network/api.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/ui/widgets/password_field.dart';
 
 import '../services/auth_service.dart';
 
@@ -52,7 +54,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   Future<void> _requestCode() async {
     final email = _emailCtrl.text.trim();
     if (!email.contains('@')) {
-      setState(() => _error = 'Escribe tu email');
+      setState(() => _error = S.current.writeYourEmail);
       return;
     }
 
@@ -70,7 +72,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         // lo mismo exista o no, para que esta pantalla no sirva para
         // averiguar quién está registrado. El texto tiene que ser honesto
         // con lo que la app de verdad sabe.
-        _info = 'Si esa cuenta existe, le hemos enviado un código';
+        _info = S.current.ifAccountExistsCodeSent;
       });
     } catch (e) {
       if (!mounted) return;
@@ -85,11 +87,11 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     final pass = _passCtrl.text;
 
     if (code.length != 6) {
-      setState(() => _error = 'El código tiene 6 dígitos');
+      setState(() => _error = S.current.codeIsSixDigits);
       return;
     }
     if (pass.length < 8) {
-      setState(() => _error = 'La contraseña necesita al menos 8 caracteres');
+      setState(() => _error = S.current.passwordNeedsEightChars);
       return;
     }
 
@@ -123,7 +125,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
     final t = context.textStyles;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Recuperar contraseña')),
+      appBar: AppBar(title: Text(S.current.recoverPassword)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -132,16 +134,15 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             Icon(Icons.lock_reset, size: 56, color: colors.primary),
             const SizedBox(height: 20),
             Text(
-              _codeSent ? 'Escribe el código' : '¿Cuál es tu email?',
+              _codeSent ? S.current.writeTheCode : S.current.whatIsYourEmail,
               style: t.headlineSmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               _codeSent
-                  ? 'Te hemos escrito con un código de 6 dígitos. Caduca en 15 '
-                        'minutos.'
-                  : 'Te enviamos un código para elegir una contraseña nueva.',
+                  ? S.current.codeSixDigitsFifteenMin
+                  : S.current.weSendYouACode,
               textAlign: TextAlign.center,
               style: t.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
             ),
@@ -154,7 +155,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _requestCode(),
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: S.current.email),
             ),
 
             if (_codeSent) ...[
@@ -176,15 +177,12 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              TextField(
+              PasswordField(
                 controller: _passCtrl,
-                obscureText: true,
+                labelText: S.current.newPassword,
+                helperText: S.current.minEightChars,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _confirm(),
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña nueva',
-                  helperText: 'Mínimo 8 caracteres',
-                ),
               ),
             ],
 
@@ -213,7 +211,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(_codeSent ? 'Cambiar contraseña' : 'Enviar código'),
+                  : Text(_codeSent ? S.current.changePassword : S.current.sendCode),
             ),
 
             if (_codeSent) ...[
@@ -228,13 +226,13 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                         _error = null;
                         _info = null;
                       }),
-                child: const Text('Usar otro email'),
+                child: Text(S.current.useAnotherEmail),
               ),
             ],
 
             const SizedBox(height: 8),
             Text(
-              'Al cambiarla se cierra la sesión en todos tus dispositivos.',
+              S.current.changingClosesSessions,
               textAlign: TextAlign.center,
               style: t.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),

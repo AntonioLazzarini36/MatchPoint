@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:match_point/core/theme/app_theme.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class ChatInputBar extends StatefulWidget {
   final TextEditingController controller;
@@ -70,7 +71,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   if (!widget.sending) widget.onSend();
                 },
                 decoration: InputDecoration(
-                  hintText: 'Escribe un mensaje...',
+                  hintText: S.current.writeAMessage,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,

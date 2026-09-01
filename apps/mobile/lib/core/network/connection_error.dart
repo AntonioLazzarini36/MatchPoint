@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'api_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// La app no ha podido hablar con el servidor.
 ///
@@ -17,13 +18,14 @@ import 'api_error.dart';
 /// distinguirlo de un error real del servidor: un fallo de red se reintenta,
 /// un 400 no.
 class NoConnectionException implements Exception {
-  final String message;
-  const NoConnectionException([
-    this.message = 'Sin conexión. Comprueba tu red e inténtalo de nuevo.',
-  ]);
+  /// Null = usa el texto traducido del idioma activo. No se puede poner como
+  /// valor por defecto del parámetro porque ése tiene que ser constante, y el
+  /// texto depende del idioma que esté puesto en ese momento.
+  final String? message;
+  const NoConnectionException([this.message]);
 
   @override
-  String toString() => message;
+  String toString() => message ?? S.current.noConnection;
 }
 
 /// El servidor no contestó a tiempo.
@@ -31,13 +33,12 @@ class NoConnectionException implements Exception {
 /// Se distingue de no tener red porque la salida es distinta: aquí el móvil
 /// sí tiene conexión, así que reintentar tiene sentido casi siempre.
 class TimeoutFailure implements Exception {
-  final String message;
-  const TimeoutFailure([
-    this.message = 'El servidor está tardando demasiado. Inténtalo de nuevo.',
-  ]);
+  /// Ver `NoConnectionException.message`.
+  final String? message;
+  const TimeoutFailure([this.message]);
 
   @override
-  String toString() => message;
+  String toString() => message ?? S.current.serverTooSlow;
 }
 
 /// Convierte los fallos de transporte en algo que se puede enseñar.
@@ -75,9 +76,7 @@ String friendlyError(Object error, {String? fallback}) {
   // Cualquier otra excepción es un fallo interno de la app: su texto es
   // diagnóstico, no un mensaje. Se enseña lo que la pantalla sepa decir de
   // lo que estaba intentando, y si no sabe, una frase honesta.
-  return fallback ??
-      'No se ha podido completar la operación. Inténtalo de '
-          'nuevo en unos segundos.';
+  return fallback ?? S.current.serverFailure;
 }
 
 /// Si merece la pena ofrecer "Reintentar" con el mismo botón grande: un

@@ -27,6 +27,7 @@ import 'session_detail_screen.dart';
 import '../../discovery/models/sport.dart';
 import '../../onboarding/models/availability.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 enum _ChatMenuAction { courts, unmatch, report }
 
@@ -222,11 +223,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _unmatch() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Dejar de ser compañeros',
+      title: S.current.unmatch,
       content:
-          '¿Seguro que quieres dejar de ser compañeros? Se borrará también la '
-          'conversación, y no se puede deshacer.',
-      confirmLabel: 'Dejar de ser compañeros',
+          S.current.unmatchConfirmNoName,
+      confirmLabel: S.current.unmatch,
       destructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -245,7 +245,7 @@ class _ChatScreenState extends State<ChatScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se ha podido completar la operación.',
+              fallback: S.current.couldNotCompleteOperation,
             ),
           ),
         ),
@@ -265,13 +265,13 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await profileService.reportUser(widget.otherUserId, reason);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado')));
+      messenger.showSnackBar(SnackBar(content: Text(S.current.reportSent)));
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            friendlyError(e, fallback: 'No se ha podido enviar el reporte.'),
+            friendlyError(e, fallback: S.current.couldNotSendReport),
           ),
         ),
       );
@@ -330,8 +330,8 @@ class _ChatScreenState extends State<ChatScreen> {
               for (final sport in _sharedSports)
                 IconButton(
                   tooltip: sport == Sport.running
-                      ? 'Proponer salir a correr'
-                      : 'Proponer un partido',
+                      ? S.current.proposeARun
+                      : S.current.proposeAMatch,
                   icon: Icon(sportIcon(sport)),
                   onPressed: _busy ? null : () => _propose(sport),
                 ),
@@ -353,17 +353,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Aqui sale solo en un chat de tenis, que es cuando mirar
                   // pistas cerca viene a cuento.
                   if (widget.sport == Sport.tennis)
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: _ChatMenuAction.courts,
-                      child: Text('Ver pistas cerca'),
+                      child: Text(S.current.seeCourtsNearby),
                     ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: _ChatMenuAction.unmatch,
-                    child: Text('Dejar de ser compañeros'),
+                    child: Text(S.current.unmatch),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: _ChatMenuAction.report,
-                    child: Text('Reportar'),
+                    child: Text(S.current.report),
                   ),
                 ],
               ),
@@ -393,7 +393,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         content: Text(
                           friendlyError(
                             e,
-                            fallback: 'No se ha podido enviar el mensaje.',
+                            fallback: S.current.couldNotSendMessage,
                           ),
                         ),
                       ),
@@ -423,7 +423,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Icon(Icons.error_outline, size: 48, color: context.colors.error),
               const SizedBox(height: 12),
               Text(
-                'No se han podido cargar los mensajes',
+                S.current.couldNotLoadMessages,
                 style: context.textStyles.titleMedium,
               ),
               const SizedBox(height: 6),
@@ -437,7 +437,7 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: controller.reload,
-                child: const Text('Reintentar'),
+                child: Text(S.current.retry),
               ),
             ],
           ),
@@ -449,7 +449,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (msgs.isEmpty && _proposals.isEmpty) {
       return Center(
         child: Text(
-          'Todavía no hay mensajes',
+          S.current.noMessagesYet,
           style: context.textStyles.titleMedium?.copyWith(
             color: context.colors.onSurfaceVariant,
           ),

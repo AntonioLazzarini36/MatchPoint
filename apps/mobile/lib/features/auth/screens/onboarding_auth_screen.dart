@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
 import 'package:match_point/core/network/api.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
+import 'package:match_point/core/i18n/language_selector.dart';
 import 'package:match_point/core/network/public_config.dart';
 import 'package:match_point/core/ui/widgets/app_logo.dart';
+import 'package:match_point/core/ui/widgets/password_field.dart';
 import 'password_reset_screen.dart';
 import '../auth_controller.dart';
 import '../models/register_request.dart';
@@ -66,7 +69,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     passCtrl.clear();
     passFocus.requestFocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Contraseña cambiada. Entra con la nueva')),
+      SnackBar(content: Text(S.current.passwordChangedSignIn)),
     );
   }
 
@@ -98,7 +101,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
         context.go(AppRoutes.onboarding);
       }
     } catch (e) {
-      controller.setError('No se pudo cargar tu perfil. Inténtalo otra vez.');
+      controller.setError(S.current.couldNotLoadYourProfile);
     }
   }
 
@@ -113,7 +116,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
       if (!mounted) return;
 
       if (!available) {
-        controller.setError('Ese email ya está en uso');
+        controller.setError(S.current.emailAlreadyInUse);
         return;
       }
 
@@ -123,7 +126,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
       );
     } catch (e) {
       controller.setError(
-        friendlyError(e, fallback: 'No se ha podido comprobar el email.'),
+        friendlyError(e, fallback: S.current.couldNotCheckEmail),
       );
     } finally {
       if (mounted) setState(() => _checkingEmail = false);
@@ -139,12 +142,12 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     final pass = passCtrl.text;
 
     if (email.isEmpty) {
-      controller.setError('Escribe tu email');
+      controller.setError(S.current.writeYourEmail);
       return;
     }
 
     if (!email.contains('@')) {
-      controller.setError('Ese email no parece válido');
+      controller.setError(S.current.emailLooksInvalid);
       return;
     }
 
@@ -154,17 +157,17 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     }
 
     if (pass.length < 8) {
-      controller.setError('La contraseña debe tener al menos 8 caracteres');
+      controller.setError(S.current.passwordAtLeastEight);
       return;
     }
     if (pass.length > 72) {
-      controller.setError('La contraseña no puede superar los 72 caracteres');
+      controller.setError(S.current.passwordAtMost72);
       return;
     }
 
     final confirm = confirmPassCtrl.text;
     if (pass != confirm) {
-      controller.setError('Las contraseñas no coinciden');
+      controller.setError(S.current.passwordsDoNotMatch);
       return;
     }
 
@@ -177,7 +180,11 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
     final busy = _busy;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isLogin ? 'Entrar' : 'Crear cuenta')),
+      appBar: AppBar(
+        title: Text(
+          isLogin ? S.current.signIn : S.current.createAccount,
+        ),
+      ),
       body: AnimatedBuilder(
         animation: controller,
         builder: (_, _) {
@@ -194,7 +201,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                 const Center(child: AppLogo(size: 64)),
                 const SizedBox(height: 20),
                 Text(
-                  isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta',
+                  isLogin ? S.current.welcomeBack : S.current.createYourAccount,
                   style: t.headlineSmall,
                 ),
                 const SizedBox(height: 24),
@@ -204,13 +211,13 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   onSubmitted: (_) => passFocus.requestFocus(),
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: InputDecoration(labelText: S.current.email),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                PasswordField(
                   controller: passCtrl,
                   focusNode: passFocus,
-                  obscureText: true,
+                  labelText: S.current.password,
                   textInputAction: isLogin
                       ? TextInputAction.done
                       : TextInputAction.next,
@@ -221,19 +228,15 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       confirmPassFocus.requestFocus();
                     }
                   },
-                  decoration: const InputDecoration(labelText: 'Contraseña'),
                 ),
                 if (!isLogin) ...[
                   const SizedBox(height: 12),
-                  TextField(
+                  PasswordField(
                     controller: confirmPassCtrl,
                     focusNode: confirmPassFocus,
-                    obscureText: true,
+                    labelText: S.current.repeatPassword,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
-                    decoration: const InputDecoration(
-                      labelText: 'Repite la contraseña',
-                    ),
                   ),
                 ],
                 const SizedBox(height: 24),
@@ -256,7 +259,7 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(isLogin ? 'Entrar' : 'Crear cuenta'),
+                      : Text(isLogin ? S.current.signIn : S.current.createAccount),
                 ),
 
                 // Sólo al entrar: en el registro no hay contraseña que
@@ -266,10 +269,17 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                   const SizedBox(height: 4),
                   TextButton(
                     onPressed: busy ? null : _openPasswordReset,
-                    child: const Text('¿Has olvidado tu contraseña?'),
+                    child: Text(S.current.forgotPassword),
                   ),
                 ] else
                   const SizedBox(height: 12),
+
+                // El selector de idioma, a la vista y no escondido en Ajustes:
+                // quien abre la app por primera vez y la ve en un idioma que no
+                // habla no puede llegar a Ajustes — no sabe leer el camino.
+                const SizedBox(height: 8),
+                const Center(child: LanguageToggle()),
+                const SizedBox(height: 4),
 
                 TextButton(
                   onPressed: busy
@@ -277,8 +287,8 @@ class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
                       : () => setState(() => isLogin = !isLogin),
                   child: Text(
                     isLogin
-                        ? '¿No tienes cuenta? Regístrate'
-                        : '¿Ya tienes cuenta? Entra',
+                        ? S.current.noAccountRegister
+                        : S.current.haveAccountSignIn,
                   ),
                 ),
               ],

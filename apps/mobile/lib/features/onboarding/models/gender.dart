@@ -1,3 +1,4 @@
+import 'package:match_point/core/i18n/app_locale.dart';
 /// Género del propio usuario (`Profile.gender`) y, por separado, lo que
 /// quiere ver en Discovery (`Preferences.genderPreference`).
 ///
@@ -24,11 +25,11 @@ extension GenderApi on Gender {
   String get label {
     switch (this) {
       case Gender.male:
-        return 'Hombre';
+        return S.current.genderMale;
       case Gender.female:
-        return 'Mujer';
+        return S.current.genderFemale;
       case Gender.other:
-        return 'Otro';
+        return S.current.genderOther;
     }
   }
 
@@ -37,11 +38,11 @@ extension GenderApi on Gender {
   String get pluralLabel {
     switch (this) {
       case Gender.male:
-        return 'Hombres';
+        return S.current.genderMalePlural;
       case Gender.female:
-        return 'Mujeres';
+        return S.current.genderFemalePlural;
       case Gender.other:
-        return 'Otros';
+        return S.current.genderOtherPlural;
     }
   }
 

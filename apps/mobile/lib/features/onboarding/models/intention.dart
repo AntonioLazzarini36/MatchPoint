@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// A qué viene la persona (`Profile.intention`).
 ///
@@ -33,13 +34,13 @@ extension IntentionApi on Intention {
   String get label {
     switch (this) {
       case Intention.compete:
-        return 'Competir';
+        return S.current.intentionCompete;
       case Intention.train:
-        return 'Entrenar';
+        return S.current.intentionTrain;
       case Intention.learn:
-        return 'Mejorar mi nivel';
+        return S.current.intentionLearn;
       case Intention.fun:
-        return 'Divertirme';
+        return S.current.intentionFun;
     }
   }
 
@@ -48,13 +49,13 @@ extension IntentionApi on Intention {
   String get description {
     switch (this) {
       case Intention.compete:
-        return 'Partidos serios, con marcador';
+        return S.current.intentionCompeteDetail;
       case Intention.train:
-        return 'Coger ritmo y mantenerme en forma';
+        return S.current.intentionTrainDetail;
       case Intention.learn:
-        return 'Busco a alguien mejor que me haga subir de nivel';
+        return S.current.intentionLearnDetail;
       case Intention.fun:
-        return 'Sin presión, por el gusto de jugar';
+        return S.current.intentionFunDetail;
     }
   }
 

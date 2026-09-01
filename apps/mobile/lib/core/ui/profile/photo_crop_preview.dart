@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../utils/landscape_crop.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Enseña cómo van a quedar las fotos ya recortadas a 16:9 antes de
 /// aceptarlas.
@@ -53,7 +54,7 @@ class _CropPreviewDialogState extends State<_CropPreviewDialog> {
     final several = widget.cropped.length > 1;
 
     return AlertDialog(
-      title: Text(several ? 'Así se verán' : 'Así se verá'),
+      title: Text(several ? S.current.thisIsHowTheyLook : S.current.thisIsHowItLooks),
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
       content: SizedBox(
         width: double.maxFinite,
@@ -72,12 +73,8 @@ class _CropPreviewDialogState extends State<_CropPreviewDialog> {
             const SizedBox(height: 12),
             Text(
               several
-                  ? 'MatchPoint usa fotos horizontales, así que las '
-                        'recortamos por el centro. Quita las que no te '
-                        'convenzan.'
-                  : 'MatchPoint usa fotos horizontales, así que la '
-                        'recortamos por el centro. Si te corta algo '
-                        'importante, elige otra.',
+                  ? S.current.landscapeCropExplainerMany
+                  : S.current.landscapeCropExplainerOne,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -89,14 +86,14 @@ class _CropPreviewDialogState extends State<_CropPreviewDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(several ? 'Descartar todas' : 'Elegir otra'),
+          child: Text(several ? S.current.discardAll : S.current.chooseAnother),
         ),
         FilledButton(
           onPressed: _kept.isEmpty
               ? null
               : () => Navigator.of(context).pop(List.of(_kept)),
           child: Text(
-            _kept.length > 1 ? 'Usar estas (${_kept.length})' : 'Usar esta',
+            _kept.length > 1 ? S.current.useTheseCount(_kept.length) : S.current.useThisOne,
           ),
         ),
       ],

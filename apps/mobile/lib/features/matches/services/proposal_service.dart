@@ -5,6 +5,7 @@ import 'package:match_point/core/network/api_client.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 import '../models/proposal.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class ProposalService {
   final ApiClient api;
@@ -37,7 +38,7 @@ class ProposalService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido enviar la propuesta');
+      throw apiError(res, fallback: S.current.couldNotSendProposal);
     }
 
     return Proposal.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -47,7 +48,7 @@ class ProposalService {
     final res = await api.get('/matches/$matchId/proposals', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
 
     return (jsonDecode(res.body) as List<dynamic>)
@@ -69,7 +70,7 @@ class ProposalService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido responder a la propuesta');
+      throw apiError(res, fallback: S.current.couldNotAnswerProposal);
     }
 
     return Proposal.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -79,7 +80,7 @@ class ProposalService {
     final res = await api.get('/me/proposals', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se han podido cargar tus quedadas');
+      throw apiError(res, fallback: S.current.couldNotLoadSessions);
     }
 
     return (jsonDecode(res.body) as List<dynamic>)
@@ -96,7 +97,7 @@ class ProposalService {
     final res = await api.get('/me/sessions/played', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se han podido cargar tus quedadas');
+      throw apiError(res, fallback: S.current.couldNotLoadSessions);
     }
 
     return (jsonDecode(res.body) as List<dynamic>)
@@ -114,7 +115,7 @@ class ProposalService {
     final res = await api.get('/me/proposals/history', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido cargar el historial');
+      throw apiError(res, fallback: S.current.couldNotLoadHistory);
     }
 
     return (jsonDecode(res.body) as List<dynamic>)
@@ -147,7 +148,7 @@ class ProposalService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido guardar tu respuesta');
+      throw apiError(res, fallback: S.current.couldNotSaveAnswer);
     }
   }
 

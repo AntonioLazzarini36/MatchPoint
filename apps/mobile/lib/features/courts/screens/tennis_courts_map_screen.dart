@@ -16,6 +16,7 @@ import '../../../core/ui/widgets/proposal/name_place_dialog.dart';
 import '../../../core/ui/widgets/proposal/propose_session.dart';
 import '../../discovery/models/sport.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Tennis clubs near a point, real OpenStreetMap data — see one on the
 /// map, tap it, and propose it (with a date/time) to whichever match you
@@ -136,9 +137,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       // hecho mal, asi que tampoco merece tratamiento de error grave.
       debugPrint('Overpass fallo: $e');
       setState(() {
-        _error =
-            'El servicio de mapas está saturado. Reintenta en unos '
-            'segundos.';
+        _error = S.current.mapServiceBusy;
         _loadingClubs = false;
       });
     }
@@ -163,7 +162,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Sitio no encontrado')));
+        ).showSnackBar(SnackBar(content: Text(S.current.placeNotFound)));
         return;
       }
 
@@ -186,7 +185,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            friendlyError(e, fallback: 'No se han podido buscar sitios.'),
+            friendlyError(e, fallback: S.current.couldNotSearchPlaces),
           ),
         ),
       );
@@ -224,7 +223,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
           content: Text(
             friendlyError(
               e,
-              fallback: 'No se han podido cargar tus compañeros.',
+              fallback: S.current.couldNotLoadPartners,
             ),
           ),
         ),
@@ -236,7 +235,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
 
     if (matches.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Todavía no tienes ningún compañero')),
+        SnackBar(content: Text(S.current.noPartnersAtAll)),
       );
       return;
     }
@@ -249,7 +248,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              '¿A quién se lo propones?',
+              S.current.whoDoYouProposeItTo,
               style: Theme.of(sheetContext).textTheme.titleMedium,
             ),
           ),
@@ -264,7 +263,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                     ? null
                     : const Icon(Icons.person),
               ),
-              title: Text(m.otherUser.profile?.displayName ?? 'Sin nombre'),
+              title: Text(m.otherUser.profile?.displayName ?? S.current.noName),
               onTap: () => Navigator.of(sheetContext).pop(m),
             ),
         ],
@@ -309,7 +308,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Clubes de tenis cerca')),
+      appBar: AppBar(title: Text(S.current.tennisClubsNearby)),
       body: Stack(
         children: [
           FlutterMap(
@@ -351,7 +350,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                 controller: _searchCtrl,
                 onSubmitted: _searchPlace,
                 decoration: InputDecoration(
-                  hintText: 'Buscar ciudad o zona...',
+                  hintText: S.current.searchCityOrArea,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -401,11 +400,10 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                       Expanded(
                         child: Text(
                           _centerSource == _CenterSource.failed
-                              ? 'No hemos podido leer tu ubicación. Esto es '
-                                    '$_fallbackName, no tu zona.'
-                              : 'Todavía no tienes ubicación en tu perfil. '
-                                    'Esto es $_fallbackName: busca tu zona '
-                                    'arriba.',
+                              ? S.current.mapIsAtFallback(_fallbackName)
+                              : S.current.noLocationSearchAbove(
+                                  _fallbackName,
+                                ),
                           style: context.textStyles.bodySmall?.copyWith(
                             color: context.colors.onSurfaceVariant,
                           ),
@@ -414,7 +412,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                       if (_centerSource == _CenterSource.failed)
                         TextButton(
                           onPressed: _initCenter,
-                          child: const Text('Reintentar'),
+                          child: Text(S.current.retry),
                         ),
                     ],
                   ),
@@ -427,6 +425,41 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
               left: 0,
               right: 0,
               child: Center(child: CircularProgressIndicator()),
+            ),
+          // Una búsqueda que va bien y no encuentra nada dejaba el mapa mudo:
+          // ni marcadores ni explicación, idéntico a un fallo. Decirlo evita
+          // que alguien reintente diez veces creyendo que está roto.
+          if (_error == null && !_loadingClubs && _clubs.isEmpty)
+            Positioned(
+              bottom: 24,
+              left: 12,
+              right: 12,
+              child: Material(
+                color: context.colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 20,
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          S.current.noClubsAround,
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           if (_error != null)
             Positioned(
@@ -459,7 +492,7 @@ class _TennisCourtsMapScreenState extends State<TennisCourtsMapScreen> {
                       ),
                       TextButton(
                         onPressed: () => _loadClubs(_center),
-                        child: const Text('Reintentar'),
+                        child: Text(S.current.retry),
                       ),
                     ],
                   ),
@@ -506,7 +539,7 @@ class _ClubSheet extends StatelessWidget {
                       ),
                       if (!club.hasRealName)
                         Text(
-                          'Sin nombre en OpenStreetMap · lo confirmas tú',
+                          S.current.noNameInOsmYouConfirm,
                           style: context.textStyles.bodySmall?.copyWith(
                             color: context.colors.onSurfaceVariant,
                           ),
@@ -518,8 +551,7 @@ class _ClubSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'No comprobamos si hay pista libre a esa hora — le propones '
-              'el club y el horario a tu compañero, y ya lo confirmáis vosotros.',
+              S.current.weDoNotCheckAvailability,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
@@ -530,7 +562,7 @@ class _ClubSheet extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onProposeMatch,
                 icon: const Icon(Icons.send),
-                label: const Text('Proponer partido aquí'),
+                label: Text(S.current.proposeMatchHere),
               ),
             ),
           ],

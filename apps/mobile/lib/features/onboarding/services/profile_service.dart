@@ -10,6 +10,7 @@ import '../models/profile.dart';
 import '../../discovery/models/discover_profile.dart';
 import '../../discovery/models/skill_level.dart';
 import '../../discovery/models/sport.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class ProfileService {
   final ApiClient api;
@@ -23,7 +24,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
   }
 
@@ -43,7 +44,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
   }
 
@@ -59,7 +60,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
   }
 
@@ -77,7 +78,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido guardar');
+      throw apiError(res, fallback: S.current.couldNotSave);
     }
   }
 
@@ -93,7 +94,7 @@ class ProfileService {
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(
         res,
-        fallback: 'No se ha podido guardar tu disponibilidad',
+        fallback: S.current.couldNotSaveAvailability,
       );
     }
   }
@@ -108,7 +109,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido guardar');
+      throw apiError(res, fallback: S.current.couldNotSave);
     }
   }
 
@@ -118,7 +119,7 @@ class ProfileService {
     final res = await api.patch('/me/profile', body: {'bio': bio}, auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido guardar la descripción');
+      throw apiError(res, fallback: S.current.couldNotSaveDescriptionShort);
     }
   }
 
@@ -148,7 +149,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
   }
 
@@ -166,7 +167,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido guardar tu nivel');
+      throw apiError(res, fallback: S.current.couldNotSaveLevel);
     }
 
     return skillLevelsFromJson(jsonDecode(res.body));
@@ -185,7 +186,7 @@ class ProfileService {
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(
         res,
-        fallback: 'No se han podido guardar tus preferencias',
+        fallback: S.current.couldNotSavePreferences,
       );
     }
   }
@@ -216,7 +217,7 @@ class ProfileService {
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw apiError(
         res,
-        fallback: 'No se han podido guardar tus preferencias',
+        fallback: S.current.couldNotSavePreferences,
       );
     }
   }
@@ -225,7 +226,7 @@ class ProfileService {
     final res = await api.get('/me', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido cargar tu perfil');
+      throw apiError(res, fallback: S.current.couldNotLoadYourProfile);
     }
 
     return MeResponse.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -235,7 +236,7 @@ class ProfileService {
     final res = await api.get('/users/$userId/profile', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
 
     return DiscoverProfile.fromJson(
@@ -253,7 +254,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
   }
 
@@ -262,7 +263,7 @@ class ProfileService {
   Future<void> deleteAccount() async {
     final res = await api.delete('/me', auth: true);
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido borrar la cuenta');
+      throw apiError(res, fallback: S.current.couldNotDeleteAccountMsg);
     }
   }
 
@@ -281,7 +282,7 @@ class ProfileService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido completar la operación');
+      throw apiError(res, fallback: S.current.couldNotCompleteOperation);
     }
 
     return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
@@ -291,7 +292,7 @@ class ProfileService {
     final res = await api.delete('/me/photos', body: {'url': url}, auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido borrar la foto');
+      throw apiError(res, fallback: S.current.couldNotDeletePhoto);
     }
 
     return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);

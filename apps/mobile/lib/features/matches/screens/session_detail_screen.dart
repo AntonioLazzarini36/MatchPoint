@@ -7,7 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/network/notification_counts.dart';
 import 'package:match_point/core/theme/app_theme.dart';
-import 'package:match_point/core/utils/date_format_es.dart';
+import 'package:match_point/core/utils/date_format.dart';
 import 'package:match_point/core/utils/sport_words.dart';
 import 'package:match_point/core/ui/dialogs/confirm_dialog.dart';
 
@@ -20,6 +20,7 @@ import '../../discovery/models/sport.dart';
 import '../../onboarding/services/profile_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/utils/club_booking.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Ficha de una quedada: cuándo, dónde, contra quién — y, si todavía no
 /// está cerrada, los botones que la cierran.
@@ -85,7 +86,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       await context.push<bool>('/chat/${match.matchId}', extra: match);
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir el chat')),
+        SnackBar(content: Text(S.current.couldNotOpenChat)),
       );
     }
   }
@@ -129,20 +130,24 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final accepted = _proposal.status == ProposalStatus.accepted;
     final confirmed = await showConfirmDialog(
       context,
-      title: accepted ? '¿Cancelar el $noun?' : '¿Retirar la propuesta?',
+      title: accepted
+          ? S.current.cancelTheSession(noun)
+          : S.current.withdrawTheProposal,
       content: accepted
-          ? 'Se le avisará a ${widget.session.otherDisplayName}. '
-                'Podéis volver a proponer otro día cuando queráis.'
-          : 'La propuesta desaparecerá para '
-                '${widget.session.otherDisplayName}.',
-      confirmLabel: accepted ? 'Cancelar $noun' : 'Retirar',
+          ? S.current.willBeNotified(widget.session.otherDisplayName)
+          : S.current.proposalWillDisappearFor(
+              widget.session.otherDisplayName,
+            ),
+      confirmLabel: accepted ? S.current.cancelNoun(noun) : S.current.withdraw,
       destructive: true,
     );
     if (!confirmed || !mounted) return;
 
     await _respond(
       'CANCEL',
-      successMessage: accepted ? 'Quedada cancelada' : 'Propuesta retirada',
+      successMessage: accepted
+          ? S.current.sessionCancelled
+          : S.current.proposalWithdrawn,
     );
     // `Navigator` y no `context.pop` de go_router: esta pantalla se abre
     // con un `MaterialPageRoute` normal desde la lista de quedadas, no
@@ -160,7 +165,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         if (!didPop) Navigator.of(context).pop(_changed);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Quedada')),
+        appBar: AppBar(title: Text(S.current.meetUp)),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
@@ -168,7 +173,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             const SizedBox(height: 16),
 
             if (_proposal.placeName != null) ...[
-              Text('Dónde', style: context.textStyles.titleSmall),
+              Text(S.current.where, style: context.textStyles.titleSmall),
               const SizedBox(height: 8),
               _placeCard(context),
               const SizedBox(height: 16),
@@ -182,7 +187,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               const SizedBox(height: 16),
             ],
 
-            Text('Con quién juegas', style: context.textStyles.titleSmall),
+            Text(S.current.whoYouPlayWith, style: context.textStyles.titleSmall),
             const SizedBox(height: 8),
             _opponentCard(context),
             const SizedBox(height: 24),
@@ -215,7 +220,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final chat = FilledButton.icon(
       onPressed: _openChat,
       icon: const Icon(Icons.chat_bubble_outline, size: 18),
-      label: const Text('Abrir chat'),
+      label: Text(S.current.openChat),
     );
 
     switch (_proposal.status) {
@@ -224,15 +229,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         return [
           FilledButton.icon(
             onPressed: () =>
-                _respond('ACCEPT', successMessage: 'Quedada confirmada'),
+                _respond('ACCEPT', successMessage: S.current.sessionConfirmed),
             icon: const Icon(Icons.check, size: 18),
-            label: const Text('Aceptar'),
+            label: Text(S.current.accept),
           ),
           const SizedBox(height: 8),
           OutlinedButton(
             onPressed: () =>
-                _respond('DECLINE', successMessage: 'Propuesta rechazada'),
-            child: const Text('Rechazar'),
+                _respond('DECLINE', successMessage: S.current.proposalDeclined),
+            child: Text(S.current.decline),
           ),
           const SizedBox(height: 8),
           chat,
@@ -250,7 +255,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               side: BorderSide(color: colors.error),
             ),
             icon: const Icon(Icons.close, size: 18),
-            label: const Text('Retirar propuesta'),
+            label: Text(S.current.withdrawProposal),
           ),
         ];
 
@@ -265,7 +270,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               side: BorderSide(color: colors.error),
             ),
             icon: const Icon(Icons.event_busy, size: 18),
-            label: Text('Cancelar $noun'),
+            label: Text(S.current.cancelNoun(noun)),
           ),
         ];
 
@@ -341,10 +346,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   Widget _statusBadge(BuildContext context, Color foreground) {
     final label = switch (_proposal.status) {
-      ProposalStatus.accepted => 'Confirmada',
-      ProposalStatus.pending => 'Sin confirmar',
-      ProposalStatus.declined => 'Rechazada',
-      ProposalStatus.cancelled => 'Cancelada',
+      ProposalStatus.accepted => S.current.statusConfirmed,
+      ProposalStatus.pending => S.current.notConfirmed,
+      ProposalStatus.declined => S.current.statusDeclined,
+      ProposalStatus.cancelled => S.current.statusCancelled,
     };
 
     return Container(
@@ -368,12 +373,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         return _countdownLabel();
       case ProposalStatus.pending:
         return _proposal.mine
-            ? 'Esperando a ${widget.session.otherDisplayName}'
-            : 'Esperando tu respuesta';
+            ? S.current.waitingFor(widget.session.otherDisplayName)
+            : S.current.waitingYourAnswerShort;
       case ProposalStatus.declined:
-        return 'Ya no se juega';
+        return S.current.noLongerPlayed;
       case ProposalStatus.cancelled:
-        return 'Se canceló';
+        return S.current.itWasCancelled;
     }
   }
 
@@ -381,11 +386,11 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   /// hacer la cuenta mentalmente.
   String _countdownLabel() {
     final diff = _proposal.scheduledAt.difference(DateTime.now());
-    if (diff.isNegative) return 'Ya ha empezado';
-    if (diff.inHours < 1) return 'En menos de una hora';
-    if (diff.inHours < 24) return 'Dentro de ${diff.inHours} h';
+    if (diff.isNegative) return S.current.alreadyStarted;
+    if (diff.inHours < 1) return S.current.inLessThanAnHour;
+    if (diff.inHours < 24) return S.current.inHours(diff.inHours);
     final days = diff.inDays;
-    return days == 1 ? 'Mañana' : 'Dentro de $days días';
+    return days == 1 ? S.current.tomorrow : S.current.inDaysShort(days);
   }
 
   /// Lo que falta después de decir que sí: **alquilar la pista**.
@@ -431,8 +436,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               Expanded(
                 child: Text(
                   _proposal.placeName == null
-                      ? 'Falta decidir dónde jugáis'
-                      : 'Falta reservar la pista',
+                      ? S.current.missingWhereToPlay
+                      : S.current.missingCourtBooking,
                   style: styles.titleSmall?.copyWith(
                     color: colors.onTertiaryContainer,
                   ),
@@ -443,10 +448,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           const SizedBox(height: 8),
           Text(
             _proposal.placeName == null
-                ? 'Habéis quedado en el día y la hora, pero no en el sitio. '
-                      'Acordadlo en el chat y reservad la pista: '
-                : 'MatchPoint aún no reserva pistas. Habéis cerrado la '
-                      'quedada entre vosotros pero aún debéis contactar el club para alquilar la pista',
+                ? S.current.agreeWhereAndBook
+                : S.current.appDoesNotBookCourts,
             style: styles.bodySmall?.copyWith(color: colors.onTertiaryContainer),
           ),
           if (url != null) ...[
@@ -454,9 +457,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => _openBookingInfo(url),
+                onPressed: () => _openMap(url),
                 icon: const Icon(Icons.open_in_new, size: 18),
-                label: const Text('Ver el club en Maps'),
+                label: Text(S.current.seeClubOnMaps),
               ),
             ),
           ],
@@ -468,7 +471,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   /// Abre la ficha del club fuera de la app. Si no hay quien atienda el
   /// enlace (un móvil sin navegador ni Maps), se dice en vez de no pasar
   /// nada: un botón que no hace nada al tocarlo se lee como app rota.
-  Future<void> _openBookingInfo(String url) async {
+  Future<void> _openMap(String url) async {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await launchUrl(
       Uri.parse(url),
@@ -476,7 +479,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     ).catchError((_) => false);
     if (!ok) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('No se ha podido abrir el mapa')),
+        SnackBar(content: Text(S.current.couldNotOpenMap)),
       );
     }
   }
@@ -497,7 +500,17 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           // Mini-mapa embebido en vez de un enlace a otra app: se ve de un
           // vistazo si el sitio queda cerca sin salir de MatchPoint.
           if (_proposal.hasCoordinates)
-            SizedBox(
+            // Pulsable, y con su marca en la esquina para que se note.
+            //
+            // Un mapa de 160 px de alto sirve para "¿me pilla cerca?" y para
+            // nada más: no se puede mover ni ampliar (es a propósito, ver
+            // abajo), así que quien recibe un punto marcado a mano no tenía
+            // forma de ver **dónde** es exactamente. Ahora abre Maps en esa
+            // coordenada, que es donde se puede mirar la calle, el aparcamiento
+            // o cómo llegar.
+            Stack(
+              children: [
+                SizedBox(
               height: 160,
               child: FlutterMap(
                 options: MapOptions(
@@ -532,6 +545,54 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   ),
                 ],
               ),
+            ),
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _openMap(
+                        mapsPinUrl(
+                          _proposal.placeLat!,
+                          _proposal.placeLng!,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: Material(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.open_in_new,
+                            size: 14,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            S.current.openInMaps,
+                            style: styles.labelSmall?.copyWith(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ListTile(
             leading: Icon(Icons.place_outlined, color: colors.primary),
@@ -617,18 +678,18 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final facts = <(IconData, String)>[
       if (level != null) (Icons.military_tech_outlined, level.label),
       if (isTennis && opponent.yearsPlaying != null)
-        (Icons.timeline, '${opponent.yearsPlaying} años jugando'),
+        (Icons.timeline, S.current.yearsPlaying(opponent.yearsPlaying!)),
       if (isTennis && opponent.club != null)
         (Icons.groups_outlined, opponent.club!),
       if (!isTennis && opponent.avgDistanceKm != null)
-        (Icons.straighten, '${opponent.avgDistanceKm} km de media'),
+        (Icons.straighten, S.current.averageKm('${opponent.avgDistanceKm}')),
       for (final achievement in opponent.achievements)
         (Icons.emoji_events_outlined, achievement),
     ];
 
     if (facts.isEmpty) {
       return Text(
-        'Todavía no ha rellenado su experiencia.',
+        S.current.noExperienceYet,
         style: context.textStyles.bodySmall?.copyWith(
           color: colors.onSurfaceVariant,
         ),

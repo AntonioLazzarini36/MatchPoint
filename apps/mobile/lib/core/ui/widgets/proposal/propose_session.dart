@@ -14,6 +14,7 @@ import 'week_calendar_picker.dart';
 import 'time_slot_picker.dart';
 import '../../../../features/onboarding/models/availability.dart';
 import '../../../utils/slot_suggestions.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Flujo unico para proponer una sesion, sea tenis o correr.
 ///
@@ -142,7 +143,7 @@ Future<bool> proposeSession(
       placeLat: placeLat,
       placeLng: placeLng,
     );
-    messenger.showSnackBar(const SnackBar(content: Text('Propuesta enviada')));
+    messenger.showSnackBar(SnackBar(content: Text(S.current.proposalSent)));
     return true;
   } catch (e) {
     messenger.showSnackBar(
@@ -197,8 +198,8 @@ class _PlaceSheetState extends State<_PlaceSheet> {
         builder: (_) => MapPointPicker(
           initialCenter: center,
           title: widget.sport == Sport.running
-              ? 'Punto de encuentro'
-              : '¿Dónde jugáis?',
+              ? S.current.meetingPoint
+              : S.current.whereDoYouPlayQ,
         ),
       ),
     );
@@ -243,16 +244,14 @@ class _PlaceSheetState extends State<_PlaceSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isRunning ? '¿Punto de encuentro?' : '¿Dónde jugáis?',
+              isRunning ? S.current.meetingPointQ : S.current.whereDoYouPlayQ,
               style: t.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
               isRunning
-                  ? 'Marca el sitio exacto en el mapa — mucho más útil que '
-                        'decir sólo el municipio.'
-                  : 'Elige un club de los que hay cerca, o marca el punto '
-                        'exacto en el mapa.',
+                  ? S.current.markExactSpot
+                  : S.current.chooseClubOrMark,
               style: t.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -274,7 +273,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.sports_tennis),
-                  label: const Text('Elegir un club cerca'),
+                  label: Text(S.current.chooseNearbyClub),
                 ),
               ),
               const SizedBox(height: 8),
@@ -291,19 +290,18 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.map_outlined),
-                      label: const Text('Marcar en el mapa'),
+                      label: Text(S.current.markOnTheMap),
                     )
                   : OutlinedButton.icon(
                       onPressed: canUseMap ? _pickOnMap : null,
                       icon: const Icon(Icons.map_outlined),
-                      label: const Text('Marcar en el mapa'),
+                      label: Text(S.current.markOnTheMap),
                     ),
             ),
             if (!_loadingLocation && !canUseMap) ...[
               const SizedBox(height: 6),
               Text(
-                'Pon tu ubicación en Ajustes para poder elegir sitio en el '
-                'mapa.',
+                S.current.setLocationInSettings,
                 style: t.bodySmall,
               ),
             ],
@@ -314,7 +312,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
               child: OutlinedButton.icon(
                 onPressed: _searchPlace,
                 icon: const Icon(Icons.search),
-                label: const Text('Buscar un sitio por nombre'),
+                label: Text(S.current.searchPlaceByName),
               ),
             ),
             const SizedBox(height: 8),
@@ -323,7 +321,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
               child: TextButton(
                 onPressed: () =>
                     Navigator.of(context).pop(const _PlaceChoice(null)),
-                child: const Text('Proponer sin sitio'),
+                child: Text(S.current.proposeWithoutPlace),
               ),
             ),
           ],
@@ -352,7 +350,7 @@ class _SuggestionSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Cuándo quedáis?', style: t.headlineSmall),
+            Text(S.current.whenDoYouMeet, style: t.headlineSmall),
             const SizedBox(height: 6),
             Text(
               otherName == null
@@ -410,7 +408,7 @@ class _SuggestionSheet extends StatelessWidget {
                 // Cierra sin elegir, y el flujo sigue por el calendario. No
                 // es cancelar: cancelar es el gesto de cerrar la hoja.
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Elegir otro día'),
+                child: Text(S.current.chooseAnotherDay),
               ),
             ),
           ],

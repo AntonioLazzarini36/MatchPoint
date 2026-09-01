@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 
 import '../models/tennis_club.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Un elemento de OSM ya normalizado: o una pista suelta, o la instalación
 /// que la contiene (polideportivo, club, complejo deportivo).
@@ -174,11 +175,24 @@ class OverpassService {
     }
   }
 
+  /// La clave de caché, **redondeada a una rejilla proporcional al radio**.
+  ///
+  /// Estaba a cuatro decimales, o sea ~11 m. Con una búsqueda de 10 km eso no
+  /// cachea nada: dos puntos separados por una calle devuelven exactamente los
+  /// mismos clubes y sin embargo eran dos consultas distintas. Y ahí está el
+  /// problema de verdad, porque **Overpass limita por IP**: cada consulta de
+  /// más acerca el 429, y cuando llega, la búsqueda siguiente no tarda — falla.
+  ///
+  /// Ahora la rejilla es de una décima parte del radio (1 km buscando a 10),
+  /// así que moverse por la misma zona reutiliza lo ya pedido. El precio es
+  /// que el centro puede estar hasta medio kilómetro desplazado del punto
+  /// exacto, que con un radio de 10 km no cambia la lista.
   static String _cacheKey(double latitude, double longitude, int radiusMeters) {
-    // ~11 m de resolución: mover el mapa un pelo no invalida la caché.
-    final lat = latitude.toStringAsFixed(4);
-    final lng = longitude.toStringAsFixed(4);
-    return '$lat,$lng,$radiusMeters';
+    // Un grado de latitud son ~111 km en cualquier parte del mundo.
+    final cellDegrees = (radiusMeters / 10) / 111000;
+    String snap(double value) =>
+        (value / cellDegrees).round().toString();
+    return '${snap(latitude)},${snap(longitude)},$radiusMeters';
   }
 
   Future<List<TennisClub>> nearbyClubs({
@@ -416,7 +430,7 @@ class OverpassService {
   }
 
   String _fallbackName(String? street) =>
-      street == null ? 'Pistas de tenis' : 'Pistas de tenis · $street';
+      street == null ? 'Pistas de tenis' : S.current.tennisCourtsAt(street);
 
   _Element? _nearestFacility(
     List<_Element> facilities,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../features/matches/models/proposal.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Cómo se pinta el estado de una propuesta, **decidido en un solo sitio**.
 ///
@@ -80,7 +81,7 @@ ProposalStateStyle proposalStateStyle(
               // en pie y la otra no.
               background: c.secondaryContainer,
               foreground: c.onSecondaryContainer,
-              headline: short ? 'Esperando respuesta' : 'Has propuesto un partido',
+              headline: short ? S.current.waitingForAnswer : S.current.youProposedAMatch,
               wantsAttention: false,
               resolved: false,
             )
@@ -88,7 +89,7 @@ ProposalStateStyle proposalStateStyle(
               icon: Icons.schedule,
               background: c.tertiaryContainer,
               foreground: c.onTertiaryContainer,
-              headline: short ? 'Espera tu respuesta' : 'Te propone un partido',
+              headline: short ? S.current.awaitsYourAnswer : S.current.theyProposeAMatch,
               wantsAttention: true,
               resolved: false,
             );
@@ -98,7 +99,7 @@ ProposalStateStyle proposalStateStyle(
         icon: Icons.event_available,
         background: c.primaryContainer,
         foreground: c.onPrimaryContainer,
-        headline: 'Partido confirmado',
+        headline: S.current.matchConfirmed,
         wantsAttention: false,
         resolved: false,
       );
@@ -108,7 +109,7 @@ ProposalStateStyle proposalStateStyle(
         icon: Icons.event_busy,
         background: c.surfaceContainerHighest,
         foreground: c.onSurfaceVariant,
-        headline: proposal.mine ? 'No les venía bien' : 'Propuesta rechazada',
+        headline: proposal.mine ? S.current.itDidNotSuitThem : S.current.proposalDeclined,
         wantsAttention: false,
         resolved: true,
       );
@@ -119,8 +120,8 @@ ProposalStateStyle proposalStateStyle(
         background: c.surfaceContainerHighest,
         foreground: c.onSurfaceVariant,
         headline: proposal.mine
-            ? 'Propuesta cancelada'
-            : 'Retiraron la propuesta',
+            ? S.current.proposalCancelled
+            : S.current.theyWithdrewTheProposal,
         wantsAttention: false,
         resolved: true,
       );

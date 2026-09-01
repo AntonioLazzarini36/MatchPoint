@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
-import '../../../utils/date_format_es.dart';
+import '../../../utils/date_format.dart';
 import '../../../../features/matches/models/proposal.dart';
 import 'proposal_state_style.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Una propuesta dentro de la conversación, con forma de mensaje.
 ///
@@ -107,7 +108,7 @@ class ProposalBubble extends StatelessWidget {
                     // y la columna se ve descuadrada. Y "sin sitio" es
                     // información de verdad — se puede proponer sin él.
                     Text(
-                      proposal.placeName ?? 'Sin sitio concreto',
+                      proposal.placeName ?? S.current.noSpecificPlace,
                       style: t.bodySmall?.copyWith(
                         color: style.foreground,
                         fontStyle: proposal.placeName == null

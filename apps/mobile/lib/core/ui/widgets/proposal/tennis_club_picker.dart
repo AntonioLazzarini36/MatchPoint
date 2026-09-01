@@ -7,6 +7,7 @@ import '../../../location/location_result.dart';
 import '../../../theme/app_theme.dart';
 import '../../../../features/courts/models/tennis_club.dart';
 import '../../../../features/courts/services/overpass_service.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Lista de pistas y clubes de tenis reales cerca de un punto, para elegir
 /// dónde jugar al proponer una quedada.
@@ -152,7 +153,7 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dónde jugáis')),
+      appBar: AppBar(title: Text(S.current.whereYouPlay)),
       body: Column(
         children: [
           Padding(
@@ -160,8 +161,8 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
             child: TextField(
               controller: _searchCtrl,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                hintText: 'Filtrar por nombre...',
+              decoration: InputDecoration(
+                hintText: S.current.filterByName,
                 prefixIcon: Icon(Icons.search),
               ),
             ),
@@ -181,14 +182,13 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
       return _message(
         context,
         icon: Icons.cloud_off,
-        title: 'No se pudo cargar el listado',
+        title: S.current.couldNotLoadList,
         // Overpass es el servicio público y gratuito de consultas de
         // OpenStreetMap: lo comparte todo el mundo y se satura a ratos.
         // Reintentar suele bastar, y si no, el mapa no depende de él.
         detail:
-            'El servicio de mapas está saturado ahora mismo. Prueba otra '
-            'vez, o marca el sitio a mano en el mapa.',
-        actionLabel: 'Reintentar',
+            S.current.mapServiceBusy,
+        actionLabel: S.current.retry,
         onAction: _load,
       );
     }
@@ -200,16 +200,14 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
         context,
         icon: Icons.sports_tennis,
         title: filtered
-            ? 'Ningún sitio con ese nombre'
+            ? S.current.noPlaceWithThatName
             : 'No hay pistas registradas a '
                   '${(_radiusMeters / 1000).round()} km',
         detail: filtered
-            ? 'Prueba con otra parte del nombre.'
-            : 'Los datos vienen de OpenStreetMap, así que puede faltar '
-                  'alguna pista. Puedes ampliar la búsqueda o marcar el '
-                  'sitio a mano en el mapa.',
+            ? S.current.tryAnotherPartOfName
+            : S.current.osmDataMayBeMissing,
         actionLabel: (!filtered && _radiusMeters < 30000)
-            ? 'Buscar hasta 30 km'
+            ? S.current.searchUpToKm(30)
             : null,
         onAction: _widenSearch,
       );
@@ -249,7 +247,7 @@ class _TennisClubPickerState extends State<TennisClubPicker> {
           // nombre.
           if (!club.hasRealName)
             Text(
-              'Sin nombre en OpenStreetMap · lo confirmas tú',
+              S.current.noNameInOsmYouConfirm,
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),

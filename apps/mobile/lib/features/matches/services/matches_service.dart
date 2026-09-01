@@ -3,6 +3,7 @@ import '../../../core/network/api_error.dart';
 import 'package:flutter/foundation.dart';
 import 'package:match_point/core/network/api_client.dart';
 import '../models/match_item.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class MatchesService {
   final ApiClient api;
@@ -14,7 +15,7 @@ class MatchesService {
     if (kDebugMode) {}
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se han podido cargar tus compañeros');
+      throw apiError(res, fallback: S.current.couldNotLoadPartners);
     }
 
     final decoded = jsonDecode(res.body);
@@ -34,7 +35,7 @@ class MatchesService {
     final res = await api.delete('/matches/$matchId', auth: true);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido deshacer el match');
+      throw apiError(res, fallback: S.current.couldNotUnmatch);
     }
   }
 }

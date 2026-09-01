@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Shown once, above the feed, the first time someone opens Discovery —
 /// dumping straight into swipe cards with zero context was one of the
@@ -30,17 +31,14 @@ class DiscoveryIntroBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Empieza por cuándo puedes jugar',
+                  S.current.startWithWhenYouCanPlay,
                   style: context.textStyles.titleSmall?.withColor(
                     context.colors.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Marca las franjas en las que sueles tener libre y te ponemos '
-                  'primero a quien coincide contigo. Toca a alguien para ver '
-                  'su perfil, o dale a "Quiero jugar" y, si te lo devuelve, '
-                  'ya podéis quedar.',
+                  S.current.discoveryIntroBody,
                   style: context.textStyles.bodySmall?.withColor(
                     context.colors.onPrimaryContainer,
                   ),

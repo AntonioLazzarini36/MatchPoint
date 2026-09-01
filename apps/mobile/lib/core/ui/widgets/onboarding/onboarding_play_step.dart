@@ -5,6 +5,7 @@ import 'package:match_point/core/utils/app_sports.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// "Tu juego": nivel y cuándo sueles poder.
 ///
@@ -54,10 +55,10 @@ class OnboardingPlayStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tu partido', style: t.headlineMedium),
+          Text(S.current.yourMatchStep, style: t.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Ayúdanos a encontrar tu rival perfecto.',
+            S.current.helpUsFindYourRival,
             style: t.bodyLarge,
           ),
           const SizedBox(height: 28),
@@ -67,7 +68,7 @@ class OnboardingPlayStep extends StatelessWidget {
               Text(sport.label, style: t.titleMedium),
               const SizedBox(height: 8),
             ] else ...[
-              Text('¿Cuál es tu nivel?', style: t.titleMedium),
+              Text(S.current.whatIsYourLevel, style: t.titleMedium),
               const SizedBox(height: 4),
             ],
             Wrap(
@@ -91,10 +92,10 @@ class OnboardingPlayStep extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 20),
 
-          Text('¿Cuándo sueles poder jugar?', style: t.titleMedium),
+          Text(S.current.whenCanYouUsuallyPlay, style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Lo usamos para enseñarte antes quién coincide contigo.',
+            S.current.weUseItToShowWhoMatches,
             style: t.bodySmall,
           ),
           const SizedBox(height: 12),

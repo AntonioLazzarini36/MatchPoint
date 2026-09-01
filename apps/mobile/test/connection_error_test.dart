@@ -5,8 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:match_point/core/network/api_error.dart';
 import 'package:match_point/core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 void main() {
+  // Estas pruebas comprueban textos en castellano, así que fijan el idioma:
+  // el entorno de test arranca con el del sistema, que en CI es inglés.
+  setUp(() => LocaleController.locale.value = AppLocale.es);
+
   group('errores de red', () {
     test('un fallo de DNS se convierte en "sin conexión"', () async {
       expect(

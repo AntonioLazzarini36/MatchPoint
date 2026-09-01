@@ -5,6 +5,7 @@ import '../../../core/storage/token_storage.dart';
 import '../models/auth_response.dart';
 import '../models/login_request.dart';
 import '../models/register_request.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class AuthService {
   final ApiClient api;
@@ -20,7 +21,7 @@ class AuthService {
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido comprobar el email');
+      throw apiError(res, fallback: S.current.couldNotCheckEmail);
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -30,7 +31,7 @@ class AuthService {
   Future<AuthResponse> login(LoginRequest request) async {
     final res = await api.post('/auth/login', body: request.toJson());
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido iniciar sesión');
+      throw apiError(res, fallback: S.current.couldNotSignIn);
     }
     return AuthResponse.fromJson(jsonDecode(res.body));
   }
@@ -38,7 +39,7 @@ class AuthService {
   Future<AuthResponse> register(RegisterRequest request) async {
     final res = await api.post('/auth/register', body: request.toJson());
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido crear la cuenta');
+      throw apiError(res, fallback: S.current.couldNotCreateAccount);
     }
     return AuthResponse.fromJson(jsonDecode(res.body));
   }
@@ -51,7 +52,7 @@ class AuthService {
   Future<void> sendVerificationCode() async {
     final res = await api.post('/auth/send-verification', auth: true);
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido enviar el código');
+      throw apiError(res, fallback: S.current.couldNotSendCode);
     }
   }
 
@@ -69,7 +70,7 @@ class AuthService {
       body: {'email': email},
     );
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido enviar el código');
+      throw apiError(res, fallback: S.current.couldNotSendCode);
     }
   }
 
@@ -88,7 +89,7 @@ class AuthService {
       body: {'email': email, 'code': code, 'newPassword': newPassword},
     );
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido cambiar la contraseña');
+      throw apiError(res, fallback: S.current.couldNotChangePassword);
     }
   }
 
@@ -99,7 +100,7 @@ class AuthService {
       auth: true,
     );
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw apiError(res, fallback: 'No se ha podido verificar el email');
+      throw apiError(res, fallback: S.current.couldNotVerifyEmail);
     }
   }
 

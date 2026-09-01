@@ -40,3 +40,17 @@ String? clubMapsUrl({String? name, double? latitude, double? longitude}) {
   }
   return null;
 }
+
+/// Enlace de Google Maps **al punto exacto**, ignorando cualquier nombre.
+///
+/// Es distinto de [clubMapsUrl] y la diferencia importa. Aquél busca por
+/// nombre porque lo que quieres es la ficha del negocio, con su teléfono y su
+/// web, que es a lo que se va desde "falta reservar la pista".
+///
+/// Aquí no: esto es para cuando alguien **marcó un punto en el mapa** porque
+/// su sitio no salía en la lista de clubes. El nombre entonces es lo que
+/// escribió a mano ("entrada del parque, junto a la fuente"), y buscar eso en
+/// Maps lleva a cualquier parte menos al sitio. Lo único fiable es el par de
+/// coordenadas que se guardó.
+String mapsPinUrl(double latitude, double longitude) =>
+    'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';

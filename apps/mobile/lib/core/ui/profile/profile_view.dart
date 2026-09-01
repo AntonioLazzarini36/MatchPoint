@@ -10,6 +10,7 @@ import '../widgets/availability_picker.dart';
 import '../../../features/onboarding/models/intention.dart';
 import 'profile_header_data.dart';
 import 'network_photo.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 class ProfileView extends StatelessWidget {
   final ProfileHeaderData data;
@@ -43,7 +44,7 @@ class ProfileView extends StatelessWidget {
     this.showStats = true,
     this.stats,
     this.showBottomButton = false,
-    this.bottomButtonText = 'Ver perfil',
+    this.bottomButtonText = '',
     this.onBottomButton,
     this.onSettings,
     this.onEdit,
@@ -108,7 +109,7 @@ class ProfileView extends StatelessWidget {
                       const SizedBox(width: 8),
                       IconButton(
                         onPressed: onEdit,
-                        tooltip: 'Cambiar fotos',
+                        tooltip: S.current.changePhotos,
                         icon: const Icon(Icons.edit_outlined),
                         style: IconButton.styleFrom(
                           backgroundColor:
@@ -123,7 +124,7 @@ class ProfileView extends StatelessWidget {
                       // cerrar sesion) y tiene que encontrarse sin buscarla.
                       IconButton(
                         onPressed: onSettings,
-                        tooltip: 'Ajustes',
+                        tooltip: S.current.settings,
                         icon: const Icon(Icons.settings),
                         style: IconButton.styleFrom(
                           backgroundColor: context.colors.primary,
@@ -168,7 +169,7 @@ class ProfileView extends StatelessWidget {
 
                 if (data.intention != null) ...[
                   const SizedBox(height: 24),
-                  Text('A qué viene', style: context.textStyles.titleMedium),
+                  Text(S.current.whatTheyComeFor, style: context.textStyles.titleMedium),
                   const SizedBox(height: 8),
                   _infoRow(
                     context,
@@ -184,20 +185,20 @@ class ProfileView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   (data.bio == null || data.bio!.trim().isEmpty)
-                      ? 'Todavía no has escrito nada.'
+                      ? S.current.nothingWrittenYet
                       : data.bio!,
                   style: context.textStyles.bodyMedium,
                 ),
 
                 if (_hasExperience) ...[
                   const SizedBox(height: 24),
-                  Text('Experiencia', style: context.textStyles.titleMedium),
+                  Text(S.current.experience, style: context.textStyles.titleMedium),
                   const SizedBox(height: 8),
                   if (data.yearsPlaying != null)
                     _infoRow(
                       context,
                       Icons.timeline,
-                      '${data.yearsPlaying} años jugando',
+                      S.current.yearsPlaying(data.yearsPlaying!),
                     ),
                   if ((data.club ?? '').isNotEmpty)
                     _infoRow(context, Icons.groups_outlined, data.club!),
@@ -205,13 +206,13 @@ class ProfileView extends StatelessWidget {
                     _infoRow(
                       context,
                       Icons.speed,
-                      'Ritmo medio: ${formatPaceMinPerKm(data.avgPaceMinPerKm)} min/km',
+                      S.current.pacePerKm(formatPaceMinPerKm(data.avgPaceMinPerKm)),
                     ),
                   if (data.avgDistanceKm != null)
                     _infoRow(
                       context,
                       Icons.route,
-                      'Distancia media: ${data.avgDistanceKm} km',
+                      S.current.averageKmLabel('${data.avgDistanceKm}'),
                     ),
                   for (final achievement in data.achievements)
                     _infoRow(context, Icons.emoji_events_outlined, achievement),
@@ -219,7 +220,7 @@ class ProfileView extends StatelessWidget {
 
                 if (data.photos.length > 1) ...[
                   const SizedBox(height: 24),
-                  Text('Fotos', style: context.textStyles.titleMedium),
+                  Text(S.current.photos, style: context.textStyles.titleMedium),
                   const SizedBox(height: 12),
                   // En vertical y a lo ancho, no en un carrusel lateral:
                   // el carrusel escondia todas las fotos menos la primera
@@ -259,7 +260,7 @@ class ProfileView extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             context,
-                            'Compañeros',
+                            S.current.partners,
                             '${stats!.partners}',
                           ),
                         ),
@@ -268,7 +269,7 @@ class ProfileView extends StatelessWidget {
                       Expanded(
                         child: _buildStatCard(
                           context,
-                          stats!.played == 1 ? 'Partido' : 'Partidos',
+                          stats!.played == 1 ? S.current.matchStat : S.current.matchesStat,
                           '${stats!.played}',
                         ),
                       ),
@@ -277,7 +278,7 @@ class ProfileView extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             context,
-                            'Ganados',
+                            S.current.wonStat,
                             '${stats!.won}',
                           ),
                         ),
@@ -320,7 +321,7 @@ class ProfileView extends StatelessWidget {
   Widget _sportsWrap(BuildContext context, List<Sport> sports) {
     if (sports.isEmpty) {
       return Text(
-        'Todavía no ha elegido deportes.',
+        S.current.noSportsChosen,
         style: context.textStyles.bodyMedium?.copyWith(
           color: context.colors.outline,
         ),

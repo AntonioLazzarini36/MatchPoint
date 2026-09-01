@@ -6,6 +6,7 @@ import '../../location/geocoding_service.dart';
 import '../../location/location_result.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/network/connection_error.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 
 /// Buscador de sitio a pantalla completa — se abre con `Navigator.push` y
 /// devuelve el [LocationResult] elegido (o null si se sale sin elegir).
@@ -76,7 +77,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = friendlyError(e, fallback: 'No se han podido buscar sitios.');
+        _error = friendlyError(e, fallback: S.current.couldNotSearchPlaces);
         _loading = false;
       });
     }
@@ -90,8 +91,8 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
           controller: _controller,
           autofocus: true,
           onChanged: _onQueryChanged,
-          decoration: const InputDecoration(
-            hintText: 'Código postal o ciudad',
+          decoration: InputDecoration(
+            hintText: S.current.postcodeOrCity,
             border: InputBorder.none,
           ),
         ),
@@ -126,18 +127,15 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
           padding: const EdgeInsets.all(24),
           child: Text(
             _controller.text.trim().isEmpty
-                ? 'Escribe tu código postal (29630) o el nombre de tu '
-                      'ciudad.'
+                ? S.current.postcodeOrCityHint
                 // Nominatim es un geocodificador: encuentra sitios con
                 // nombre y direcciones, pero no sirve para "búscame un
                 // club de tenis" — para eso está el selector de clubes
                 // del flujo de propuestas, que consulta OpenStreetMap por
                 // etiqueta.
                 : _looksLikePostalCode(_controller.text)
-                ? 'No encontramos ese código postal. Revísalo o busca tu '
-                      'ciudad por el nombre.'
-                : 'Sin resultados. Prueba con el nombre exacto del sitio o '
-                      'con el municipio.',
+                ? S.current.postcodeNotFound
+                : S.current.noResultsTryExactName,
             textAlign: TextAlign.center,
             style: context.textStyles.bodyMedium?.copyWith(
               color: context.colors.onSurfaceVariant,
