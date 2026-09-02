@@ -268,7 +268,6 @@ abstract class Strings {
   String get level;
   String get experience;
   String get inviteSomeone;
-  String get inviteSomeoneHint;
   String get preferNotToSay;
   String get intentionShownHint;
   String get aboutYou;
@@ -631,4 +630,13 @@ abstract class Strings {
   /// La distancia larga: "A 4 km" / "4 km away".
   String kmAway(String km);
 
+  String get aboutSection;
+  String get privacyPolicy;
+  String get termsOfUse;
+  String get writeToUs;
+  String get writeToUsHint;
+  String get feedbackSubject;
+  String get couldNotOpenLink;
+  String noEmailAppFound(String email);
+  String get copy;
 }

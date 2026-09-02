@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:match_point/core/utils/about_links.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes.dart';
@@ -401,6 +403,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Abre una página en el navegador. Si nada la atiende, se dice: un enlace
+  /// que no hace nada al tocarlo se lee como app rota.
+  Future<void> _openLink(String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    ).catchError((_) => false);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(S.current.couldNotOpenLink)),
+      );
+    }
+  }
+
+  /// Abre el correo con el asunto puesto.
+  ///
+  /// El caso que hay que atender es el móvil **sin app de correo
+  /// configurada**, que no es raro en alguien que sólo usa el correo desde el
+  /// navegador: ahí `launchUrl` devuelve false y, sin esto, tocar "Escríbenos"
+  /// no haría nada. Entonces se enseña la dirección, para que al menos pueda
+  /// copiarla — que es lo único que se puede ofrecer sin app que abrir.
+  Future<void> _writeToUs() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await launchUrl(
+      contactMailto(S.current.feedbackSubject),
+      mode: LaunchMode.externalApplication,
+    ).catchError((_) => false);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(S.current.noEmailAppFound(contactEmail)),
+          action: SnackBarAction(
+            label: S.current.copy,
+            onPressed: () =>
+                Clipboard.setData(const ClipboardData(text: contactEmail)),
+          ),
+        ),
+      );
+    }
+  }
+
   /// Cerrar sesión **siempre** termina cerrando la sesión.
   ///
   /// Las dos primeras llamadas son limpieza en el servidor y van envueltas
@@ -702,13 +746,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         iconColor: context.colors.primary,
                         title: S.current.inviteSomeone,
-                        subtitle: S.current.inviteSomeoneHint,
                         trailing: Icon(
                           Icons.chevron_right,
                           color: context.colors.outline,
                         ),
                         onTap: () => Invite.share(context),
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.xs,
+                    bottom: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    S.current.aboutSection,
+                    style: context.textStyles.titleMedium,
+                  ),
+                ),
+                // Los dos enlaces legales tienen que estar **dentro** de la
+                // app, no sólo en la ficha de Play: quien ya la instaló no
+                // vuelve a la tienda a buscar qué se guarda de él.
+                //
+                // Aquí no hay fila de "borrar cuenta": la página web de
+                // borrado existe para quien no puede entrar, y desde dentro
+                // el camino bueno es el botón que lo hace de verdad, unas
+                // filas más abajo. Ofrecer las dos cosas sería mandar a
+                // alguien al navegador a pedir por correo lo que tiene a un
+                // toque.
+                _SettingsGroup(
+                  children: [
+                    _SettingsRow(
+                      icon: Icons.privacy_tip_outlined,
+                      iconBackground: context.colors.surfaceContainerHighest,
+                      iconColor: context.colors.onSurfaceVariant,
+                      title: S.current.privacyPolicy,
+                      trailing: Icon(
+                        Icons.open_in_new,
+                        size: 18,
+                        color: context.colors.outline,
+                      ),
+                      onTap: () => _openLink(privacyPolicyUrl),
+                    ),
+                    _SettingsRow(
+                      icon: Icons.description_outlined,
+                      iconBackground: context.colors.surfaceContainerHighest,
+                      iconColor: context.colors.onSurfaceVariant,
+                      title: S.current.termsOfUse,
+                      trailing: Icon(
+                        Icons.open_in_new,
+                        size: 18,
+                        color: context.colors.outline,
+                      ),
+                      onTap: () => _openLink(termsUrl),
+                    ),
+                    // En color, al revés que los dos de arriba: los legales
+                    // se consultan una vez y esto es una invitación. Con
+                    // doce probadores durante dos semanas, el canal de
+                    // vuelta es lo que convierte "la han usado" en
+                    // información.
+                    _SettingsRow(
+                      icon: Icons.mail_outline,
+                      iconBackground: context.colors.primary.withValues(
+                        alpha: 0.12,
+                      ),
+                      iconColor: context.colors.primary,
+                      title: S.current.writeToUs,
+                      subtitle: S.current.writeToUsHint,
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        color: context.colors.outline,
+                      ),
+                      onTap: _writeToUs,
                     ),
                   ],
                 ),

@@ -469,9 +469,6 @@ class StringsEn extends Strings {
   @override
   String get inviteSomeone => 'Invite someone';
   @override
-  String get inviteSomeoneHint =>
-      'The more people from your area, the more matches';
-  @override
   String get preferNotToSay => 'I prefer not to say';
   @override
   String get intentionShownHint =>
@@ -633,7 +630,7 @@ class StringsEn extends Strings {
   String get gender => 'Gender';
   @override
   String get aboutYouHint =>
-      'Mention whatever you think other profiles should know about you.';
+      'Mention whatever you think other tennis players should know about you.';
   @override
   String get bioExample =>
       'I play on Tuesday afternoons near the centre. I am looking for someone '
@@ -1177,4 +1174,22 @@ class StringsEn extends Strings {
   @override
   String kmAway(String km) => '$km km away';
 
+  @override
+  String get aboutSection => 'About MatchPoint';
+  @override
+  String get privacyPolicy => 'Privacy policy';
+  @override
+  String get termsOfUse => 'Terms of use';
+  @override
+  String get writeToUs => 'Write us';
+  @override
+  String get writeToUsHint => 'The app has just been born. What would you improve or is missing?';
+  @override
+  String get feedbackSubject => 'MatchPoint — feedback';
+  @override
+  String get couldNotOpenLink => 'The link could not be opened';
+  @override
+  String noEmailAppFound(String email) => 'No email app is set up. Write to us at $email';
+  @override
+  String get copy => 'Copy';
 }
