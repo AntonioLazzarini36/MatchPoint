@@ -91,4 +91,29 @@ void main() {
       }
     });
   });
+
+  /// El titulo de una quedada lleva posesivo: "Tu partido con Antonio".
+  ///
+  /// Asi la mayuscula inicial sale sola y el sustantivo del deporte puede
+  /// seguir en minuscula en su cadena, que es como tiene que estar para las
+  /// frases donde va en medio ("Cancelar el partido").
+  group('el titulo de una quedada', () {
+    test('lleva posesivo y empieza en mayuscula en los dos idiomas', () {
+      LocaleController.locale.value = AppLocale.es;
+      expect(S.current.sessionWith(S.current.matchNoun, 'Antonio'),
+          'Tu partido con Antonio');
+
+      LocaleController.locale.value = AppLocale.en;
+      expect(S.current.sessionWith(S.current.matchNoun, 'Antonio'),
+          'Your match with Antonio');
+    });
+
+    test('el sustantivo suelto sigue en minuscula', () {
+      // Es lo que hace que "Cancelar el partido" siga bien escrito.
+      LocaleController.locale.value = AppLocale.es;
+      expect(S.current.matchNoun, 'partido');
+      LocaleController.locale.value = AppLocale.en;
+      expect(S.current.matchNoun, 'match');
+    });
+  });
 }

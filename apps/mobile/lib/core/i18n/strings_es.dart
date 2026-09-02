@@ -311,7 +311,7 @@ class StringsEs extends Strings {
   String get tellingItMakesLevelsMean =>
       'Contarlo es lo que hace que los niveles del resto signifiquen algo.';
   @override
-  String get didYouPlay => '¿Llegasteis a jugar?';
+  String get didYouPlay => '¿Habéis jugado?';
   @override
   String get yesWePlayed => 'Sí, jugamos';
   @override
@@ -325,7 +325,7 @@ class StringsEs extends Strings {
   @override
   String get unanswered => 'Sin contestar';
   @override
-  String sessionWith(String noun, String name) => '$noun con $name';
+  String sessionWith(String noun, String name) => 'Tu $noun con $name';
   @override
   String daysAgo(int days) => 'Hace $days días';
   @override

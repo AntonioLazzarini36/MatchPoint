@@ -123,10 +123,20 @@ class PlayedSession {
     required this.otherPhoto,
     required this.played,
     required this.outcome,
+    required this.skipped,
   });
 
   /// Si se sabe que no se jugó, no hay resultado que enseñar.
   bool get hasResult => played == true && outcome != null;
+
+  /// Si pasaste de contestar.
+  ///
+  /// Distinto de `played == false`, que es haber dicho **que no se jugó**.
+  /// Saltar no afirma nada: es la salida para quien no quiere responder, y
+  /// existe justo para que no haya que mentir ni dejar la tarjeta ahí para
+  /// siempre. Pintarlo como "No se jugó" convertía esa salida en la
+  /// afirmación que evita.
+  final bool skipped;
 
   /// "Ganaste" / "Perdiste" / "Empate", tal cual se pinta en la fila.
   String? get outcomeLabel {
@@ -146,5 +156,6 @@ class PlayedSession {
     otherPhoto: json['otherPhoto']?.toString(),
     played: json['played'] as bool?,
     outcome: json['outcome']?.toString(),
+    skipped: json['skipped'] as bool? ?? false,
   );
 }

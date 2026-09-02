@@ -1,5 +1,7 @@
 import 'package:match_point/core/analytics/analytics.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:match_point/app/routes.dart';
 
 import 'package:match_point/core/network/api.dart';
 import 'package:match_point/core/network/notification_counts.dart';
@@ -241,10 +243,7 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
     return [
       _SectionTitle(S.current.finishedCount(_history.length)),
       for (final s in _history)
-        _PlayedRow(
-          key: ValueKey(s.proposal.id),
-          session: s,
-        ),
+        _PlayedRow(key: ValueKey(s.proposal.id), session: s),
     ];
   }
 
@@ -713,7 +712,10 @@ class _ConfirmCardState extends State<_ConfirmCard> {
               ),
             ] else ...[
               if (_isTennis) ...[
-                Text(S.current.howDidItEnd, style: context.textStyles.bodyLarge),
+                Text(
+                  S.current.howDidItEnd,
+                  style: context.textStyles.bodyLarge,
+                ),
                 const SizedBox(height: 8),
                 // Sin "Empate": en tenis no existe. Estaba ahí de cuando esta
                 // pantalla servía también para correr.
@@ -876,62 +878,84 @@ class _PlayedRow extends StatelessWidget {
     final label = session.outcomeLabel;
     final (badgeBg, badgeFg) = _colors(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
-        children: [
-          // Misma lógica que arriba, en pequeño: la fecha manda también aquí,
-          // porque lo que ordena un historial es cuándo pasó. Sin fondo, que
-          // esto es para mirar y no debe competir con lo que sí pide algo.
-          SizedBox(
-            width: 52,
-            child: Text(
-              formatPastDate(session.proposal.scheduledAt),
-              style: t.labelMedium?.copyWith(
-                color: colors.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          _MiniAvatar(url: photo),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              session.otherDisplayName,
-              style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (label != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: badgeBg,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
+    // La fila entera abre la ficha de esa persona. Era el único sitio de la
+    // app donde salía alguien y no se podía llegar a su perfil: en Descubrir,
+    // en el chat y en Compañeros sí, y aquí —donde estás mirando con quién
+    // has jugado— no. Toda la fila y no sólo el nombre, porque un objetivo de
+    // 24 dp de alto dentro de una lista se falla más de lo que se acierta.
+    return InkWell(
+      onTap: () => context.pushNamed(
+        AppRoutes.userProfileName,
+        pathParameters: {'userId': session.otherUserId},
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Row(
+          children: [
+            // Misma lógica que arriba, en pequeño: la fecha manda también aquí,
+            // porque lo que ordena un historial es cuándo pasó. Sin fondo, que
+            // esto es para mirar y no debe competir con lo que sí pide algo.
+            SizedBox(
+              width: 52,
               child: Text(
-                label,
+                formatPastDate(session.proposal.scheduledAt),
                 style: t.labelMedium?.copyWith(
-                  color: badgeFg,
-                  fontWeight: FontWeight.bold,
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            )
-          else if (session.played == false)
-            Text(
-              S.current.itWasNotPlayed,
-              style: t.labelMedium?.copyWith(color: colors.onSurfaceVariant),
-            )
-          else
-            // Ni contestado ni sabido: se dice, en vez de dejar el hueco.
-            Text(
-              S.current.unanswered,
-              style: t.labelMedium?.copyWith(color: colors.outline),
             ),
-        ],
+            const SizedBox(width: 10),
+            _MiniAvatar(url: photo),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                session.otherDisplayName,
+                style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (label != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  label,
+                  style: t.labelMedium?.copyWith(
+                    color: badgeFg,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            else if (session.played == false)
+              Text(
+                S.current.itWasNotPlayed,
+                style: t.labelMedium?.copyWith(color: colors.onSurfaceVariant),
+              )
+            else if (!session.skipped)
+              // Ni contestado ni sabido: se dice, en vez de dejar el hueco.
+              //
+              // Saltado **no** entra aquí, y es lo que arregla el fallo: al
+              // saltar se guarda `played = false` porque la columna no admite
+              // nulos, y la fila salía marcada "No se jugó" — una afirmación
+              // que quien saltó nunca hizo, y justo la que `skipped` existe
+              // para no tener que hacer. Tampoco vale "Sin contestar": eso
+              // dice que la app sigue esperando, y ya no espera. No afirmar
+              // nada se pinta no escribiendo nada.
+              Text(
+                S.current.unanswered,
+                style: t.labelMedium?.copyWith(color: colors.outline),
+              ),
+          ],
+        ),
       ),
     );
   }

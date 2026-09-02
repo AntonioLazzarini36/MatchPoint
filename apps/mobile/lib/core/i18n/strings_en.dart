@@ -314,7 +314,7 @@ class StringsEn extends Strings {
   String get tellingItMakesLevelsMean =>
       'Telling it is what makes everyone else levels mean something.';
   @override
-  String get didYouPlay => 'Did you get to play?';
+  String get didYouPlay => 'Did you play?';
   @override
   String get yesWePlayed => 'Yes';
   @override
@@ -328,7 +328,7 @@ class StringsEn extends Strings {
   @override
   String get unanswered => 'Unanswered';
   @override
-  String sessionWith(String noun, String name) => '$noun with $name';
+  String sessionWith(String noun, String name) => 'Your $noun with $name';
   @override
   String daysAgo(int days) => '$days days ago';
   @override
@@ -885,7 +885,7 @@ class StringsEn extends Strings {
   String get hoursTheyCanUsually => 'Hours they can usually make';
   @override
   String personUsuallyCanAtTheseHours(String name) =>
-      '$name can usually make these hours';
+      '$name is usually available at these times';
   @override
   String proposeAt(String time) => 'Propose at $time';
   @override

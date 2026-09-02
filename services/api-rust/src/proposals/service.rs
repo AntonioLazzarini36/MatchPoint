@@ -531,6 +531,15 @@ pub struct PlayedSession {
     /// hayas respondido — la quedada existe igual, sólo que sin resultado.
     pub played: Option<bool>,
     pub outcome: Option<SessionOutcome>,
+    /// Si pasaste de contestar.
+    ///
+    /// Hay que mandarlo aparte porque **una fila saltada tiene `played =
+    /// false`** —no afirma nada, y `false` es lo único que cabe en un booleano
+    /// no nulo—, así que sin este campo el cliente no puede distinguir "dijo
+    /// que no se jugó" de "no quiso decirlo". Los pintaba igual: quien le daba
+    /// a Saltar veía su partido marcado como "No se jugó", que es justo la
+    /// afirmación que `skipped` existe para no hacer.
+    pub skipped: bool,
 }
 
 /// El historial: partidos que ya pasaron, del más reciente al más antiguo.
@@ -601,18 +610,37 @@ pub async fn list_history(
         let mine = session_feedback::table
             .filter(session_feedback::proposal_id.eq(&proposal.id))
             .filter(session_feedback::user_id.eq(user_id))
-            .select((session_feedback::played, session_feedback::outcome))
-            .first::<(bool, Option<SessionOutcome>)>(&mut conn)
+            .select((
+                session_feedback::played,
+                session_feedback::outcome,
+                session_feedback::skipped,
+            ))
+            .first::<(bool, Option<SessionOutcome>, bool)>(&mut conn)
             .await
             .optional()?;
 
+        // Una fila saltada no cuenta como respuesta: `played` se manda como
+        // `None`, igual que si no hubiera fila. Es lo que evita que el
+        // cliente lea el `false` de la base de datos como "no se jugó" — ese
+        // `false` está ahí porque la columna no admite nulos, no porque nadie
+        // haya dicho nada.
+        let skipped = mine.map(|(_, _, s)| s).unwrap_or(false);
         result.push(PlayedSession {
             proposal: ProposalResponse::from_row(proposal, user_id),
             other_user_id: other_id,
             other_display_name,
             other_photo,
-            played: mine.map(|(played, _)| played),
-            outcome: mine.and_then(|(_, outcome)| outcome),
+            played: if skipped {
+                None
+            } else {
+                mine.map(|(played, _, _)| played)
+            },
+            outcome: if skipped {
+                None
+            } else {
+                mine.and_then(|(_, outcome, _)| outcome)
+            },
+            skipped,
         });
     }
 
