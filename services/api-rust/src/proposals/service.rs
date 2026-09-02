@@ -463,7 +463,21 @@ pub async fn list_upcoming(
 
     // A little grace so a session still shows while it's underway rather
     // than vanishing the instant it starts.
-    let cutoff = Utc::now() - Duration::hours(3);
+    // **Sin margen: la frontera es la hora del partido.**
+    //
+    // Antes se daban 3 h de cortesia, para que una quedada no desapareciera
+    // de la pantalla mientras aun se estaba jugando. El precio era que la
+    // agenda seguia anunciando como "proximo" algo que ya habia pasado, que
+    // es lo contrario de lo que una agenda tiene que hacer.
+    //
+    // `list_history` usa exactamente esta misma frontera, y tiene que
+    // seguir haciendolo: si las dos se separan, una quedada se cae entre
+    // las dos listas y no aparece en ninguna durante el hueco.
+    //
+    // Lo que **no** cambia es cuando se pregunta "que tal fue"
+    // (`list_awaiting_feedback`), que sigue esperando 3 h: preguntar por un
+    // partido mientras se esta jugando no tiene sentido.
+    let cutoff = Utc::now();
 
     let rows = proposals::table
         .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
@@ -564,7 +578,10 @@ pub async fn list_history(
 
     // El mismo margen que `list_upcoming`, para que una quedada no salga a la
     // vez en las dos listas ni desaparezca de las dos durante unas horas.
-    let cutoff = Utc::now() - Duration::hours(3);
+    // La misma frontera que `list_upcoming`, sin margen. Tienen que ser la
+    // misma: en cuanto pasa la hora, la quedada sale de la agenda y entra
+    // aqui, sin hueco entre medias en el que no estuviera en ninguna lista.
+    let cutoff = Utc::now();
 
     let rows = proposals::table
         .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
