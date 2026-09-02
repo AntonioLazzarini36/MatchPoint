@@ -81,6 +81,24 @@ void main() {
     expect(AppLocale.es.label, 'Español');
     expect(AppLocale.en.label, 'English');
   });
+
+  /// La cabecera de partidos confirmados lleva el contador al lado, asi que
+  /// el singular fijo daba "Partido confirmado · 2" en pantalla. Se prueban
+  /// los dos idiomas porque cada uno forma el plural a su manera y una
+  /// implementacion puede quedarse sin cambiar.
+  group('plural de la cabecera de confirmados', () {
+    test('en espanol', () {
+      LocaleController.locale.value = AppLocale.es;
+      expect(S.current.confirmedMatches(1), 'Partido confirmado');
+      expect(S.current.confirmedMatches(2), 'Partidos confirmados');
+    });
+
+    test('en ingles', () {
+      LocaleController.locale.value = AppLocale.en;
+      expect(S.current.confirmedMatches(1), 'Match confirmed');
+      expect(S.current.confirmedMatches(3), 'Matches confirmed');
+    });
+  });
 }
 
 /// Todos los textos sin parámetros de una implementación.

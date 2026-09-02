@@ -279,6 +279,9 @@ class StringsEn extends Strings {
   @override
   String get matchConfirmed => 'Match confirmed';
   @override
+  String confirmedMatches(int count) =>
+      count == 1 ? 'Match confirmed' : 'Matches confirmed';
+  @override
   String get itDidNotSuitThem => 'It did not suit them';
   @override
   String get proposalDeclined => 'Proposal declined';

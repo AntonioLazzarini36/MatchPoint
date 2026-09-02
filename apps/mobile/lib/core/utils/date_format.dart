@@ -80,13 +80,20 @@ String formatTime(DateTime dt) {
   return '${_two(d.hour)}:${_two(d.minute)}';
 }
 
-/// "02/09/2026 a las 12:00".
+/// "mié 2 sep · 19:00" — la fecha de una propuesta dentro del chat.
 ///
-/// El formato largo se lee bien en una ficha, donde hay sitio y se mira una
-/// vez. En una burbuja de chat, que es estrecha y se recorre de un vistazo,
-/// ocupaba dos líneas para decir lo mismo.
+/// La restricción es el ancho: la burbuja es estrecha y siempre de tres
+/// líneas, así que esto tiene que caber en una. El formato largo
+/// ("miércoles 2 de septiembre a las 19:00") ocupaba dos, y por eso antes se
+/// resolvía con la fecha en cifras, `02/09/2026 a las 19:00`.
+///
+/// Cabe igual sin hablar en números. Un partido se acuerda para dentro de
+/// días, y lo primero que quiere saber quien lo lee es **qué día de la
+/// semana** es —eso decide si puede— y no en qué mes del calendario cae. El
+/// año sobra por lo mismo: no se propone un partido para el año que viene.
 String formatShortDateTime(DateTime dt) {
   final d = dt.toLocal();
-  final date = '${_two(d.day)}/${_two(d.month)}/${d.year}';
-  return S.current.dateAtTime(date, formatTime(d));
+  final weekday = S.current.weekdayShort[d.weekday - 1];
+  final month = S.current.monthNames[d.month - 1].substring(0, 3);
+  return '$weekday ${d.day} $month · ${formatTime(d)}';
 }

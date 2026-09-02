@@ -401,15 +401,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Cerrar sesión **siempre** termina cerrando la sesión.
+  ///
+  /// Las dos primeras llamadas son limpieza en el servidor y van envueltas
+  /// porque ninguna es imprescindible: lo que el usuario ha pedido es salir
+  /// de esta cuenta en este móvil, y eso son las dos últimas líneas. Cuando
+  /// la limpieza podía tumbar el método entero, un fallo de red dejaba la
+  /// sesión abierta y el botón deshabilitado para siempre — había que matar
+  /// la app para volver a intentarlo.
   Future<void> _logout() async {
     setState(() => _loggingOut = true);
 
-    // Antes de nada: el endpoint de baja va autenticado, así que tiene que
-    // salir mientras el token de sesión sigue guardado. Si no, quien entrara
-    // después en este móvil recibiría las notificaciones de esta cuenta.
-    await PushService.unregisterCurrentDevice();
+    try {
+      // Antes de nada: el endpoint de baja va autenticado, así que tiene que
+      // salir mientras el token de sesión sigue guardado. Si no, quien
+      // entrara después en este móvil recibiría las notificaciones de esta
+      // cuenta.
+      await PushService.unregisterCurrentDevice();
+      await _authService.logout();
+    } catch (e) {
+      debugPrint('logout: limpieza en el servidor fallida, sigo: $e');
+    }
 
-    await _authService.logout();
     await TokenStorage.clear();
 
     if (!mounted) return;

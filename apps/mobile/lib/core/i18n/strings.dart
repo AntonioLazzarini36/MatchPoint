@@ -155,6 +155,19 @@ abstract class Strings {
   String get awaitsYourAnswer;
   String get theyProposeAMatch;
   String get matchConfirmed;
+
+  /// Cabecera de la lista de partidos ya confirmados, que lleva el contador
+  /// al lado.
+  ///
+  /// Existe aparte de [matchConfirmed] porque aquél titula **una** propuesta
+  /// ("Partido confirmado") y ahí el singular es correcto. Reutilizarlo para
+  /// la cabecera daba "Partido confirmado · 2".
+  ///
+  /// Las otras dos cabeceras de esa pantalla no necesitan esto: "Esperan tu
+  /// respuesta" y "Esperando respuesta" son oraciones, y valen para
+  /// cualquier cantidad. Sólo hace falta cuando la cabecera es un sustantivo
+  /// contable.
+  String confirmedMatches(int count);
   String get itDidNotSuitThem;
   String get proposalDeclined;
   String get proposalCancelled;

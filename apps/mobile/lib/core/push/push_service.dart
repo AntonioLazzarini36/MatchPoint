@@ -158,18 +158,36 @@ class PushService {
   /// Importante hacerlo **antes** de borrar el token de sesión, porque el
   /// endpoint va autenticado. Si no se hiciera, quien entrase después en ese
   /// móvil recibiría las notificaciones de la cuenta anterior.
+  /// **Nunca lanza y nunca se queda colgada.** Quien la llama está cerrando
+  /// sesión, y cerrar sesión no puede depender de que haya red.
+  ///
+  /// Aquí hubo un fallo que dejaba el botón muerto: `getToken()` estaba
+  /// fuera del `try`. Esa llamada va a los servidores de FCM, así que sin
+  /// cobertura —o con Google Play Services atascado— se colgaba o lanzaba, y
+  /// el `await` de `_logout()` no volvía nunca: los tokens no se borraban, no
+  /// se navegaba a la pantalla de bienvenida y el botón se quedaba
+  /// deshabilitado girando. Desde fuera, "cerrar sesión no funciona".
+  ///
+  /// De ahí las dos protecciones: **todo** dentro del `try`, y un tope de
+  /// tiempo. Dar de baja el token es cortesía —evita que a quien entre
+  /// después en este móvil le lleguen avisos de la cuenta anterior— y una
+  /// cortesía no puede secuestrar la operación principal. Si falla, el token
+  /// muerto lo acaba podando el propio servidor cuando FCM le responda
+  /// `Delivery::Stale` (ver `push.rs`).
   static Future<void> unregisterCurrentDevice() async {
     if (!_supported || !_initialised) return;
-    final token =
-        _registeredToken ?? await FirebaseMessaging.instance.getToken();
-    if (token == null) return;
 
     try {
-      await Api.client.delete(
-        '/me/devices',
-        auth: true,
-        body: {'token': token},
-      );
+      final token =
+          _registeredToken ??
+          await FirebaseMessaging.instance.getToken().timeout(
+            const Duration(seconds: 3),
+          );
+      if (token == null) return;
+
+      await Api.client
+          .delete('/me/devices', auth: true, body: {'token': token})
+          .timeout(const Duration(seconds: 5));
       _registeredToken = null;
     } catch (e) {
       debugPrint('push: no se pudo dar de baja el token: $e');

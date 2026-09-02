@@ -76,4 +76,42 @@ void main() {
       expect(formatTime(DateTime(2026, 9, 12, 18, 30)), '18:30');
     });
   });
+
+  /// La fecha de la burbuja de propuesta. Se prueba porque tiene una
+  /// restricción que no se ve en el código: **tiene que caber en una línea**
+  /// dentro de una burbuja estrecha y de alto fijo. Antes se resolvía con la
+  /// fecha en cifras (`02/09/2026`), y es fácil que alguien devuelva ahí la
+  /// frase larga sin saber por qué era corta.
+  group('la fecha corta de una propuesta', () {
+    test('en espanol dice el dia de la semana, no el año', () {
+      LocaleController.locale.value = AppLocale.es;
+      final s = formatShortDateTime(DateTime(2026, 9, 2, 19, 0));
+      expect(s, 'mié 2 sep · 19:00');
+      expect(s, isNot(contains('2026')));
+      expect(s, isNot(contains('/')));
+    });
+
+    test('en ingles', () {
+      LocaleController.locale.value = AppLocale.en;
+      expect(
+        formatShortDateTime(DateTime(2026, 9, 2, 19, 0)),
+        'Wed 2 Sep · 19:00',
+      );
+    });
+
+    test('cabe en una linea: nunca pasa de 22 caracteres', () {
+      // El caso peor de cada idioma: día y mes de nombre largo, hora de dos
+      // cifras. Si esto crece, la burbuja parte en dos y deja de ser una
+      // tarjeta de tres líneas.
+      for (final locale in AppLocale.values) {
+        LocaleController.locale.value = locale;
+        for (var month = 1; month <= 12; month++) {
+          for (var day = 20; day <= 26; day++) {
+            final s = formatShortDateTime(DateTime(2026, month, day, 22, 30));
+            expect(s.length, lessThanOrEqualTo(22), reason: '$locale $s');
+          }
+        }
+      }
+    });
+  });
 }

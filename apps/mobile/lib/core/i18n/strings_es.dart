@@ -276,6 +276,9 @@ class StringsEs extends Strings {
   @override
   String get matchConfirmed => 'Partido confirmado';
   @override
+  String confirmedMatches(int count) =>
+      count == 1 ? 'Partido confirmado' : 'Partidos confirmados';
+  @override
   String get itDidNotSuitThem => 'No les venía bien';
   @override
   String get proposalDeclined => 'Propuesta rechazada';

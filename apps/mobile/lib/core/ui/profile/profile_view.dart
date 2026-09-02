@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:match_point/core/theme/app_theme.dart';
 
 import '../../utils/landscape_crop.dart';
+import '../../utils/app_sports.dart';
 import '../../utils/pace_format.dart';
 import '../../../features/discovery/models/level_verdict.dart';
 import '../../../features/discovery/models/skill_level.dart';
@@ -137,19 +138,33 @@ class ProfileView extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Sports
-                Text(sportsTitle, style: context.textStyles.titleMedium),
-                const SizedBox(height: 12),
-                _sportsWrap(context, data.sports),
-
-                const SizedBox(height: 24),
-
-                // Sin titulo encima: la rejilla ya trae escritos los dias
-                // (L M X J V S D) y las franjas (Mañana/Tarde/Noche), asi que
-                // "Cuándo suele tener libre" era repetir con palabras lo que
-                // el dibujo dice mejor.
-                if (data.availability.isNotEmpty) ...[
+                // El bloque "Deportes" **sólo existe si hay más de un
+                // deporte que distinguir**. En una app de tenis, una ficha
+                // que dedica un titular y un chip a decir "Tenis" no informa
+                // de nada: lo dicen ya el nombre de la app, su icono y todo
+                // lo demás de la pantalla. Y ocupaba el sitio de arriba del
+                // todo, que es el que se mira.
+                if (!isSingleSportApp) ...[
+                  Text(sportsTitle, style: context.textStyles.titleMedium),
+                  const SizedBox(height: 12),
+                  _sportsWrap(context, data.sports),
                   const SizedBox(height: 24),
+                ],
+
+                // La rejilla **sí** lleva titular, al revés que antes.
+                //
+                // Cuando encima estaba "Deportes", la rejilla venía detrás de
+                // un titular y se entendía como otro bloque de la ficha; sin
+                // él es lo primero que hay bajo el nombre, y una tabla de 21
+                // celdas sin nada que la presente se lee como un widget
+                // suelto. Los días y las franjas los trae escritos, cierto,
+                // pero eso dice *qué* es la tabla, no *de qué* habla.
+                if (data.availability.isNotEmpty) ...[
+                  Text(
+                    S.current.availability,
+                    style: context.textStyles.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
                   AvailabilityView(
                     value: data.availability,
                     highlight: data.sharedAvailability.isEmpty
@@ -202,18 +217,31 @@ class ProfileView extends StatelessWidget {
                     ),
                   if ((data.club ?? '').isNotEmpty)
                     _infoRow(context, Icons.groups_outlined, data.club!),
-                  if (data.avgPaceMinPerKm != null)
-                    _infoRow(
-                      context,
-                      Icons.speed,
-                      S.current.pacePerKm(formatPaceMinPerKm(data.avgPaceMinPerKm)),
-                    ),
-                  if (data.avgDistanceKm != null)
-                    _infoRow(
-                      context,
-                      Icons.route,
-                      S.current.averageKmLabel('${data.avgDistanceKm}'),
-                    ),
+                  // Ritmo por km y kilómetros de media son datos **de
+                  // correr**, y con running apagado no significan nada en una
+                  // ficha de tenis. Seguían saliendo en cuentas creadas
+                  // cuando el deporte se podía elegir, así que la ficha de un
+                  // tenista podía anunciar su ritmo de carrera.
+                  //
+                  // Se esconden en vez de borrarse, igual que el resto de
+                  // running: la columna sigue en la base de datos y volver a
+                  // encender el deporte tiene que seguir siendo una línea.
+                  if (_showsRunningFields) ...[
+                    if (data.avgPaceMinPerKm != null)
+                      _infoRow(
+                        context,
+                        Icons.speed,
+                        S.current.pacePerKm(
+                          formatPaceMinPerKm(data.avgPaceMinPerKm),
+                        ),
+                      ),
+                    if (data.avgDistanceKm != null)
+                      _infoRow(
+                        context,
+                        Icons.route,
+                        S.current.averageKmLabel('${data.avgDistanceKm}'),
+                      ),
+                  ],
                   for (final achievement in data.achievements)
                     _infoRow(context, Icons.emoji_events_outlined, achievement),
                 ],
@@ -349,11 +377,20 @@ class ProfileView extends StatelessWidget {
     );
   }
 
+  /// Si los campos de correr pintan algo en esta app. Ver [enabledSports].
+  bool get _showsRunningFields => enabledSports.contains(Sport.running);
+
+  /// Si el bloque "Experiencia" tiene algo dentro.
+  ///
+  /// Tiene que contar **lo que se va a pintar de verdad**, no lo que trae el
+  /// perfil: si el ritmo y los kilómetros contaran aquí estando escondidos,
+  /// un perfil que sólo tuviera esos dos datos abriría un titular
+  /// "Experiencia" y debajo no habría nada.
   bool get _hasExperience =>
       data.yearsPlaying != null ||
       (data.club ?? '').isNotEmpty ||
-      data.avgPaceMinPerKm != null ||
-      data.avgDistanceKm != null ||
+      (_showsRunningFields &&
+          (data.avgPaceMinPerKm != null || data.avgDistanceKm != null)) ||
       data.achievements.isNotEmpty;
 
   /// Lo que opinan los demás de su nivel.

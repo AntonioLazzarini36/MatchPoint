@@ -219,7 +219,11 @@ class _UpcomingScreenState extends State<UpcomingScreen> {
         if (needsAnswer.isNotEmpty)
           ..._section(context, S.current.awaitingYourAnswer, needsAnswer),
         if (confirmed.isNotEmpty)
-          ..._section(context, S.current.matchConfirmed, confirmed),
+          ..._section(
+            context,
+            S.current.confirmedMatches(confirmed.length),
+            confirmed,
+          ),
         if (waiting.isNotEmpty)
           ..._section(context, S.current.waitingForYourAnswer, waiting),
         if (_history.isNotEmpty) ..._historySection(context),
