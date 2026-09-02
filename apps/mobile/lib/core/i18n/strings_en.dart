@@ -1111,4 +1111,70 @@ class StringsEn extends Strings {
 
   @override
   String get openInMaps => 'Open in Maps';
+
+  @override
+  String levelAccurateMine(int n) => n == 1
+      ? '1 person confirms your level'
+      : '$n people confirm your level';
+  @override
+  String levelAccurateTheirs(int n) => n == 1
+      ? '1 person confirms their level'
+      : '$n people confirm their level';
+  @override
+  String levelHigherMine(int n) => n == 1
+      ? '1 person thinks you play better than you say'
+      : '$n people think you play better than you say';
+  @override
+  String levelHigherTheirs(int n) => n == 1
+      ? '1 person thinks they play better than they say'
+      : '$n people think they play better than they say';
+  @override
+  String levelLowerMine(int n) => n == 1
+      ? '1 person thinks your profile overstates your level'
+      : '$n people think your profile overstates your level';
+  @override
+  String levelLowerTheirs(int n) => n == 1
+      ? '1 person thinks their profile overstates their level'
+      : '$n people think their profile overstates their level';
+
+  @override
+  String weekRangeSameMonth(int fromDay, int toDay, String month) =>
+      '$fromDay-$toDay $month';
+  @override
+  String weekRangeAcrossMonths(
+    int fromDay,
+    String fromMonth,
+    int toDay,
+    String toMonth,
+  ) => '$fromDay $fromMonth - $toDay $toMonth';
+
+  @override
+  String get noPermissionForThis => 'You do not have permission to do this.';
+  @override
+  String get canSwapAvatarLater => 'You can swap it for a photo of yourself whenever you like, from your profile.';
+  @override
+  String get onePhoto => 'One photo';
+  @override
+  String get lessThanOneKm => 'less than 1 km';
+  @override
+  String get veryClose => 'Very close';
+  @override
+  String get pickTheExactSpot => 'Pick the exact spot';
+  @override
+  String get theseSlotsSuitBoth => 'These slots suit both of you.';
+  @override
+  String get nobodyNearbyYet => 'Nobody nearby for now';
+  @override
+  String get tennisCourtsGeneric => 'Tennis courts';
+  @override
+  String get allOverpassServersFailed => 'Every Overpass server failed';
+  @override
+  String get bioHint => 'I am really into tennis. I am looking for someone to play with often.';
+
+  @override
+  String theseSlotsSuitYouAnd(String name) =>
+      'These slots suit you and $name.';
+  @override
+  String kmAway(String km) => '$km km away';
+
 }

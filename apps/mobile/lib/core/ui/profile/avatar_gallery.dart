@@ -40,8 +40,7 @@ Future<String?> pickAvatar(BuildContext context) {
             Text(S.current.chooseAnAvatar, style: sheetContext.textStyles.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'Puedes cambiarlo por una foto tuya cuando quieras, desde tu '
-              'perfil.',
+              S.current.canSwapAvatarLater,
               style: sheetContext.textStyles.bodySmall?.copyWith(
                 color: sheetContext.colors.onSurfaceVariant,
               ),

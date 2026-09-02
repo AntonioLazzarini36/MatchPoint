@@ -1572,8 +1572,7 @@ class _BioSheetState extends State<_BioSheet> {
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
               hintText:
-                  'Soy una persona entusiasmada por el tenis. '
-                  'Busco a alguien para jugar a menudo.',
+                  S.current.bioHint,
               errorText: _error,
               alignLabelWithHint: true,
             ),

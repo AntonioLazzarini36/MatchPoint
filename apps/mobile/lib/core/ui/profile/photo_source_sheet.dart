@@ -57,7 +57,7 @@ Future<PhotoPick> pickPhotos(BuildContext context, {required int limit}) async {
             ),
             title: Text(S.current.chooseFromGallery),
             subtitle: Text(
-              limit == 1 ? 'Una foto' : S.current.youCanChooseUpTo(limit),
+              limit == 1 ? S.current.onePhoto : S.current.youCanChooseUpTo(limit),
               style: context.textStyles.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),

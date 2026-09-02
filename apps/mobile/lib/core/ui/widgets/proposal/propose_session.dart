@@ -353,9 +353,13 @@ class _SuggestionSheet extends StatelessWidget {
             Text(S.current.whenDoYouMeet, style: t.headlineSmall),
             const SizedBox(height: 6),
             Text(
-              otherName == null
-                  ? 'Estos huecos os vienen bien a los dos.'
-                  : 'Estos huecos os vienen bien a ti y a $otherName.',
+              // A una variable local a propósito: `otherName` es un campo
+              // público, y Dart no promociona esos, así que dentro del `else`
+              // seguiría siendo `String?`.
+              switch (otherName) {
+                final String name => S.current.theseSlotsSuitYouAnd(name),
+                null => S.current.theseSlotsSuitBoth,
+              },
               style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),

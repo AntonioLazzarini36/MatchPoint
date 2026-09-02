@@ -19,12 +19,16 @@ class MapPointPicker extends StatefulWidget {
   /// Donde abrir el mapa. Normalmente la ubicación del perfil, para no
   /// empezar en mitad del oceano.
   final LatLng initialCenter;
-  final String title;
+  /// Null = el titulo por defecto.
+  /// No puede tener `S.current` como valor por defecto: Dart
+  /// exige que sea constante, y el texto depende del idioma
+  /// elegido en tiempo de ejecucion.
+  final String? title;
 
   const MapPointPicker({
     super.key,
     required this.initialCenter,
-    this.title = 'Elige el punto exacto',
+    this.title,
   });
 
   @override
@@ -47,7 +51,7 @@ class _MapPointPickerState extends State<MapPointPicker> {
     final label = _labelCtrl.text.trim();
     Navigator.of(context).pop(
       LocationResult(
-        displayName: label.isEmpty ? 'Punto de encuentro' : label,
+        displayName: label.isEmpty ? S.current.meetingPoint : label,
         latitude: _center.latitude,
         longitude: _center.longitude,
       ),
@@ -57,7 +61,9 @@ class _MapPointPickerState extends State<MapPointPicker> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title ?? S.current.pickTheExactSpot),
+      ),
       body: Column(
         children: [
           Expanded(

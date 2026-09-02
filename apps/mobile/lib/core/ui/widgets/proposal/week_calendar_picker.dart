@@ -31,21 +31,13 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
   /// Tenía su propia copia de los días y los meses en castellano, así que
   /// esta pantalla se quedaba sin traducir aunque el resto de la app
   /// cambiara. Ahora salen de `S`, como todo lo demás.
+  ///
+  /// Los días se migraron y **los meses se quedaron atrás**, que es por lo que
+  /// con la app en inglés el rango seguía diciendo "31 agosto - 6 septiembre".
+  /// De ahí que ahora los dos salgan de la misma línea: una lista local es
+  /// exactamente lo que vuelve a quedarse sin traducir.
   static List<String> get _weekdaysShort => S.current.weekdayShort;
-  static const _months = [
-    'enero',
-    'febrero',
-    'marzo',
-    'abril',
-    'mayo',
-    'junio',
-    'julio',
-    'agosto',
-    'septiembre',
-    'octubre',
-    'noviembre',
-    'diciembre',
-  ];
+  static List<String> get _months => S.current.monthNames;
 
   late final DateTime _today;
   late final DateTime _currentWeekStart;
@@ -79,9 +71,17 @@ class _WeekCalendarPickerState extends State<WeekCalendarPicker> {
     final weekEnd = days.last;
     final sameMonth = _weekStart.month == weekEnd.month;
     final rangeLabel = sameMonth
-        ? '${_weekStart.day}-${weekEnd.day} de ${_months[_weekStart.month - 1]}'
-        : '${_weekStart.day} ${_months[_weekStart.month - 1]} - '
-              '${weekEnd.day} ${_months[weekEnd.month - 1]}';
+        ? S.current.weekRangeSameMonth(
+            _weekStart.day,
+            weekEnd.day,
+            _months[_weekStart.month - 1],
+          )
+        : S.current.weekRangeAcrossMonths(
+            _weekStart.day,
+            _months[_weekStart.month - 1],
+            weekEnd.day,
+            _months[weekEnd.month - 1],
+          );
 
     return SafeArea(
       child: Padding(

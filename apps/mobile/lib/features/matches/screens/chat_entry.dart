@@ -79,7 +79,7 @@ class _ChatEntryState extends State<ChatEntry> {
           matchId: match.matchId,
           myUserId: match.me.userId,
           otherUserId: match.otherUser.userId,
-          otherName: match.otherUser.profile?.displayName ?? 'Sin nombre',
+          otherName: match.otherUser.profile?.displayName ?? S.current.noName,
           otherPhotoUrl: photos.isNotEmpty ? photos.first : null,
           sport: match.sport,
         );

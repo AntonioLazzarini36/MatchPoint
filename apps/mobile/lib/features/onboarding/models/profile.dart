@@ -3,6 +3,7 @@ import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/onboarding/models/intention.dart';
 import 'package:match_point/features/discovery/models/skill_level.dart';
 import 'package:match_point/features/discovery/models/sport.dart';
+import 'package:match_point/core/utils/display_name.dart';
 
 class Profile {
   final String id;
@@ -90,7 +91,7 @@ class Profile {
   factory Profile.fromJson(Map<String, dynamic> json) {
     return Profile(
       id: (json['id'] ?? '').toString(),
-      displayName: (json['displayName'] ?? '').toString(),
+      displayName: formatDisplayName((json['displayName'] ?? '').toString()),
       birthDate: json['birthDate'] == null
           ? null
           : DateTime.tryParse(json['birthDate'].toString()),

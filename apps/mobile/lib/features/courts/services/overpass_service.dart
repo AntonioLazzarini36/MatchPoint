@@ -272,7 +272,7 @@ class OverpassService {
       }
     }
 
-    throw Exception('Todos los servidores de Overpass fallaron: $lastError');
+    throw Exception('${S.current.allOverpassServersFailed}: $lastError');
   }
 
   List<_Element> _parse(String body) {
@@ -430,7 +430,9 @@ class OverpassService {
   }
 
   String _fallbackName(String? street) =>
-      street == null ? 'Pistas de tenis' : S.current.tennisCourtsAt(street);
+      street == null
+          ? S.current.tennisCourtsGeneric
+          : S.current.tennisCourtsAt(street);
 
   _Element? _nearestFacility(
     List<_Element> facilities,

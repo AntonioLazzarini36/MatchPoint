@@ -1,3 +1,5 @@
+import 'package:match_point/core/i18n/app_locale.dart';
+
 /// Qué opina de tu nivel la gente que ha jugado contigo.
 ///
 /// Tres respuestas y no más: el nivel que dices está bien, te quedas corto, o
@@ -17,18 +19,20 @@ extension LevelVerdictApi on LevelVerdict {
   ///
   /// Se habla de personas y no de porcentajes ("3 de 5 creen…"): con estas
   /// cifras un porcentaje suena a estadística y es un puñado de partidos.
-  String label(int votes, {required bool mine}) {
-    final gente = votes == 1 ? '1 persona' : '$votes personas';
-    return switch (this) {
-      LevelVerdict.accurate => mine
-          ? '$gente confirman tu nivel'
-          : '$gente confirman su nivel',
-      LevelVerdict.higher => mine
-          ? '$gente creen que juegas mejor de lo que pones'
-          : '$gente creen que juega mejor de lo que pone',
-      LevelVerdict.lower => mine
-          ? '$gente creen que te sobra nivel en tu perfil'
-          : '$gente creen que le sobra nivel en su perfil',
-    };
-  }
+  ///
+  /// Las seis frases van enteras en cada idioma en vez de montarse aquí
+  /// pegando "3 personas" y el resto. En inglés el verbo concuerda con el
+  /// número —"1 person confirms" frente a "3 people confirm"— así que un
+  /// prefijo común no da una frase correcta.
+  String label(int votes, {required bool mine}) => switch (this) {
+    LevelVerdict.accurate => mine
+        ? S.current.levelAccurateMine(votes)
+        : S.current.levelAccurateTheirs(votes),
+    LevelVerdict.higher => mine
+        ? S.current.levelHigherMine(votes)
+        : S.current.levelHigherTheirs(votes),
+    LevelVerdict.lower => mine
+        ? S.current.levelLowerMine(votes)
+        : S.current.levelLowerTheirs(votes),
+  };
 }

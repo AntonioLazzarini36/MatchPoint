@@ -224,9 +224,10 @@ class _TimeWheelSheetState extends State<_TimeWheelSheet> {
               child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(_value),
                 child: Text(
-                  'Proponer a las '
-                  '${_value.hour.toString().padLeft(2, '0')}:'
-                  '${_value.minute.toString().padLeft(2, '0')}',
+                  S.current.proposeAt(
+                    '${_value.hour.toString().padLeft(2, '0')}:'
+                    '${_value.minute.toString().padLeft(2, '0')}',
+                  ),
                 ),
               ),
             ),

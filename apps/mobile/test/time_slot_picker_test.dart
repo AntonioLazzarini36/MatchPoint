@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:match_point/core/i18n/app_locale.dart';
 import 'package:match_point/core/ui/widgets/proposal/time_slot_picker.dart';
 
 /// El selector de hora dejó de ser una rejilla de 57 botones y pasó a ser dos
@@ -7,6 +8,11 @@ import 'package:match_point/core/ui/widgets/proposal/time_slot_picker.dart';
 /// esta app en concreto: que no se pueda quedar a las 9:38, y que se puedan
 /// proponer horas a las que de verdad hay pista.
 void main() {
+  // Las aserciones de aqui leen el texto del boton, asi que el idioma no
+  // puede depender del entorno: en ingles el boton dice "Propose at" y
+  // estas pruebas fallarian sin que nada este roto.
+  setUp(() => LocaleController.locale.value = AppLocale.es);
+
   Future<TimeOfDay?> open(WidgetTester tester, {TimeOfDay? initial}) async {
     TimeOfDay? result;
     await tester.pumpWidget(

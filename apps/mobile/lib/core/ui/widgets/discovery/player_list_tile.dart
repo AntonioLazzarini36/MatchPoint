@@ -261,7 +261,9 @@ class PlayerListTile extends StatelessWidget {
   String get _firstName => user.displayName.split(' ').first;
 
   static String _distanceLabel(double km) =>
-      km < 1 ? 'menos de 1 km' : '${km.toStringAsFixed(km < 10 ? 1 : 0)} km';
+      km < 1
+          ? S.current.lessThanOneKm
+          : '${km.toStringAsFixed(km < 10 ? 1 : 0)} km';
 
   /// Siempre el número, nunca la lista de franjas.
   ///

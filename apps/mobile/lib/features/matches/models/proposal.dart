@@ -97,7 +97,7 @@ class UpcomingSession {
       UpcomingSession(
         proposal: Proposal.fromJson(json),
         otherUserId: (json['otherUserId'] ?? '').toString(),
-        otherDisplayName: (json['otherDisplayName'] ?? 'Sin nombre').toString(),
+        otherDisplayName: (json['otherDisplayName'] ?? S.current.noName).toString(),
         otherPhoto: json['otherPhoto']?.toString(),
       );
 }
@@ -142,7 +142,7 @@ class PlayedSession {
   factory PlayedSession.fromJson(Map<String, dynamic> json) => PlayedSession(
     proposal: Proposal.fromJson(json),
     otherUserId: (json['otherUserId'] ?? '').toString(),
-    otherDisplayName: (json['otherDisplayName'] ?? 'Sin nombre').toString(),
+    otherDisplayName: (json['otherDisplayName'] ?? S.current.noName).toString(),
     otherPhoto: json['otherPhoto']?.toString(),
     played: json['played'] as bool?,
     outcome: json['outcome']?.toString(),

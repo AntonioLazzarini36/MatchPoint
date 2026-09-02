@@ -572,4 +572,63 @@ abstract class Strings {
   String get noClubsAround;
 
   String get openInMaps;
+
+  // --- Lo que opina la gente de tu nivel ---
+  //
+  // Seis frases y no una con piezas sueltas: en ingles el verbo concuerda con
+  // el numero ("1 person confirms" / "3 people confirm"), asi que pasar un
+  // "3 personas" ya montado y pegarle el resto detras no funciona. Cada
+  // idioma monta su frase entera.
+
+  /// "3 personas confirman tu nivel" — en tu propio perfil.
+  String levelAccurateMine(int votes);
+
+  /// "3 personas confirman su nivel" — en el perfil de otra persona.
+  String levelAccurateTheirs(int votes);
+
+  /// "3 personas creen que juegas mejor de lo que pones".
+  String levelHigherMine(int votes);
+
+  /// "3 personas creen que juega mejor de lo que pone".
+  String levelHigherTheirs(int votes);
+
+  /// "3 personas creen que te sobra nivel en tu perfil".
+  String levelLowerMine(int votes);
+
+  /// "3 personas creen que le sobra nivel en su perfil".
+  String levelLowerTheirs(int votes);
+
+  /// El rango de una semana en el selector de día: "1-7 de agosto".
+  ///
+  /// Dos métodos y no uno con un `if` dentro porque el castellano mete un
+  /// "de" que el inglés no tiene, y sólo en la forma corta.
+  String weekRangeSameMonth(int fromDay, int toDay, String month);
+
+  /// Cuando la semana cruza de mes: "31 agosto - 6 septiembre".
+  String weekRangeAcrossMonths(
+    int fromDay,
+    String fromMonth,
+    int toDay,
+    String toMonth,
+  );
+
+  String get noPermissionForThis;
+  String get canSwapAvatarLater;
+  String get onePhoto;
+  String get lessThanOneKm;
+  String get veryClose;
+  String get pickTheExactSpot;
+  String get theseSlotsSuitBoth;
+  String get nobodyNearbyYet;
+  String get tennisCourtsGeneric;
+  String get allOverpassServersFailed;
+  String get bioHint;
+
+  /// "Estos huecos os vienen bien a ti y a Antonio."
+  String theseSlotsSuitYouAnd(String name);
+
+
+  /// La distancia larga: "A 4 km" / "4 km away".
+  String kmAway(String km);
+
 }

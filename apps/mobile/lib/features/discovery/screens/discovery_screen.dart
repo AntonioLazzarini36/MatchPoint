@@ -356,7 +356,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               filtered
                   ? 'Nadie libre en esas franjas'
-                  : 'Por ahora no hay nadie cerca',
+                  : S.current.nobodyNearbyYet,
               textAlign: TextAlign.center,
               style: t.titleMedium?.copyWith(color: colors.onSurfaceVariant),
             ),

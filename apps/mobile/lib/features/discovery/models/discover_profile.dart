@@ -3,6 +3,7 @@ import 'package:match_point/features/onboarding/models/intention.dart';
 import 'level_verdict.dart';
 import 'skill_level.dart';
 import 'sport.dart';
+import 'package:match_point/core/utils/display_name.dart';
 
 class DiscoverProfile {
   final String userId;
@@ -110,7 +111,7 @@ class DiscoverProfile {
 
     return DiscoverProfile(
       userId: (json['userId'] ?? p['userId'] ?? p['id']).toString(),
-      displayName: (p['displayName'] ?? '').toString(),
+      displayName: formatDisplayName((p['displayName'] ?? '').toString()),
       age: p['age'] is int ? p['age'] as int : int.parse(p['age'].toString()),
       city: p['city']?.toString(),
       bio: p['bio']?.toString(),

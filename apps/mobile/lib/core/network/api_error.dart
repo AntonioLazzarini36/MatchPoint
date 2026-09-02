@@ -67,7 +67,7 @@ String _byStatus(int status) {
     return S.current.sessionExpired;
   }
   if (status == 403) {
-    return 'No tienes permiso para hacer esto.';
+    return S.current.noPermissionForThis;
   }
   if (status == 404) {
     return S.current.noLongerAvailable;
