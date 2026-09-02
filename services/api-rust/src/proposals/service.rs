@@ -57,6 +57,38 @@ fn bad(msg: &str) -> ProposalsError {
     ProposalsError::InvalidInput(msg.to_string())
 }
 
+/// Cuanto sigue una quedada contando como "proxima" despues de su hora.
+///
+/// **Este numero vive aqui y solo aqui.** Lo usan tres consultas que tienen
+/// que estar de acuerdo obligatoriamente:
+///
+/// - `list_upcoming` — lo que sale en la agenda.
+/// - `list_history` — lo que sale en Terminados. Si su frontera se separa de
+///   la de arriba, una quedada se cae entre las dos y durante el hueco no
+///   aparece en ninguna lista.
+/// - `notifications::counts` — el contador rojo. Si se separa, el badge dice
+///   un numero y la pantalla ensena otro; eso ya paso, y dejaba un "1" que no
+///   habia forma de quitar porque lo que lo bajaba no se veia por ningun
+///   lado.
+///
+/// Estaba escrito tres veces y las tres se desincronizaron. Con una sola
+/// definicion, cambiarlo es cambiarlo.
+///
+/// Dos horas: lo suficiente para que un partido no desaparezca de la agenda
+/// mientras se esta jugando --que es justo cuando alguien abre la app en el
+/// club para mirar el sitio-- y lo bastante poco para que la agenda no siga
+/// anunciando como proximo algo de esta manana.
+///
+/// Ojo: **no** gobierna cuando se pregunta "que tal fue"
+/// (`list_awaiting_feedback`). Aquella espera contesta otra pregunta --"ha
+/// dado tiempo a jugar?"-- y tiene su propio margen.
+const UPCOMING_GRACE_HOURS: i64 = 2;
+
+/// La frontera entre "proxima" y "pasada". Ver [`UPCOMING_GRACE_HOURS`].
+pub fn upcoming_cutoff() -> DateTime<Utc> {
+    Utc::now() - Duration::hours(UPCOMING_GRACE_HOURS)
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalResponse {
@@ -461,23 +493,7 @@ pub async fn list_upcoming(
         .await
         .map_err(|e| ProposalsError::Pool(e.to_string()))?;
 
-    // A little grace so a session still shows while it's underway rather
-    // than vanishing the instant it starts.
-    // **Sin margen: la frontera es la hora del partido.**
-    //
-    // Antes se daban 3 h de cortesia, para que una quedada no desapareciera
-    // de la pantalla mientras aun se estaba jugando. El precio era que la
-    // agenda seguia anunciando como "proximo" algo que ya habia pasado, que
-    // es lo contrario de lo que una agenda tiene que hacer.
-    //
-    // `list_history` usa exactamente esta misma frontera, y tiene que
-    // seguir haciendolo: si las dos se separan, una quedada se cae entre
-    // las dos listas y no aparece en ninguna durante el hueco.
-    //
-    // Lo que **no** cambia es cuando se pregunta "que tal fue"
-    // (`list_awaiting_feedback`), que sigue esperando 3 h: preguntar por un
-    // partido mientras se esta jugando no tiene sentido.
-    let cutoff = Utc::now();
+    let cutoff = upcoming_cutoff();
 
     let rows = proposals::table
         .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
@@ -576,12 +592,7 @@ pub async fn list_history(
         .await
         .map_err(|e| ProposalsError::Pool(e.to_string()))?;
 
-    // El mismo margen que `list_upcoming`, para que una quedada no salga a la
-    // vez en las dos listas ni desaparezca de las dos durante unas horas.
-    // La misma frontera que `list_upcoming`, sin margen. Tienen que ser la
-    // misma: en cuanto pasa la hora, la quedada sale de la agenda y entra
-    // aqui, sin hueco entre medias en el que no estuviera en ninguna lista.
-    let cutoff = Utc::now();
+    let cutoff = upcoming_cutoff();
 
     let rows = proposals::table
         .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))

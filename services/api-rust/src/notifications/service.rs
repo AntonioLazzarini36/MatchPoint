@@ -54,21 +54,15 @@ pub async fn counts(
         .get_result(&mut conn)
         .await?;
 
-    // La misma frontera que usa `proposals::service::list_upcoming` —la hora
-    // del partido, sin margen— y por el motivo que está escrito unas líneas
-    // más abajo para el otro contador: **si los dos criterios se separan, el
-    // badge dice un número y la pantalla enseña otro.**
-    //
-    // Eso es justo lo que pasaba aquí. Este contador no filtraba por fecha,
-    // así que una propuesta pendiente cuya hora ya pasó lo seguía sumando,
-    // mientras que la pantalla —que sólo pide lo que está por venir— no la
-    // recibía nunca. El resultado era un "1" rojo en Partidos sin nada dentro
-    // que tocar, y sin forma de quitarlo: la única manera de bajar el
-    // contador es responder a la propuesta, y no había ninguna a la vista.
-    //
-    // Contar sólo lo que aún se puede contestar es además lo correcto: nadie
-    // va a aceptar un partido de ayer.
-    let upcoming_cutoff = Utc::now();
+    // La frontera la define `proposals::service`, y **tiene que salir de
+    // ahi**: este contador y la pantalla contestan la misma pregunta, y
+    // cuando cada uno la calculaba por su cuenta acabaron diciendo cosas
+    // distintas. Este contador no filtraba por fecha, asi que una propuesta
+    // pendiente cuya hora ya paso lo seguia sumando mientras la pantalla no
+    // la recibia nunca: un "1" rojo en Partidos sin nada dentro que tocar, y
+    // sin forma de quitarlo, porque lo unico que baja el contador es
+    // responder a una propuesta que no se veia por ningun lado.
+    let upcoming_cutoff = crate::proposals::service::upcoming_cutoff();
     let pending_proposals: i64 = proposals::table
         .inner_join(matches::table.on(matches::id.eq(proposals::match_id)))
         .filter(
