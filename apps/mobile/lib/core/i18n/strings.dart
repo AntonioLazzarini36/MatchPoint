@@ -639,4 +639,6 @@ abstract class Strings {
   String get couldNotOpenLink;
   String noEmailAppFound(String email);
   String get copy;
+
+  String get orPickAnAvatar;
 }

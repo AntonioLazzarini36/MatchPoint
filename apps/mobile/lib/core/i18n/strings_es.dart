@@ -637,11 +637,10 @@ class StringsEs extends Strings {
       'constante más que competitivo.';
 
   @override
-  String get chooseYourAvatar => 'Elige tu avatar';
+  String get chooseYourAvatar => 'Tu foto';
   @override
   String get avatarHint =>
-      'Si prefieres una foto tuya, puedes subirla más adelante desde tu '
-      'perfil.';
+      'Sube o haz una foto en la que se te vea a ti, o jugando al tenis.';
 
   @override
   String get chooseWhereYouPlayFirst =>
@@ -1201,4 +1200,7 @@ class StringsEs extends Strings {
   String noEmailAppFound(String email) => 'No hay ninguna app de correo configurada. Escríbenos a $email';
   @override
   String get copy => 'Copiar';
+
+  @override
+  String get orPickAnAvatar => 'O elige uno de estos dibujos y cámbialo cuando quieras desde tu perfil.';
 }

@@ -25,7 +25,11 @@ import 'package:match_point/core/ui/widgets/onboarding/onboarding_avatar_step.da
 import 'package:match_point/features/onboarding/models/gender.dart';
 import 'package:match_point/features/onboarding/models/availability.dart';
 import 'package:match_point/features/auth/screens/email_verification_screen.dart';
+import 'dart:typed_data';
+
 import 'package:match_point/core/ui/profile/avatar_gallery.dart';
+import 'package:match_point/core/ui/profile/photo_source_sheet.dart';
+import 'package:match_point/core/ui/profile/photo_crop_preview.dart';
 import '../../../core/network/connection_error.dart';
 import 'package:match_point/core/i18n/app_locale.dart';
 
@@ -99,6 +103,13 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
   /// trabajo se hace una sola vez, al crear el perfil de verdad.
   String? _avatarAsset;
 
+  /// La foto propia, ya recortada a 16:9 y lista para subir.
+  ///
+  /// Excluyente con [_avatarAsset]: al crear la cuenta se sube **una**
+  /// imagen, asi que elegir una cosa borra la otra en vez de dejar las dos
+  /// marcadas y tener que inventar cual gana.
+  Uint8List? _photoBytes;
+
   /// Con qué se queda quien salta el paso.
   ///
   /// Saltar **no puede** significar quedarse sin foto: `/discover` esconde los
@@ -161,6 +172,46 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     );
 
     if (picked != null) setState(() => birthDate = picked);
+  }
+
+  /// Cámara o galería para la foto propia, en el paso de la foto.
+  ///
+  /// Pasa por el mismo recorte y la misma vista previa que el resto de la app
+  /// (`showPhotoCropPreview`), y no por un camino corto: es lo que garantiza
+  /// que lo que se sube aquí esté en 16:9 como todo lo demás, y que quien la
+  /// elige vea el encuadre **antes** de que se suba.
+  ///
+  /// `limit: 1` porque al crear la cuenta sólo se sube una imagen. Las demás
+  /// se añaden luego desde el perfil, donde ya hay motivo para hacerlo.
+  Future<void> _pickOwnPhoto() async {
+    final pick = await pickPhotos(context, limit: 1);
+    if (!mounted || pick.isEmpty) return;
+
+    // La hoja también ofrece los avatares. Si sale por ahí no hay nada que
+    // recortar: es uno de los dibujos que ya están en la rejilla de abajo, y
+    // se marca como si se hubiera tocado allí.
+    final asset = pick.avatarAsset;
+    if (asset != null) {
+      setState(() {
+        _avatarAsset = asset;
+        _photoBytes = null;
+      });
+      return;
+    }
+
+    final originals = <Uint8List>[];
+    for (final file in pick.files) {
+      originals.add(await file.readAsBytes());
+    }
+    if (!mounted) return;
+
+    final cropped = await showPhotoCropPreview(context, originals: originals);
+    if (!mounted || cropped == null || cropped.isEmpty) return;
+
+    setState(() {
+      _photoBytes = cropped.first;
+      _avatarAsset = null;
+    });
   }
 
   static const _maxDisplayNameLength = 30;
@@ -276,7 +327,13 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
       // el de reserva si se saltó el paso, para que nadie acabe sin foto y
       // por tanto invisible en Descubrir. Se convierte a bytes aquí y no al
       // elegirlo: cambiar de avatar en la rejilla no debe costar un recorte.
-      final bytes = await loadAvatarBytes(_avatarAsset ?? _fallbackAvatar);
+      // La foto propia manda; si no hay, el avatar elegido; si tampoco, el
+      // de reserva, para que nadie acabe sin foto y por tanto invisible en
+      // Descubrir. Las dos salidas acaban en los mismos bytes PNG 16:9,
+      // asi que la subida es la misma.
+      final bytes =
+          _photoBytes ??
+          await loadAvatarBytes(_avatarAsset ?? _fallbackAvatar);
       await controller.service.uploadPhoto(
         bytes: bytes,
         filename: '${DateTime.now().microsecondsSinceEpoch}.png',
@@ -430,7 +487,13 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               ),
               OnboardingAvatarStep(
                 selectedAsset: _avatarAsset,
-                onSelect: (asset) => setState(() => _avatarAsset = asset),
+                onSelect: (asset) => setState(() {
+                  _avatarAsset = asset;
+                  _photoBytes = null;
+                }),
+                photoBytes: _photoBytes,
+                onPickPhoto: _pickOwnPhoto,
+                onClearPhoto: () => setState(() => _photoBytes = null),
               ),
             ],
           ),
